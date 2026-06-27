@@ -1,0 +1,55 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+      - "codex/**"
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kernel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: kernel/go.mod
+          cache-dependency-path: kernel/go.sum
+
+      - name: Test local unlock extras
+        run: go test ./model -run 'Test(EnsureLocalUnlockUser|LocalInbox)' -count=1 -vet=off
+
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extra
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            extra/requirements.txt
+            extra/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run sidecar tests
+        run: pytest -q
