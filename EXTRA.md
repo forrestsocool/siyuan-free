@@ -7,6 +7,17 @@ This fork keeps the built-in S3/WebDAV/Local sync implementation available for s
 - `siyuan`: patched SiYuan kernel and frontend.
 - `siyuan-extra`: optional MVP helper for local inbox intake, asset image-bed upload, and webhook reminders.
 
+## NAS Compose
+
+If you already run `apkdv/siyuan-unlock` with workspace data at `/share/Container/siyuan/workspace`, use `docker-compose.nas.yml`. It keeps the same host workspace mount, so existing notebooks and assets continue to live in the same directory.
+
+```bash
+docker compose -f docker-compose.nas.yml pull
+docker compose -f docker-compose.nas.yml up -d
+```
+
+The main image is `ghcr.io/forrestsocool/siyuan-free:codex-unlock-extra-services`; the optional helper image is `ghcr.io/forrestsocool/siyuan-extra:codex-unlock-extra-services`.
+
 ## Required SiYuan API Token
 
 Set a SiYuan API token in `Settings - About`, then pass it to the sidecar as `SIYUAN_TOKEN`. The sidecar uses `Authorization: Token ...`.
