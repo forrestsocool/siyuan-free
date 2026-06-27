@@ -10,7 +10,6 @@ import {syncGuide} from "../sync/syncGuide";
 import {workspaceMenu} from "../menus/workspace";
 import {MenuItem} from "../menus/Menu";
 import {setMode} from "../util/assets";
-import {openSetting} from "../config";
 import {openSearch} from "../search/spread";
 import {App} from "../index";
 /// #if !BROWSER
@@ -172,10 +171,6 @@ export const initBar = (app: App) => {
                 event.stopPropagation();
                 break;
             } else if (targetId === "toolbarVIP") {
-                if (!window.siyuan.config.readonly) {
-                    const dialogSetting = openSetting(app);
-                    dialogSetting.element.querySelector('.b3-tab-bar [data-name="account"]').dispatchEvent(new CustomEvent("click"));
-                }
                 event.stopPropagation();
                 break;
             } else if (targetId === "barSearch") {

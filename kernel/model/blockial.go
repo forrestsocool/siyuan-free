@@ -36,13 +36,6 @@ import (
 )
 
 func SetBlockReminder(id string, timed string) (err error) {
-	if !IsSubscriber() {
-		if "ios" == util.Container {
-			return errors.New(Conf.Language(122))
-		}
-		return errors.New(Conf.Language(29))
-	}
-
 	var timedMills int64
 	if "0" != timed {
 		t, e := dateparse.ParseIn(timed, time.Now().Location())
@@ -71,10 +64,6 @@ func SetBlockReminder(id string, timed string) (err error) {
 	content := sql.NodeStaticContent(node, nil, false, false, false)
 	content = gulu.Str.SubStr(content, 128)
 	content = strings.ReplaceAll(content, editor.Zwsp, "")
-	err = SetCloudBlockReminder(id, content, timedMills)
-	if err != nil {
-		return
-	}
 
 	attrName := "custom-reminder-wechat"
 	if "0" == timed {

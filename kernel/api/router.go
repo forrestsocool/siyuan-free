@@ -299,6 +299,7 @@ func ServeAPI(ginServer *gin.Engine) {
 
 	ginServer.Handle("POST", "/api/inbox/getShorthands", model.CheckAuth, model.CheckAdminRole, getShorthands)
 	ginServer.Handle("POST", "/api/inbox/getShorthand", model.CheckAuth, model.CheckAdminRole, getShorthand)
+	ginServer.Handle("POST", "/api/inbox/addShorthand", model.CheckAuth, model.CheckAdminRole, model.CheckReadonly, addShorthand)
 	ginServer.Handle("POST", "/api/inbox/removeShorthands", model.CheckAuth, model.CheckAdminRole, model.CheckReadonly, removeShorthands)
 
 	ginServer.Handle("POST", "/api/extension/copy", model.CheckAuth, model.CheckAdminRole, model.CheckReadonly, extensionCopy)

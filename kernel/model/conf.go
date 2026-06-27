@@ -615,6 +615,7 @@ func InitConf() {
 		writeCookieKey(Conf.CookieKey)
 	}
 
+	EnsureLocalUnlockUser()
 	Conf.Save()
 	logging.SetLogLevel(Conf.LogLevel)
 

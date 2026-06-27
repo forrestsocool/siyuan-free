@@ -40,12 +40,44 @@ func removeShorthands(c *gin.Context) {
 		ids = append(ids, id.(string))
 	}
 
-	err := model.RemoveCloudShorthands(ids)
+	err := model.RemoveLocalShorthands(ids)
 	if err != nil {
 		ret.Code = 1
 		ret.Msg = err.Error()
 		return
 	}
+}
+
+func addShorthand(c *gin.Context) {
+	ret := gulu.Ret.NewResult()
+	defer c.JSON(http.StatusOK, ret)
+
+	arg, ok := util.JsonArg(c, ret)
+	if !ok {
+		return
+	}
+
+	var title, md, url string
+	if v, ok := arg["title"].(string); ok {
+		title = v
+	}
+	if v, ok := arg["md"].(string); ok {
+		md = v
+	}
+	if v, ok := arg["content"].(string); ok && "" == md {
+		md = v
+	}
+	if v, ok := arg["url"].(string); ok {
+		url = v
+	}
+
+	data, err := model.AddLocalShorthand(title, md, url)
+	if err != nil {
+		ret.Code = 1
+		ret.Msg = err.Error()
+		return
+	}
+	ret.Data = data
 }
 
 func getShorthand(c *gin.Context) {
@@ -61,7 +93,7 @@ func getShorthand(c *gin.Context) {
 	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("id", &id, true, true)) {
 		return
 	}
-	data, err := model.GetCloudShorthand(id)
+	data, err := model.GetLocalShorthand(id)
 	if err != nil {
 		ret.Code = 1
 		ret.Msg = err.Error()
@@ -83,7 +115,7 @@ func getShorthands(c *gin.Context) {
 	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("page", &page, true, false)) {
 		return
 	}
-	data, err := model.GetCloudShorthands(int(page))
+	data, err := model.GetLocalShorthands(int(page))
 	if err != nil {
 		ret.Code = 1
 		ret.Msg = err.Error()

@@ -702,18 +702,7 @@ func getCloudUser(c *gin.Context) {
 		return
 	}
 
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	t := arg["token"]
-	var token string
-	if nil != t {
-		token = t.(string)
-	}
-	model.RefreshUser(token)
-	ret.Data = model.Conf.GetUser()
+	ret.Data = model.EnsureLocalUnlockUser()
 }
 
 func logoutCloudUser(c *gin.Context) {
