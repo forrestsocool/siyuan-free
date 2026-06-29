@@ -12,11 +12,12 @@ This fork keeps the built-in S3/WebDAV/Local sync implementation available for s
 If you already run `apkdv/siyuan-unlock` with workspace data at `/share/Container/siyuan/workspace`, use `docker-compose.nas.yml`. It keeps the same host workspace mount, so existing notebooks and assets continue to live in the same directory.
 
 ```bash
+cp .env.example .env
 docker compose -f docker-compose.nas.yml pull
 docker compose -f docker-compose.nas.yml up -d
 ```
 
-The main image is `ghcr.io/forrestsocool/siyuan-free:codex-unlock-extra-services`; the optional helper image is `ghcr.io/forrestsocool/siyuan-extra:codex-unlock-extra-services`.
+The default `.env` values target your existing NAS path `/share/Container/siyuan/workspace`, access auth code `siyuan1896`, and the GHCR images built from this branch. Fill `SIYUAN_TOKEN`, S3, and WeChat webhook values only when you want the sidecar features.
 
 ## Required SiYuan API Token
 

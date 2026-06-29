@@ -32,6 +32,7 @@ electron/dist
 # Log
 logs
 *.log*
+.env
 
 # NPM Package
 package-lock.json

@@ -2,44 +2,44 @@ version: "3.9"
 
 services:
   main:
-    image: ghcr.io/forrestsocool/siyuan-free:codex-unlock-extra-services
-    command: ["--workspace=/siyuan/workspace/", "--accessAuthCode=siyuan1896"]
+    image: ${SIYUAN_IMAGE}
+    command: ["--workspace=/siyuan/workspace/", "--accessAuthCode=${SIYUAN_ACCESS_AUTH_CODE}"]
     ports:
-      - "6806:6806"
+      - "${SIYUAN_PORT}:6806"
     volumes:
-      - /share/Container/siyuan/workspace:/siyuan/workspace
+      - ${SIYUAN_WORKSPACE}:/siyuan/workspace
     restart: unless-stopped
     environment:
-      TZ: "Asia/Shanghai"
-      PUID: "1000"
-      PGID: "100"
+      TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
 
   siyuan-extra:
-    image: ghcr.io/forrestsocool/siyuan-extra:codex-unlock-extra-services
+    image: ${SIYUAN_EXTRA_IMAGE}
     ports:
-      - "6810:6810"
+      - "${SIYUAN_EXTRA_PORT}:6810"
     volumes:
-      - /share/Container/siyuan/workspace:/siyuan/workspace:ro
+      - ${SIYUAN_WORKSPACE}:/siyuan/workspace:ro
       - siyuan-extra-data:/data
     restart: unless-stopped
     depends_on:
       - main
     environment:
-      SIYUAN_URL: "http://main:6806"
-      SIYUAN_TOKEN: "${SIYUAN_TOKEN:-}"
-      ASSETS_DIR: "/siyuan/workspace/data/assets"
-      S3_ENDPOINT_URL: "${S3_ENDPOINT_URL:-}"
-      S3_BUCKET: "${S3_BUCKET:-}"
-      S3_REGION: "${S3_REGION:-auto}"
-      S3_ACCESS_KEY_ID: "${S3_ACCESS_KEY_ID:-}"
-      S3_SECRET_ACCESS_KEY: "${S3_SECRET_ACCESS_KEY:-}"
-      S3_PREFIX: "${S3_PREFIX:-siyuan-assets}"
-      S3_FORCE_PATH_STYLE: "${S3_FORCE_PATH_STYLE:-true}"
-      ASSET_PUBLIC_BASE: "${ASSET_PUBLIC_BASE:-}"
-      WECHAT_WEBHOOK_URL: "${WECHAT_WEBHOOK_URL:-}"
-      WECHAT_WEBHOOK_TYPE: "${WECHAT_WEBHOOK_TYPE:-work_wechat}"
-      REMINDER_INTERVAL_SECONDS: "${REMINDER_INTERVAL_SECONDS:-60}"
-      ASSET_SCAN_INTERVAL_SECONDS: "${ASSET_SCAN_INTERVAL_SECONDS:-300}"
+      SIYUAN_URL: http://main:6806
+      SIYUAN_TOKEN: ${SIYUAN_TOKEN}
+      ASSETS_DIR: /siyuan/workspace/data/assets
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      S3_PREFIX: ${S3_PREFIX}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
+      ASSET_PUBLIC_BASE: ${ASSET_PUBLIC_BASE}
+      WECHAT_WEBHOOK_URL: ${WECHAT_WEBHOOK_URL}
+      WECHAT_WEBHOOK_TYPE: ${WECHAT_WEBHOOK_TYPE}
+      REMINDER_INTERVAL_SECONDS: ${REMINDER_INTERVAL_SECONDS}
+      ASSET_SCAN_INTERVAL_SECONDS: ${ASSET_SCAN_INTERVAL_SECONDS}
 
 volumes:
   siyuan-extra-data:
