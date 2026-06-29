@@ -17,7 +17,7 @@ docker compose -f docker-compose.nas.yml pull
 docker compose -f docker-compose.nas.yml up -d
 ```
 
-The default `.env` values target your existing NAS path `/share/Container/siyuan/workspace`, access auth code `siyuan1896`, and the GHCR images built from this branch. Fill `SIYUAN_TOKEN`, S3, and WeChat webhook values only when you want the sidecar features.
+The compose file keeps your existing NAS path `/share/Container/siyuan/workspace`, access auth code `siyuan1896`, ports, and GHCR images inline. `.env` only contains values that need your private input: `SIYUAN_TOKEN`, S3 credentials, and WeChat webhook.
 
 ## Required SiYuan API Token
 
