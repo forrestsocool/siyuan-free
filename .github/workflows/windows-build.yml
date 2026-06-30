@@ -3,9 +3,13 @@ name: Build Windows Installer
 on:
   workflow_dispatch:
   push:
+    branches:
+      - master
     tags:
       - "v*"
       - "*-dev*"
+    paths:
+      - ".github/workflows/windows-build.yml"
 
 permissions:
   contents: write
