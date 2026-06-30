@@ -1,0 +1,116 @@
+name: Build Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+      - "*-dev*"
+
+permissions:
+  contents: write
+
+env:
+  ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-lua
+            p7zip
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: kernel/go.mod
+          cache-dependency-path: kernel/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        working-directory: app
+        shell: pwsh
+        run: |
+          $packageManager = node -p "require('./package.json').packageManager"
+          npm install -g $packageManager
+          pnpm --version
+
+      - name: Install Node dependencies
+        working-directory: app
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build UI
+        working-directory: app
+        run: pnpm run build
+
+      - name: Prepare Windows kernel directory
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force app\build, app\kernel -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force app\kernel | Out-Null
+
+      - name: Install goversioninfo
+        working-directory: kernel
+        shell: pwsh
+        run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+
+      - name: Generate Windows version resource
+        working-directory: kernel
+        shell: pwsh
+        run: |
+          $goversioninfo = Join-Path (go env GOPATH) "bin\goversioninfo.exe"
+          & $goversioninfo -platform-specific=true -icon="resource\icon.ico" -manifest="resource\goversioninfo.exe.manifest"
+
+      - name: Build Windows kernel
+        working-directory: kernel
+        shell: pwsh
+        env:
+          CGO_ENABLED: "1"
+          GOOS: windows
+          GOARCH: amd64
+          CC: gcc
+        run: |
+          go build -tags fts5 `
+            -o "..\app\kernel\SiYuan-Kernel.exe" `
+            -v `
+            -ldflags "-s -w -H=windowsgui -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"
+
+      - name: Build Windows installer
+        working-directory: app
+        run: pnpm exec electron-builder --config electron-builder.yml --publish=never
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: siyuan-windows-installer
+          if-no-files-found: error
+          path: |
+            app/build/*.exe
+            app/build/*.blockmap
+
+      - name: Upload installer to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: |
+            app/build/*.exe
+            app/build/*.blockmap
