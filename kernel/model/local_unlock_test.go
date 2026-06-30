@@ -86,3 +86,20 @@ func TestEnsureLocalUnlockUserKeepsExistingPaidUser(t *testing.T) {
 		t.Fatalf("expected existing paid user to be preserved, got %#v", got)
 	}
 }
+
+func TestRefreshUserUsesLocalUnlockUser(t *testing.T) {
+	withTestConf(t)
+
+	RefreshUser("stale-cloud-token")
+
+	user := Conf.GetUser()
+	if nil == user {
+		t.Fatal("expected refresh to install local unlock user")
+	}
+	if user.UserToken != localUnlockUserToken {
+		t.Fatalf("expected local unlock token after refresh, got %q", user.UserToken)
+	}
+	if !IsSubscriber() {
+		t.Fatal("expected refreshed local unlock user to satisfy subscriber gate")
+	}
+}

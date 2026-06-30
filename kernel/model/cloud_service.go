@@ -328,71 +328,7 @@ func refreshAnnouncement() {
 }
 
 func RefreshUser(token string) {
-	threeDaysAfter := util.CurrentTimeMillis() + 1000*60*60*24*3
-	if "" == token {
-		user := Conf.GetUser()
-		if nil == user && "" != Conf.UserData {
-			user = loadUserFromConf()
-			if nil != user {
-				Conf.SetUser(user)
-			}
-		}
-		if nil == user {
-			return
-		}
-
-		var tokenExpireTime int64
-		tokenExpireTime, err := strconv.ParseInt(user.UserTokenExpireTime+"000", 10, 64)
-		if err != nil {
-			logging.LogErrorf("convert token expire time [%s] failed: %s", user.UserTokenExpireTime, err)
-			util.PushErrMsg(Conf.Language(19), 5000)
-			return
-		}
-
-		if threeDaysAfter > tokenExpireTime {
-			token = user.UserToken
-			goto Net
-		}
-		return
-	}
-
-Net:
-	start := time.Now()
-	user, err := getUser(token)
-	if err != nil {
-		if nil == Conf.GetUser() || errors.Is(err, errInvalidUser) {
-			util.PushErrMsg(Conf.Language(19), 5000)
-			return
-		}
-
-		if errors.Is(err, errRequestUserFailed) {
-			util.PushErrMsg(Conf.Language(18), 5000)
-			return
-		}
-
-		var tokenExpireTime int64
-		tokenExpireTime, err = strconv.ParseInt(Conf.GetUser().UserTokenExpireTime+"000", 10, 64)
-		if err != nil {
-			logging.LogErrorf("convert token expire time [%s] failed: %s", Conf.GetUser().UserTokenExpireTime, err)
-			util.PushErrMsg(Conf.Language(19), 5000)
-			return
-		}
-
-		if threeDaysAfter > tokenExpireTime {
-			util.PushErrMsg(Conf.Language(19), 5000)
-			return
-		}
-		return
-	}
-
-	Conf.SetUser(user)
-	data, _ := gulu.JSON.MarshalJSON(user)
-	Conf.UserData = util.AESEncrypt(string(data))
-	Conf.Save()
-
-	if elapsed := time.Since(start).Milliseconds(); 3000 < elapsed {
-		logging.LogInfof("get cloud user elapsed [%dms]", elapsed)
-	}
+	EnsureLocalUnlockUser()
 }
 
 func loadUserFromConf() *conf.User {
