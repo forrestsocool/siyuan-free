@@ -1,189 +1,229 @@
 /// #if MOBILE
-import {popMenu} from "../mobile/menu";
+import {openMobileSetting} from "../mobile/menu";
 /// #else
-import {editor} from "./editor";
-import {about} from "./about";
-import {appearance} from "./appearance";
-import {image} from "./image";
-import {initConfigSearch} from "./search";
-import {fileTree} from "./fileTree";
-import {exportConfig} from "./exportConfig";
-import {account} from "./account";
-import {repos} from "./repos";
-import {keymap} from "./keymap";
-import {bazaar} from "./bazaar";
-import {query} from "./query";
+import {initSettingSearch, switchSettingTab} from "./search/dialog";
+import {bindSettingSaveDelegation} from "./setting/save";
 import {Dialog} from "../dialog";
-import {ai} from "./ai";
-import {flashcard} from "./flashcard";
-import {publish} from "./publish";
-import {App} from "../index";
-import {isHuawei, isInHarmony} from "../protyle/util/compatibility";
 import {Constants} from "../constants";
-import {focusByRange} from "../protyle/util/selection";
+import {focusByRange} from "../protyle/util/selectionOffsets";
+import {initSettingDrag} from "./setting/drag";
+/// #endif
+import {unmountBazaarTab, withMountedBazaar} from "./bazaarTab";
+import {fetchSyncPost} from "../util/fetch";
+import {getFrontend} from "../util/functions";
+import {showMessage} from "../dialog/message";
+import {escapeHtml, escapeHtmlTextAndAttr} from "../util/escape";
+import {isBazaarAvailable} from "../util/bazaarAvailability";
+import {getSettingTabDefs} from "./setting/tabs";
+import {clearAccessTabElement} from "./tabs/accessRuntime";
+import {clearSyncTabElement} from "./tabs/syncRuntime";
+import {openChatGPTProvider} from "./tabs/ai/aiProviderUi";
+import type {TSettingTab} from "./setting/tabs";
+import type {App} from "../index";
+import {unmountAssetsTab} from "./assets";
+import {unmountOCRTab} from "./ocr";
+import {getHostCapabilities} from "../util/hostCapabilities";
+import {unmountWorkspaceStorage} from "./tabs/workspaceStorage";
+/// #if !MOBILE
+import {openNativeSettings} from "./setting/nativeWindow";
+import {closeSettingDialog, prepareSettingDialog} from "./setting/interface";
+import {isSettingsWindow} from "./setting/windowContext";
+import {fitSettingsWindowDialog} from "./setting/windowDialog";
 /// #endif
 
-export const genItemPanel = (type: string, containerElement: Element, app: App) => {
-    switch (type) {
-        case "filetree":
-            containerElement.innerHTML = fileTree.genHTML();
-            fileTree.element = containerElement;
-            fileTree.bindEvent();
-            break;
-        case "AI":
-            containerElement.innerHTML = ai.genHTML();
-            ai.element = containerElement;
-            ai.bindEvent();
-            break;
-        case "card":
-            containerElement.innerHTML = flashcard.genHTML();
-            flashcard.element = containerElement;
-            flashcard.bindEvent();
-            break;
-        case "image":
-            containerElement.innerHTML = image.genHTML();
-            image.element = containerElement;
-            image.bindEvent(app);
-            break;
-        case "export":
-            containerElement.innerHTML = exportConfig.genHTML();
-            exportConfig.element = containerElement;
-            exportConfig.bindEvent();
-            break;
-        case "appearance":
-            containerElement.innerHTML = appearance.genHTML();
-            appearance.element = containerElement;
-            appearance.bindEvent();
-            break;
-        case "keymap":
-            containerElement.innerHTML = keymap.genHTML(app);
-            keymap.element = containerElement;
-            keymap.bindEvent(app);
-            break;
-        case "bazaar":
-            bazaar.element = containerElement;
-            containerElement.innerHTML = bazaar.genHTML();
-            bazaar.bindEvent(app);
-            break;
-        case "account":
-            containerElement.innerHTML = account.genHTML();
-            account.element = containerElement;
-            account.bindEvent(account.element);
-            break;
-        case "repos":
-            containerElement.innerHTML = repos.genHTML();
-            repos.element = containerElement;
-            repos.bindEvent();
-            break;
-        case "about":
-            containerElement.innerHTML = about.genHTML();
-            about.element = containerElement;
-            about.bindEvent();
-            break;
-        case "search":
-            containerElement.innerHTML = query.genHTML();
-            query.element = containerElement;
-            query.bindEvent();
-            break;
-        case "publish":
-            containerElement.innerHTML = publish.genHTML();
-            publish.element = containerElement;
-            publish.bindEvent();
-            break;
-        default:
-            break;
+/// #if !MOBILE
+export const openSettingDialog = (app: App, initialTab: TSettingTab = "editor") => {
+    /// #if !BROWSER
+    if (!isSettingsWindow()) {
+        prepareSettingDialog();
     }
-};
-
-export const openSetting = (app: App) => {
-    /// #if MOBILE
-    popMenu();
-    /// #else
-    const exitDialog = window.siyuan.dialogs.find((item) => {
-        if (item.element.querySelector(".config__tab-container")) {
-            item.destroy();
-            return true;
-        }
-    });
-    if (exitDialog) {
-        return exitDialog;
-    }
+    /// #endif
+    closeSettingDialog();
     let range: Range;
     if (getSelection().rangeCount > 0) {
         range = getSelection().getRangeAt(0);
     }
+    const tabListItems: string[] = [];
+    const tabPanels: string[] = [];
+    for (const def of getSettingTabDefs()) {
+        const isActive = def.id === initialTab;
+        tabListItems.push(`<li data-name="${def.id}" title="${escapeHtmlTextAndAttr(def.title)}" tabindex="0" role="button" class="b3-list-item${isActive ? " b3-list-item--focus" : ""}${def.hidden ? " fn__none" : ""}"><svg class="b3-list-item__graphic"><use xlink:href="#${def.icon}"></use></svg><span class="b3-list-item__text">${def.title}</span></li>`);
+        tabPanels.push(`<div class="config__tab-container${isActive ? "" : " fn__none"}" data-name="${def.id}"></div>`);
+    }
+    const settingDialogRef: {element?: HTMLElement} = {};
     const dialog = new Dialog({
         content: `<div class="fn__flex-1 fn__flex config__panel" style="overflow: hidden;position: relative">
-  <ul class="b3-tab-bar b3-list b3-list--background">
-    <div class="config__tab-title resize__move">
-        <svg class="b3-list-item__graphic"><use xlink:href="#iconSettings"></use></svg>
-        <span class="b3-list-item__text">${window.siyuan.languages.config}</span>
+    <div class="config__side b3-list b3-list--background">
+        <div class="config__tab-head">
+            <div class="config__tab-title resize__move">
+                <svg class="b3-list-item__graphic"><use xlink:href="#iconSettings"></use></svg>
+                <span class="b3-list-item__text">${window.siyuan.languages.config}</span>
+            </div>
+            <input spellcheck="false" placeholder="${window.siyuan.languages.searchPlaceholder}" class="b3-text-field fn__block">
+        </div>
+        <ul class="config__tab-scroll" tabindex="-1">
+            ${tabListItems.join("")}
+        </ul>
     </div>
-    <div class="b3-form__icon"><svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg><input placeholder="${window.siyuan.languages.search}" class="b3-text-field fn__block b3-form__icon-input"></div>
-    <div class="config__tab-hr"></div>
-    <li data-name="editor" class="b3-list-item--focus b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconEdit"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.editor}</span></li>
-    <li data-name="filetree" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconFiles"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.fileTree}</span></li>
-    <li data-name="card" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconRiffCard"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.riffCard}</span></li>
-    <li data-name="AI" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconSparkles"></use></svg><span class="b3-list-item__text">AI</span></li>
-    <li data-name="image" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconImage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.assets}</span></li>
-    <li data-name="export" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconUpload"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.export}</span></li>
-    <li data-name="appearance" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconTheme"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.appearance}</span></li>
-    <li data-name="bazaar" class="b3-list-item${isHuawei() || isInHarmony() ? " fn__none" : ""}"><svg class="b3-list-item__graphic"><use xlink:href="#iconBazaar"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.bazaar}</span></li>
-    <li data-name="search" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconSearch"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.search}</span></li>
-    <li data-name="keymap" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconKeymap"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.keymap}</span></li>
-    <li data-name="account" class="fn__none b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconAccount"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.account}</span></li>
-    <li data-name="repos" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconCloud"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.cloud}</span></li>
-    <li data-name="publish" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconLanguage"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.publish}</span></li>
-    <li data-name="about" class="b3-list-item"><svg class="b3-list-item__graphic"><use xlink:href="#iconInfo"></use></svg><span class="b3-list-item__text">${window.siyuan.languages.about}</span></li>
-  </ul>
-  <div class="config__tab-wrap">
-      <div class="fn__hr--b resize__move"></div>
-      <div class="config__tab-container" data-name="editor">${editor.genHTML()}</div>
-      <div class="config__tab-container fn__none" data-name="filetree"></div>
-      <div class="config__tab-container fn__none" data-name="card"></div>
-      <div class="config__tab-container config__tab-container--top fn__none" data-name="AI"></div>
-      <div class="config__tab-container config__tab-container--top fn__none" data-name="image"></div>
-      <div class="config__tab-container fn__none" data-name="export"></div>
-      <div class="config__tab-container fn__none" data-name="appearance"></div>
-      <div class="config__tab-container config__tab-container--top fn__none" data-name="bazaar"></div>
-      <div class="config__tab-container fn__none" data-name="search"></div>
-      <div class="config__tab-container fn__none" style="overflow: scroll" data-name="keymap"></div>
-      <div class="config__tab-container config__tab-container--full fn__none" data-name="account"></div>
-      <div class="config__tab-container fn__none" data-name="repos"></div>
-      <div class="config__tab-container fn__none" data-name="publish"></div>
-      <div class="config__tab-container fn__none" data-name="about"></div>
-      <div class="fn__hr--b"></div>
-  </div>
+    <div class="config__tab-wrap">
+        ${tabPanels.join("")}
+    </div>
 </div>`,
-        width: "90vw",
+        width: "max(70vw, min(90vw, 900px))",
         height: "90vh",
         destroyCallback() {
+            disposeDrag?.();
+            const bazaarRoot = settingDialogRef.element?.querySelector('.config__tab-container[data-name="bazaar"]') as HTMLElement | null;
+            if (bazaarRoot) {
+                unmountBazaarTab(bazaarRoot);
+            }
+            const assetsRoot = settingDialogRef.element?.querySelector('.config__tab-container[data-name="assets"]');
+            if (assetsRoot) {
+                unmountAssetsTab(assetsRoot);
+            }
+            const ocrRoot = settingDialogRef.element?.querySelector<HTMLElement>('.config__tab-container[data-name="ocr"]');
+            if (ocrRoot) unmountOCRTab(ocrRoot);
+            clearSyncTabElement();
+            clearAccessTabElement();
+            const appRoot = settingDialogRef.element?.querySelector<HTMLElement>('.config__tab-container[data-name="app"]');
+            if (appRoot) {
+                unmountWorkspaceStorage(appRoot);
+            }
             if (range) {
                 focusByRange(range);
             }
+            if (isSettingsWindow()) {
+                window.close();
+            }
         },
     });
+    settingDialogRef.element = dialog.element;
+    const disposeDrag = isSettingsWindow() ? undefined : initSettingDrag(dialog.element);
     dialog.element.setAttribute("data-key", Constants.DIALOG_SETTING);
 
-    initConfigSearch(dialog.element, app);
+    const tabWrap = dialog.element.querySelector(".config__tab-wrap") as HTMLElement;
+    bindSettingSaveDelegation(tabWrap);
+    initSettingSearch(dialog.element, app);
     (dialog.element.querySelector(".b3-dialog__container") as HTMLElement).style.maxWidth = "1280px";
-    dialog.element.querySelectorAll(".b3-tab-bar .b3-list-item").forEach(item => {
+    dialog.element.querySelectorAll(".config__side .b3-list-item").forEach(item => {
+        // 兼容社区 JS 代码片段模拟点击，不做事件委托
         item.addEventListener("click", () => {
-            const type = item.getAttribute("data-name");
-            const containerElement = dialog.element.querySelector(`.config__tab-container[data-name="${type}"]`);
-            dialog.element.querySelectorAll(".config__tab-container").forEach((container) => {
-                container.classList.add("fn__none");
-            });
-            dialog.element.querySelector(".b3-tab-bar .b3-list-item.b3-list-item--focus").classList.remove("b3-list-item--focus");
-            item.classList.add("b3-list-item--focus");
-            containerElement.classList.remove("fn__none");
-            if (containerElement.innerHTML === "" || type === "repos" || type === "bazaar") {
-                genItemPanel(type, containerElement, app);
+            const tabId = item.getAttribute("data-name") as TSettingTab;
+            switchSettingTab(dialog.element, app, tabId);
+        });
+        item.addEventListener("keydown", (event: KeyboardEvent) => {
+            if (!event.isComposing && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                event.stopPropagation();
+                (item as HTMLElement).click();
             }
         });
     });
-    editor.element = dialog.element.querySelector('.config__tab-container[data-name="editor"]');
-    editor.bindEvent();
+    switchSettingTab(dialog.element, app, initialTab);
+    if (isSettingsWindow()) {
+        fitSettingsWindowDialog(dialog);
+    }
+    return dialog;
+};
+/// #endif
+
+export const openPluginSetting = (app: App) => {
+    /// #if MOBILE
+    openMobileSetting(app);
+    /// #else
+    return openSettingDialog(app);
+    /// #endif
+};
+
+export const openSetting = (app: App, tab?: TSettingTab, options?: {aiProvider?: "chatgpt"}) => {
+    const aiProvider = options?.aiProvider;
+    if (tab === "bazaar" && !isBazaarAvailable()) {
+        return;
+    }
+    if (tab === "export" && !getHostCapabilities().documentImportExport) {
+        return;
+    }
+    /// #if MOBILE
+    openMobileSetting(app, tab);
+    if (aiProvider === "chatgpt") { openChatGPTProvider(); }
+    /// #else
+    /// #if !BROWSER
+    // 是否在独立窗口中打开设置界面，仅桌面端 Electron 客户端生效
+    if (!isSettingsWindow() && window.siyuan.config.system.settingsWindow) {
+        closeSettingDialog();
+        void openNativeSettings(app, {tab, ...options});
+        return;
+    }
+    /// #endif
+    if (isSettingsWindow()) {
+        const dialog = window.siyuan.dialogs.find(item => item.element.getAttribute("data-key") === Constants.DIALOG_SETTING);
+        if (dialog) {
+            switchSettingTab(dialog.element, app, tab || "editor");
+            if (aiProvider === "chatgpt") { openChatGPTProvider(); }
+            return dialog;
+        }
+    }
+    const dialog = openSettingDialog(app, tab);
+    if (aiProvider === "chatgpt") { openChatGPTProvider(); }
     return dialog;
     /// #endif
+};
+
+
+export const openBazaarReadme = async (app: App, bazaarType: TBazaarType, itemName: string, from: "bazaar" | "downloaded") => {
+    if (!isBazaarAvailable()) {
+        return;
+    }
+    if (!window.siyuan.config.bazaar.trust) {
+        openSetting(app, "bazaar");
+        return;
+    }
+
+    const isDownloaded = from === "downloaded";
+    let getResourcesUrl: string;
+    switch (bazaarType) {
+        case "templates":
+            getResourcesUrl = isDownloaded ? "/api/bazaar/getInstalledTemplate" : "/api/bazaar/getBazaarTemplate";
+            break;
+        case "icons":
+            getResourcesUrl = isDownloaded ? "/api/bazaar/getInstalledIcon" : "/api/bazaar/getBazaarIcon";
+            break;
+        case "widgets":
+            getResourcesUrl = isDownloaded ? "/api/bazaar/getInstalledWidget" : "/api/bazaar/getBazaarWidget";
+            break;
+        case "themes":
+            getResourcesUrl = isDownloaded ? "/api/bazaar/getInstalledTheme" : "/api/bazaar/getBazaarTheme";
+            break;
+        case "plugins":
+            getResourcesUrl = isDownloaded ? "/api/bazaar/getInstalledPlugin" : "/api/bazaar/getBazaarPlugin";
+            break;
+        default:
+            return;
+    }
+
+    const response = await fetchSyncPost(getResourcesUrl, {
+        frontend: getFrontend(),
+        // 完整包名作 keyword 可缩小请求响应列表；最终仍按 name 精确匹配
+        keyword: itemName,
+    });
+    if (response.code !== 0) return;
+
+    const resource = (response.data.packages as IBazaarItem[]).find((item: IBazaarItem) => item.name === itemName);
+    if (!resource) {
+        showMessage(window.siyuan.languages.bazaarPackageNotFound.replace("${name}", escapeHtml(itemName)));
+        return;
+    }
+
+    /// #if !BROWSER && !MOBILE
+    if (!isSettingsWindow() && window.siyuan.config.system.settingsWindow) {
+        closeSettingDialog();
+        await openNativeSettings(app, {tab: "bazaar", readme: {type: bazaarType, from, resource}});
+        return;
+    }
+    /// #endif
+    openSetting(app, "bazaar");
+    await withMountedBazaar(({bazaar, renderReadme}) => {
+        bazaar.switchBazaarTab(app, bazaarType, from);
+        renderReadme(bazaarType, from, resource);
+    });
 };

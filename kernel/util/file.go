@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package util
 
@@ -21,12 +9,14 @@ import (
 	"io"
 	"io/fs"
 	"mime"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/88250/gulu"
@@ -35,6 +25,12 @@ import (
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
 )
+
+// IsOfficeTempFile 判断是否为 Office（Word/Excel/PowerPoint/WPS）打开文档时生成的临时文件。
+// 这些文件名以 `~$` 开头，且被宿主程序独占，尝试读取会触发 filelock 的致命错误，需跳过。
+func IsOfficeTempFile(assetAbsPath string) bool {
+	return strings.HasPrefix(filepath.Base(assetAbsPath), "~$")
+}
 
 func GetFilePathsByExts(dirPath string, exts []string) (ret []string) {
 	filelock.Walk(dirPath, func(path string, d fs.DirEntry, err error) error {
@@ -103,16 +99,25 @@ func GetMimeTypeByPath(filePath string) (m *mimetype.MIME, ok bool) {
 	return
 }
 
+// IsSymlinkPath 判断现有路径是否为符号链接或目录联接。
 func IsSymlinkPath(absPath string) bool {
 	fi, err := os.Lstat(absPath)
 	if err != nil {
 		return false
 	}
-	return 0 != fi.Mode()&os.ModeSymlink
+	return isLinkFileInfo(fi)
 }
 
+// IsSystemMetadataFile 判断是否为操作系统自动生成的元数据文件（如 macOS 的 .DS_Store），
+// 这类文件不属于业务数据，判空与清理时应忽略
+func IsSystemMetadataFile(name string) bool {
+	return name == ".DS_Store"
+}
+
+// IsEmptyDir 判断目录是否为空，忽略系统元数据文件（如 .DS_Store）
 func IsEmptyDir(p string) bool {
-	if !gulu.File.IsDir(p) {
+	info, err := os.Lstat(p)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return false
 	}
 
@@ -120,11 +125,59 @@ func IsEmptyDir(p string) bool {
 	if err != nil {
 		return false
 	}
-	return 1 > len(files)
+	for _, file := range files {
+		if !file.Type().IsRegular() || !IsSystemMetadataFile(file.Name()) {
+			return false
+		}
+	}
+	return true
 }
 
+// RemoveEmptyDir 删除仅含系统元数据文件（如 .DS_Store）的目录；若目录仍含业务文件则保留不动
+func RemoveEmptyDir(p string) (err error) {
+	info, err := os.Lstat(p)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return nil
+	}
+	entries, err := os.ReadDir(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return
+	}
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() || !IsSystemMetadataFile(entry.Name()) {
+			return nil
+		}
+	}
+	for _, entry := range entries {
+		if err = os.Remove(filepath.Join(p, entry.Name())); err != nil && !os.IsNotExist(err) {
+			return
+		}
+	}
+	if err = os.Remove(p); os.IsNotExist(err) {
+		return nil
+	}
+	return
+}
+
+// IsSymlink 判断目录条目是否为符号链接或目录联接。
 func IsSymlink(dir fs.DirEntry) bool {
-	return dir.Type() == fs.ModeSymlink
+	if dir.Type()&fs.ModeSymlink != 0 {
+		return true
+	}
+	if dir.Type()&fs.ModeIrregular == 0 {
+		return false
+	}
+	info, err := dir.Info()
+	return err == nil && isLinkFileInfo(info)
 }
 
 func IsDirRegularOrSymlink(dir fs.DirEntry) bool {
@@ -156,7 +209,7 @@ func RemoveID(name string) string {
 }
 
 var commonSuffixes = []string{
-	".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".tif", ".tiff",
+	".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".tif", ".tiff", ".heic", ".heif",
 	".txt", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".md", ".rtf",
 	".zip", ".rar", ".7z", ".tar", ".gz", ".bz2",
 	".mp3", ".wav", ".aac", ".flac", ".ogg", ".m4a",
@@ -210,6 +263,120 @@ func IsValidUploadFileName(name string) bool {
 	return name == FilterUploadFileName(name)
 }
 
+// IsValidExistingEmojiFileName 保留已有表情名中的合法替换字符，新上传文件仍按命名规则清洗。
+func IsValidExistingEmojiFileName(name string) bool {
+	return utf8.ValidString(name) && strings.ReplaceAll(name, "\ufffd", "_") == FilterUploadFileName(name)
+}
+
+// RenameEmojiFile 在源和目标文件锁内迁移表情，目标已存在时保留两者，不覆盖文件或合并目录。
+func RenameEmojiFile(oldPath, newPath string) error {
+	oldPath, newPath = filepath.Clean(oldPath), filepath.Clean(newPath)
+	if oldPath == newPath {
+		return nil
+	}
+	first, second := oldPath, newPath
+	if first > second {
+		first, second = second, first
+	}
+	filelock.Lock(first)
+	defer filelock.Unlock(first)
+	filelock.Lock(second)
+	defer filelock.Unlock(second)
+	if _, err := os.Lstat(newPath); err == nil {
+		return &os.LinkError{Op: "rename", Old: oldPath, New: newPath, Err: os.ErrExist}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.Rename(oldPath, newPath)
+}
+
+func IsNetworkIconURL(icon string) bool {
+	u, err := url.Parse(icon)
+	return nil == err && "" != u.Host && ("http" == strings.ToLower(u.Scheme) || "https" == strings.ToLower(u.Scheme))
+}
+
+func FilterIconValue(icon string) (ret string, valid bool) {
+	ret = strings.TrimSpace(icon)
+	if strings.HasPrefix(ret, "api/icon/") || IsNetworkIconURL(ret) {
+		return ret, true
+	}
+
+	u, err := url.Parse(ret)
+	if strings.HasPrefix(ret, "//") || (nil == err && "" != u.Scheme) {
+		return "", false
+	}
+	if strings.Contains(ret, ".") {
+		ret = FilterUploadEmojiFileName(ret)
+	}
+	if !strings.ContainsAny(ret, "./") && !IsValidIconUnicode(ret) {
+		return "", false
+	}
+	return ret, true
+}
+
+// IsValidIconUnicode 校验图标值是否为合法的十六进制码点序列（连字符分隔）：
+// 解码后不允许包含 HTML 元字符，防止图标值被渲染为可执行标记
+// https://github.com/siyuan-note/siyuan/security/advisories/GHSA-vx5w-qrvp-mmcq
+func IsValidIconUnicode(icon string) bool {
+	parts := strings.Split(icon, "-")
+	if 32 < len(parts) {
+		return false
+	}
+	isHexSequence := true
+	for _, part := range parts {
+		if "" == part || 6 < len(part) {
+			return false
+		}
+		if _, parseErr := strconv.ParseUint(part, 16, 32); nil != parseErr {
+			isHexSequence = false
+			break
+		}
+	}
+	if !isHexSequence {
+		// 不是十六进制码点序列，比如直接存储的 emoji 字符，保持原有行为
+		return true
+	}
+	for _, part := range parts {
+		n, _ := strconv.ParseUint(part, 16, 32)
+		if 0x10FFFF < n || (0xD800 <= n && 0xDFFF >= n) {
+			return false
+		}
+		r := rune(n)
+		if '<' == r || '>' == r || '"' == r || '\'' == r || '&' == r {
+			return false
+		}
+	}
+	return true
+}
+
+func FilterRecentIconValue(icon string) (ret string, valid bool) {
+	ret, valid = FilterIconValue(icon)
+	if !valid || !strings.HasPrefix(ret, "api/icon/getDynamicIcon") {
+		return
+	}
+
+	u, err := url.Parse(ret)
+	if nil != err {
+		return "", false
+	}
+	query := u.Query()
+	query.Del("id")
+	u.RawQuery = query.Encode()
+	return u.String(), true
+}
+
+func FilterRecentIconValues(icons []string) (ret []string) {
+	ret = make([]string, 0, len(icons))
+	seen := map[string]bool{}
+	for _, icon := range icons {
+		if icon, valid := FilterRecentIconValue(icon); valid && !seen[icon] {
+			ret = append(ret, icon)
+			seen[icon] = true
+		}
+	}
+	return
+}
+
 func FilterUploadEmojiFileName(name string) string {
 	if strings.HasPrefix(name, "api/icon/") {
 		// 忽略动态图标 https://github.com/siyuan-note/siyuan/issues/15139
@@ -246,6 +413,8 @@ func FilterUploadFileName(name string) string {
 	return ret
 }
 
+var pdfAnnoPngPattern = regexp.MustCompile(`-{0,1}P{0,1}[0-9]{0,4}-{0,1}[0-9]{1,3}-[0-9]{14}-[0-9a-zA-Z]{7}\.png$`)
+
 func TruncateLenFileName(name string) (ret string) {
 	// 插入资源文件时文件名长度最大限制 189 字节 https://github.com/siyuan-note/siyuan/issues/7099
 	ext := filepath.Ext(name)
@@ -259,9 +428,7 @@ func TruncateLenFileName(name string) (ret string) {
 		// PNG 图片可能是 PDF 标注的截图，包含页面和旋转角度（name--P1--270-id.png），所以允许的长度更短一些
 		// https://github.com/siyuan-note/siyuan/pull/16714#issuecomment-3737987302
 
-		pdfAnnoPngPattern := "-{0,1}P{0,1}[0-9]{0,4}-{0,1}[0-9]{1,3}-[0-9]{14}-[0-9a-zA-Z]{7}\\.png$"
-		regx := regexp.MustCompile(pdfAnnoPngPattern)
-		pdfAnnoPngPart = regx.FindString(name)
+		pdfAnnoPngPart = pdfAnnoPngPattern.FindString(name)
 		if "" != pdfAnnoPngPart {
 			maxLen -= len(pdfAnnoPngPart) + len(".png")
 			name = strings.TrimSuffix(name, pdfAnnoPngPart)
@@ -314,7 +481,17 @@ func FilterFileName(name string) string {
 	name = strings.ReplaceAll(name, "<", "_")
 	name = strings.ReplaceAll(name, ">", "_")
 	name = strings.ReplaceAll(name, "|", "_")
-	name = RemoveInvalid(name) // Remove invisible characters from file names when uploading assets https://github.com/siyuan-note/siyuan/issues/11683
+	// 文件名保留私用区字符，移除不可打印字符，并替换损坏编码。
+	name = gulu.Str.RemoveZeroWidthCharacters(strings.ReplaceAll(name, "\u00a0", " "))
+	name = strings.Map(func(r rune) rune {
+		if r == utf8.RuneError {
+			return '_'
+		}
+		if unicode.IsPrint(r) || unicode.Is(unicode.Co, r) {
+			return r
+		}
+		return -1
+	}, name)
 	name = strings.TrimSpace(name)
 	name = strings.TrimSuffix(name, ".")
 	return name
@@ -397,60 +574,4 @@ func CeilSize(size int64) int64 {
 
 func IsReservedFilename(baseName string) bool {
 	return "assets" == baseName || "templates" == baseName || "widgets" == baseName || "emojis" == baseName || ".siyuan" == baseName || strings.HasPrefix(baseName, ".")
-}
-
-func WalkWithSymlinks(root string, fn fs.WalkDirFunc) error {
-	// 感谢 https://github.com/edwardrf/symwalk/blob/main/symwalk.go
-
-	rr, err := filepath.EvalSymlinks(root) // Find real base if there is any symlinks in the path
-	if err != nil {
-		return err
-	}
-
-	visitedDirs := make(map[string]struct{})
-	return filelock.Walk(rr, getWalkFn(visitedDirs, fn))
-}
-
-func getWalkFn(visitedDirs map[string]struct{}, fn fs.WalkDirFunc) fs.WalkDirFunc {
-	return func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return fn(path, d, err)
-		}
-
-		if d.IsDir() {
-			if _, ok := visitedDirs[path]; ok {
-				return filepath.SkipDir
-			}
-			visitedDirs[path] = struct{}{}
-		}
-
-		if err := fn(path, d, err); err != nil {
-			return err
-		}
-
-		info, err := d.Info()
-		if nil != err {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink == 0 {
-			return nil
-		}
-
-		// path is a symlink
-		rp, err := filepath.EvalSymlinks(path)
-		if err != nil {
-			return err
-		}
-
-		ri, err := os.Stat(rp)
-		if err != nil {
-			return err
-		}
-
-		if ri.IsDir() {
-			return filelock.Walk(rp, getWalkFn(visitedDirs, fn))
-		}
-
-		return nil
-	}
 }

@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package av
 
@@ -23,19 +11,12 @@ import (
 // LayoutGallery 描述了卡片布局的结构。
 type LayoutGallery struct {
 	*BaseLayout
-
-	CoverFrom           CoverFrom       `json:"coverFrom"`                     // 封面来源，0：无，1：内容图，2：资源字段
-	CoverFromAssetKeyID string          `json:"coverFromAssetKeyID,omitempty"` // 资源字段 ID，CoverFrom 为 2 时有效
-	CardAspectRatio     CardAspectRatio `json:"cardAspectRatio"`               // 卡片宽高比
-	CardSize            CardSize        `json:"cardSize"`                      // 卡片大小，0：小卡片，1：中卡片，2：大卡片
-	FitImage            bool            `json:"fitImage"`                      // 是否适应封面图片大小
-	DisplayFieldName    bool            `json:"displayFieldName"`              // 是否显示字段名称
+	CardSettings
 
 	CardFields []*ViewGalleryCardField `json:"fields"` // 卡片字段
 
-	// TODO CardIDs 字段已经废弃，计划于 2026 年 6 月 30 日后删除 https://github.com/siyuan-note/siyuan/issues/15194
-	//Deprecated
-	CardIDs []string `json:"cardIds"` // 卡片 ID，用于自定义排序
+	// Deprecated: 仅用于读取和升级旧版布局，卡片顺序由 View.ItemIDs 维护。
+	CardIDs []string `json:"cardIds,omitempty"` // 卡片 ID，用于自定义排序
 }
 
 func NewLayoutGallery() *LayoutGallery {
@@ -45,9 +26,7 @@ func NewLayoutGallery() *LayoutGallery {
 			ID:       ast.NewNodeID(),
 			ShowIcon: true,
 		},
-		CoverFrom:       CoverFromContentImage,
-		CardAspectRatio: CardAspectRatio16_9,
-		CardSize:        CardSizeMedium,
+		CardSettings: NewCardSettings(),
 	}
 }
 
@@ -71,6 +50,43 @@ const (
 	CardSizeLarge                  // 大卡片
 )
 
+const (
+	CardWidthMin            = 140
+	CardWidthMax            = 600
+	CardAspectRatioValueMin = 0.25
+	CardAspectRatioValueMax = 2.5
+)
+
+func CardWidthBySize(size CardSize) int {
+	switch size {
+	case CardSizeSmall:
+		return 180
+	case CardSizeLarge:
+		return 320
+	default:
+		return 260
+	}
+}
+
+func CardAspectRatioValueByPreset(ratio CardAspectRatio) float64 {
+	switch ratio {
+	case CardAspectRatio9_16:
+		return 9.0 / 16.0
+	case CardAspectRatio4_3:
+		return 4.0 / 3.0
+	case CardAspectRatio3_4:
+		return 3.0 / 4.0
+	case CardAspectRatio3_2:
+		return 3.0 / 2.0
+	case CardAspectRatio2_3:
+		return 2.0 / 3.0
+	case CardAspectRatio1_1:
+		return 1
+	default:
+		return 16.0 / 9.0
+	}
+}
+
 // CoverFrom 描述了卡片封面来源的枚举类型。
 type CoverFrom int
 
@@ -84,35 +100,43 @@ const (
 // ViewGalleryCardField 描述了卡片字段的结构。
 type ViewGalleryCardField struct {
 	*BaseField
+	FullRow bool `json:"fullRow"` // 是否独占整行
 }
 
 // Gallery 描述了卡片视图实例的结构。
 type Gallery struct {
 	*BaseInstance
 
-	CoverFrom           CoverFrom       `json:"coverFrom"`                     // 封面来源
-	CoverFromAssetKeyID string          `json:"coverFromAssetKeyID,omitempty"` // 资源字段 ID，CoverFrom 为 CoverFromAssetField 时有效
-	CardAspectRatio     CardAspectRatio `json:"cardAspectRatio"`               // 卡片宽高比
-	CardSize            CardSize        `json:"cardSize"`                      // 卡片大小
-	FitImage            bool            `json:"fitImage"`                      // 是否适应封面图片大小
-	DisplayFieldName    bool            `json:"displayFieldName"`              // 是否显示字段名称
-	Fields              []*GalleryField `json:"fields"`                        // 卡片字段
-	Cards               []*GalleryCard  `json:"cards"`                         // 卡片
-	CardCount           int             `json:"cardCount"`                     // 总卡片数
+	CoverFrom            CoverFrom       `json:"coverFrom"`                     // 封面来源
+	CoverFromAssetKeyID  string          `json:"coverFromAssetKeyID,omitempty"` // 资源字段 ID，CoverFrom 为 CoverFromAssetField 时有效
+	CardAspectRatio      CardAspectRatio `json:"cardAspectRatio"`               // 卡片宽高比
+	CardAspectRatioValue float64         `json:"cardAspectRatioValue"`          // 卡片宽高比实际值，宽除以高
+	CardSize             CardSize        `json:"cardSize"`                      // 卡片大小
+	CardWidth            int             `json:"cardWidth"`                     // 卡片宽度，单位为像素
+	CardLayout           CardLayout      `json:"cardLayout"`                    // 卡片字段布局
+	FitImage             bool            `json:"fitImage"`                      // 是否适应封面图片大小
+	DisplayFieldName     bool            `json:"displayFieldName"`              // 是否显示字段名称
+	DisplayEmptyFields   bool            `json:"displayEmptyFields"`            // 是否显示空字段
+	Fields               []*GalleryField `json:"fields"`                        // 卡片字段
+	Cards                []*GalleryCard  `json:"cards"`                         // 卡片
+	CardCount            int             `json:"cardCount"`                     // 总卡片数
 }
 
 // GalleryCard 描述了卡片实例的结构。
 type GalleryCard struct {
-	ID     string               `json:"id"`     // 卡片 ID
-	Values []*GalleryFieldValue `json:"values"` // 卡片字段值
+	ConditionalColors *ItemConditionalColors `json:"conditionalColors,omitempty"`
+	ID                string                 `json:"id"`     // 卡片 ID
+	Values            []*GalleryFieldValue   `json:"values"` // 卡片字段值
 
-	CoverURL     string `json:"coverURL"`     // 卡片封面超链接
-	CoverContent string `json:"coverContent"` // 卡片封面文本内容
+	CoverURL      string             `json:"coverURL"`                // 卡片封面超链接
+	CoverContent  string             `json:"coverContent"`            // 卡片封面文本内容
+	CoverPosition *CardCoverPosition `json:"coverPosition,omitempty"` // 卡片封面位置
 }
 
 // GalleryField 描述了卡片实例字段的结构。
 type GalleryField struct {
 	*BaseInstanceField
+	FullRow bool `json:"fullRow"` // 是否独占整行
 }
 
 // GalleryFieldValue 描述了卡片字段实例值的结构。

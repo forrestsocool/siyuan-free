@@ -6,7 +6,7 @@
 		"id": "20201204184532-3qm9l8n",
 		"title": "Template snippet",
 		"type": "doc",
-		"updated": "20250828155251"
+		"updated": "20261024161058"
 	},
 	"Children": [
 		{
@@ -15,7 +15,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210428223009-x6fyksm",
-				"updated": "20210428223012"
+				"updated": "20261024161058"
 			},
 			"Children": [
 				{
@@ -33,12 +33,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210104091444-bu1zdhb",
-				"updated": "20210428232129"
+				"updated": "20261024161058"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "The template snippet is used to quickly insert the previously set text content at the cursor caret position, and it supports variables. Template snippets use "
+					"Data": "Template snippets insert reusable content at the cursor and support variables and calculations. Templates are stored as "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -47,7 +47,185 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " suffix files and are stored in the data/templates folder of the workspace."
+					"Data": " files in the workspace’s "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "data/templates/"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " folder."
+				}
+			]
+		},
+		{
+			"ID": "20261024161058-7td9kf1",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161058-7td9kf1",
+				"updated": "20261024161058"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Create a template"
+				}
+			],
+			"HeadingLevel": 2
+		},
+		{
+			"ID": "20261024161058-cs2bvgk",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161058-cs2bvgk",
+				"updated": "20261024161058"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Write the content you want to reuse in a document, then choose "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Export"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Template"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " from the document menu and select a name and location. To update it, edit and preview its source in template management, or edit the original document and export it again."
+				}
+			]
+		},
+		{
+			"ID": "20210104091444-4re70bp",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20210104091444-4re70bp",
+				"updated": "20250115153127"
+			},
+			"Children": [
+				{
+					"Type": "NodeHeadingC8hMarker",
+					"Data": "## "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "Invoke template"
+				}
+			]
+		},
+		{
+			"ID": "20210104091444-gfccosk",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20210104091444-gfccosk",
+				"updated": "20250115153127"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "At the cursor caret position, select the template via "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "/"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ to trigger the template search, find the template that needs to be inserted and press "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Enter"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​."
+				}
+			]
+		},
+		{
+			"ID": "20260922175505-i0dqml8",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20260922175505-i0dqml8",
+				"updated": "20260922175505"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Template management"
+				}
+			],
+			"HeadingLevel": 2
+		},
+		{
+			"ID": "20260922175505-khz1yar",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260922175505-khz1yar",
+				"updated": "20260922175505"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Use the More button beside a template or folder to rename, move or delete it. On desktop, right-click the entry to open the same menu. On mobile, the editor also provides a More button for the current template."
+				}
+			]
+		},
+		{
+			"ID": "20260922175505-jh595vg",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260922175505-jh595vg",
+				"updated": "20260922175505"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "On wide desktop windows, the source and preview appear side by side. On narrow windows and mobile devices, the preview appears below the source. The preview context selects the document whose information is used to run the template; previewing does not modify that document."
+				}
+			]
+		},
+		{
+			"ID": "20260922175505-13670ji",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260922175505-13670ji",
+				"updated": "20260922175505"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "For templates that retain the exported document ID, use Open template source document beside the preview button or in the entry menu to return to that document. The source must still be available in the current workspace. Opening it closes template management; after editing and exporting again, reopen template management to load the updated template."
+				}
+			]
+		},
+		{
+			"ID": "20260922175505-mbdsd8w",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260922175505-mbdsd8w",
+				"updated": "20260922175505"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "On mobile, returning from the editor shows the template list; returning again exits template management. Leaving unsaved edits requires confirmation. Cancelling keeps the current content."
 				}
 			]
 		},
@@ -57,7 +235,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210104091444-jy56z0p",
-				"updated": "20250828155251"
+				"updated": "20261024161058"
 			},
 			"Children": [
 				{
@@ -75,7 +253,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210104091444-ycq0a40",
-				"updated": "20210502205109"
+				"updated": "20261016202856"
 			},
 			"Children": [
 				{
@@ -90,7 +268,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": ". If you have an understanding of this, you can implement some program logic in it, such as comparison logic , Iterative logic, etc. In addition, to avoid syntax conflicts, template syntax uses "
+					"Data": ". If you have an understanding of this, you can implement some program logic in it, such as comparison logic, Iterative logic, etc. In addition, to avoid syntax conflicts, template syntax uses "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -127,7 +305,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": ".action{now | date \u0026quot;2006-01-02 15:04:05\u0026quot;}"
+					"TextMarkTextContent": ".action{now | date &quot;2006-01-02 15:04:05&quot;}"
 				},
 				{
 					"Type": "NodeText",
@@ -150,7 +328,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210104091444-i618qd8",
-				"updated": "20210428223421"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
@@ -178,7 +356,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "2006-01-02 15:04: 05"
+					"TextMarkTextContent": "2006-01-02 15:04:05"
 				},
 				{
 					"Type": "NodeText",
@@ -215,7 +393,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20210104091444-mwbvc9m",
-				"updated": "20250828155251"
+				"updated": "20261024161058"
 			},
 			"Children": [
 				{
@@ -310,7 +488,7 @@
 					},
 					"Properties": {
 						"id": "20211213121001-86hu9ws",
-						"updated": "20211213121001"
+						"updated": "20261024161058"
 					},
 					"Children": [
 						{
@@ -318,13 +496,9 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20211213121001-qg2k19v",
-								"updated": "20211213121022"
+								"updated": "20261024161058"
 							},
 							"Children": [
-								{
-									"Type": "NodeText",
-									"Data": "​"
-								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
@@ -332,7 +506,12 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​: Use this variable to insert the current document name"
+									"Data": ": Inserts the document block’s name attribute, which is separate from its "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "title"
 								}
 							]
 						}
@@ -467,7 +646,7 @@
 								},
 								{
 									"Type": "NodeCodeBlockCode",
-									"Data": ".action{ $today := now | date \"20060102150405\" }\n.action{ $blocks := queryBlocks \"SELECT * FROM blocks WHERE content LIKE '?' AND updated \u003e '?' LIMIT ?\" \"%foo%\" $today \"3\" }\n"
+									"Data": ".action{ $today := now | date \"20060102150405\" }\n.action{ $blocks := queryBlocks \"SELECT * FROM blocks WHERE content LIKE '?' AND updated > '?' LIMIT ?\" \"%foo%\" $today \"3\" }\n"
 								},
 								{
 									"Type": "NodeCodeBlockFenceCloseMarker",
@@ -1182,7 +1361,7 @@
 					},
 					"Properties": {
 						"id": "20240308162632-3ec0qtk",
-						"updated": "20240308162632"
+						"updated": "20261016111305"
 					},
 					"Children": [
 						{
@@ -1190,7 +1369,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20240308162632-akk8sxn",
-								"updated": "20250828155241"
+								"updated": "20261016111305"
 							},
 							"Children": [
 								{
@@ -1204,7 +1383,7 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​: This function returns the current week"
+									"Data": "​: Returns the ISO 8601 week number of the input date (1–53); for example, 2021-01-01 belongs to week 53"
 								}
 							]
 						}
@@ -1219,7 +1398,7 @@
 					},
 					"Properties": {
 						"id": "20250828155216-zn0i9zg",
-						"updated": "20250828155216"
+						"updated": "20261016111305"
 					},
 					"Children": [
 						{
@@ -1227,7 +1406,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20250828155216-p5tgk3f",
-								"updated": "20250828155232"
+								"updated": "20261016111305"
 							},
 							"Children": [
 								{
@@ -1241,7 +1420,12 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​: This function returns the current month"
+									"Data": "​: Returns the calendar month containing the Thursday of the input date’s ISO week; for example, 2021-01-01 returns 12. For the calendar month, use "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "date \"01\""
 								}
 							]
 						}
@@ -1256,7 +1440,7 @@
 					},
 					"Properties": {
 						"id": "20250828155242-k9x8rc7",
-						"updated": "20250828155242"
+						"updated": "20261016111305"
 					},
 					"Children": [
 						{
@@ -1264,7 +1448,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20250828155242-zwalrdw",
-								"updated": "20250828155246"
+								"updated": "20261016111305"
 							},
 							"Children": [
 								{
@@ -1278,7 +1462,12 @@
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​: This function returns the current year"
+									"Data": "​: Returns the ISO week-numbering year of the input date; for example, 2021-01-01 returns 2020. For the calendar year, use "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "date \"2006\""
 								}
 							]
 						}
@@ -1486,16 +1675,210 @@
 							]
 						}
 					]
+				},
+				{
+					"ID": "20260612205353-lyiyntd",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260612205353-lyiyntd",
+						"updated": "20260612205353"
+					},
+					"Children": [
+						{
+							"ID": "20260612205353-314p2hv",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260612205353-314p2hv",
+								"updated": "20260612205353"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "markdown2text"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ converts a Markdown-formatted field value into plain text (discards code, formulas, etc., no line breaks)"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260612205353-4si1xks",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260612205353-4si1xks",
+						"updated": "20260612205353"
+					},
+					"Children": [
+						{
+							"ID": "20260612205353-kxb44qe",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260612205353-kxb44qe",
+								"updated": "20260612205353"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "markdown2content"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ converts a Markdown-formatted field value into content text (preserves code, formulas, etc., inserts line breaks between blocks)"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260619110501-lne9tlj",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260619110501-lne9tlj",
+						"updated": "20260619110501"
+					},
+					"Children": [
+						{
+							"ID": "20260619110501-arxyui9",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260619110501-arxyui9",
+								"updated": "20260619110501"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "countif"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​ counts the number of elements in a numeric list that satisfy a specified comparison condition. The first argument is the numeric list, the second is the comparison operator ("
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "gt"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​/"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "lt"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​/"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "eq"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​/"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "ge"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​/"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "le"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​), and the third is the threshold. For example: "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "countif .values \"gt\" 0"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
 		{
-			"ID": "20210104091444-4re70bp",
+			"ID": "20260904022100-kqbyhrl",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20210104091444-4re70bp",
-				"updated": "20250115153127"
+				"id": "20260904022100-kqbyhrl",
+				"updated": "20260904091600"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Databases in saved templates"
+				}
+			]
+		},
+		{
+			"ID": "20260904022100-vq38you",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260904022100-vq38you",
+				"updated": "20260904091600"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "When saving a document as a template, “Databases in the template” applies one mode to every database block in that document. “Create complete copy” is the default: each use creates independent databases that no longer synchronize with the sources, and block-level Context filters are removed. “Create mirror copy” preserves the existing database references and Context filters: inserted database blocks share data and view settings with the source databases. Reference mode requires the target document to be able to access the source databases within the same encryption boundary; otherwise template insertion fails. Combining a referenced shared task database with the database block’s Context filter set to the Project relation field (“Contains any item - Current document”) lets one reusable project template show only the tasks related to each project document."
+				}
+			]
+		},
+		{
+			"ID": "20260830143000-tplen01",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260830143000-tplen01",
+				"updated": "20261024161058"
 			},
 			"Children": [
 				{
@@ -1504,39 +1887,223 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "Invoke template"
+					"Data": "Create child document trees"
 				}
 			]
 		},
 		{
-			"ID": "20210104091444-gfccosk",
+			"ID": "20260830143000-tplen02",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20210104091444-gfccosk",
-				"updated": "20250115153127"
+				"id": "20260830143000-tplen02",
+				"updated": "20260830143000"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "createDocTree"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " runs only when a template is inserted manually in the editor. After rendering, SiYuan first shows the complete child document tree that will be created and creates it only after confirmation; canceling inserts no template content and creates no documents. A child is always created even when a sibling has the same title; existing documents are never reused or overwritten. A single undo removes both the inserted template content and every child document created by that insertion. A single plan can create at most 128 documents, and its declared child document tree can be at most 16 levels deep. The resulting absolute file tree depth is still subject to the “Allows creation of sub-documents deeper than 7 levels” setting."
+				}
+			]
+		},
+		{
+			"ID": "20260830143000-tplen03",
+			"Type": "NodeCodeBlock",
+			"IsFencedCodeBlock": true,
+			"Properties": {
+				"id": "20260830143000-tplen03",
+				"updated": "20260830143000"
+			},
+			"Children": [
+				{
+					"Type": "NodeCodeBlockFenceOpenMarker",
+					"Data": "```"
+				},
+				{
+					"Type": "NodeCodeBlockFenceInfoMarker",
+					"CodeBlockInfo": "dGVtcGxhdGU="
+				},
+				{
+					"Type": "NodeCodeBlockCode",
+					"Data": ".action{define \"child-review\"}\n## Review\n.action{end}\n\n.action{createDocTree (list\n  (dict \"title\" \"Materials\" \"template\" \"children/materials.md\"\n    \"children\" (list (dict \"title\" \"Excerpts\")))\n  (dict \"title\" \"Review\" \"define\" \"child-review\")\n)}\n\n.action{range $doc := renderDocRef \"children\" .id}\n- ((.action{$doc.RootID} \".action{$doc.HPath}\"))\n.action{end}\n"
+				},
+				{
+					"Type": "NodeCodeBlockFenceCloseMarker",
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20261024161058-ouz4oh0",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161058-ouz4oh0",
+				"updated": "20261024161058"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "At the cursor caret position, select the template via "
+					"Data": "Before running this example, create "
 				},
 				{
 					"Type": "NodeTextMark",
-					"TextMarkType": "kbd",
-					"TextMarkTextContent": "/"
+					"TextMarkType": "code",
+					"TextMarkTextContent": "children/material.md"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ to trigger the template search, find the template that needs to be inserted and press "
+					"Data": " in the current template package. It supplies the content for the child document; alternatively, change the path to an existing template."
+				}
+			]
+		},
+		{
+			"ID": "20260830143000-tplen04",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260830143000-tplen04",
+				"updated": "20260830143000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Each child content template is rendered with that child document as its context and can use "
 				},
 				{
 					"Type": "NodeTextMark",
-					"TextMarkType": "kbd",
-					"TextMarkTextContent": "Enter"
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".title"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​."
+					"Data": ", "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".id"
+				},
+				{
+					"Type": "NodeText",
+					"Data": ", "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".parentID"
+				},
+				{
+					"Type": "NodeText",
+					"Data": ", "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".rootID"
+				},
+				{
+					"Type": "NodeText",
+					"Data": ", and "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".hPath"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "."
+				}
+			]
+		},
+		{
+			"ID": "20260830143000-tplen07",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260830143000-tplen07",
+				"updated": "20261023030419"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "renderDocRef \"children\" <id>"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " returns the static child-document descriptors in the creation plan; "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "renderDocRef \"id\" <id>"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " returns a static block reference to a planned document by its ID, independent of its title or readable path; "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "renderDocRef \"path\" <hPath>"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " is the legacy query by readable path."
+				}
+			]
+		},
+		{
+			"ID": "20260830143000-tplen05",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260830143000-tplen05",
+				"updated": "20260830143000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Each node can use "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "define"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " to select a named template in the current template file, or "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "template"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " to reference an external template relative to the current template package. If any external template is missing or cannot be parsed, the entire operation is canceled; no content is inserted and no partial document tree is created."
+				}
+			]
+		},
+		{
+			"ID": "20260830143000-tplen06",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260830143000-tplen06",
+				"updated": "20260830143000"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "createDocTree"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " does not run in automatically applied content templates, such as those used when creating documents, daily notes, or database items. Database and asset packaging and exporting an entire document subtree as a template are outside the scope of this release."
 				}
 			]
 		},
@@ -1619,7 +2186,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210131162806-sk9tg4q",
-				"updated": "20230418085727"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -1633,7 +2200,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20221114173406-3h4imbx",
-				"updated": "20230820184302"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -1643,7 +2210,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "a",
-					"TextMarkAHref": "https://b3log.org/siyuan/en/community.html",
+					"TextMarkAHref": "https://github.com/siyuan-note/bazaar",
 					"TextMarkTextContent": "Community marketplace repo"
 				},
 				{

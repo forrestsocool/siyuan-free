@@ -1,12 +1,16 @@
+import {config as configApi} from "../../config/util/configApi";
+import {keymapPayload} from "../../config/keymapPayload";
+import {mergeKeymapDefault} from "../../util/keymapBindings";
 import {Constants} from "../../constants";
-import {fetchPost} from "../../util/fetch";
 /// #if !BROWSER
-import {sendGlobalShortcut} from "./keydown";
+import {sendGlobalShortcut} from "./globalShortcut";
 import {ipcRenderer} from "electron";
 /// #endif
-import {App} from "../../index";
+import type {App} from "../../index";
 import {isMac, isNotCtrl, isOnlyMeta} from "../../protyle/util/compatibility";
 import {showPopover} from "../../block/popover";
+import {clearDisallowedKeymapItems} from "../../util/hotKeyPolicy";
+import {getHostCapabilities} from "../../util/hostCapabilities";
 
 const matchKeymap = (keymap: Config.IKeys, key1: "general" | "editor", key2?: "general" | "insert" | "heading" | "list" | "table") => {
     if (key1 === "general") {
@@ -53,7 +57,7 @@ const matchKeymap = (keymap: Config.IKeys, key1: "general" | "editor", key2?: "g
                 });
                 /// #endif
                 match = false;
-                window.siyuan.config.keymap[key1][key] = keymap[key];
+                window.siyuan.config.keymap[key1][key] = mergeKeymapDefault(window.siyuan.config.keymap[key1][key], keymap[key]);
             }
         } else {
             if (!window.siyuan.config.keymap[key1][key2][key] || window.siyuan.config.keymap[key1][key2][key].default !== keymap[key].default) {
@@ -64,14 +68,14 @@ const matchKeymap = (keymap: Config.IKeys, key1: "general" | "editor", key2?: "g
                 });
                 /// #endif
                 match = false;
-                window.siyuan.config.keymap[key1][key2][key] = keymap[key];
+                window.siyuan.config.keymap[key1][key2][key] = mergeKeymapDefault(window.siyuan.config.keymap[key1][key2][key], keymap[key]);
             }
         }
     });
     return match;
 };
 
-const hasKeymap = (keymap: Record<string, IKeymapItem>, key1: "general" | "editor", key2?: "general" | "insert" | "heading" | "list" | "table") => {
+const hasKeymap = (keymap: Config.IKeys, key1: "general" | "editor", key2?: "general" | "insert" | "heading" | "list" | "table") => {
     let match = true;
     if (key1 === "editor") {
         if (Object.keys(window.siyuan.config.keymap[key1][key2]).length !== Object.keys(Constants.SIYUAN_KEYMAP[key1][key2]).length) {
@@ -95,6 +99,21 @@ const hasKeymap = (keymap: Record<string, IKeymapItem>, key1: "general" | "edito
     return match;
 };
 
+const clearDisallowedKeymap = () => {
+    let changed = clearDisallowedKeymapItems(window.siyuan.config.keymap.general);
+    Object.values(window.siyuan.config.keymap.editor).forEach((keymap) => {
+        if (clearDisallowedKeymapItems(keymap)) {
+            changed = true;
+        }
+    });
+    Object.values(window.siyuan.config.keymap.plugin || {}).forEach((keymap) => {
+        if (clearDisallowedKeymapItems(keymap, true)) {
+            changed = true;
+        }
+    });
+    return changed;
+};
+
 export const correctHotkey = (app: App) => {
     if (!["darwin", "ios"].includes(window.siyuan.config.system.os)) {
         ["fileTree", "outline", "bookmark", "tag", "dailyNote", "inbox", "backlinks",
@@ -103,6 +122,10 @@ export const correctHotkey = (app: App) => {
                 Constants.SIYUAN_KEYMAP.general[key].default.replace("⌃", "⌥");
         });
         Constants.SIYUAN_KEYMAP.editor.general.redo.custom = Constants.SIYUAN_KEYMAP.editor.general.redo.default = "⌘Y";
+        Constants.SIYUAN_KEYMAP.editor.general.selectToPageStart.custom =
+            Constants.SIYUAN_KEYMAP.editor.general.selectToPageStart.default = "⇧⌘Home";
+        Constants.SIYUAN_KEYMAP.editor.general.selectToPageEnd.custom =
+            Constants.SIYUAN_KEYMAP.editor.general.selectToPageEnd.default = "⇧⌘End";
     }
     const matchKeymap1 = matchKeymap(Constants.SIYUAN_KEYMAP.general, "general");
     const matchKeymap2 = matchKeymap(Constants.SIYUAN_KEYMAP.editor.general, "editor", "general");
@@ -117,23 +140,58 @@ export const correctHotkey = (app: App) => {
     const hasKeymap4 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.heading, "editor", "heading");
     const hasKeymap5 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.list, "editor", "list");
     const hasKeymap6 = hasKeymap(Constants.SIYUAN_KEYMAP.editor.table, "editor", "table");
+    const clearedDisallowedKeymap = clearDisallowedKeymap();
     if (!window.siyuan.config.readonly &&
         (!matchKeymap1 || !matchKeymap2 || !matchKeymap3 || !matchKeymap4 || !matchKeymap5 || !matchKeymap6 ||
-            !hasKeymap1 || !hasKeymap2 || !hasKeymap3 || !hasKeymap4 || !hasKeymap5 || !hasKeymap6)) {
+            !hasKeymap1 || !hasKeymap2 || !hasKeymap3 || !hasKeymap4 || !hasKeymap5 || !hasKeymap6 ||
+            clearedDisallowedKeymap)) {
         /// #if !BROWSER
         ipcRenderer.send(Constants.SIYUAN_CMD, {
             cmd: "writeLog",
             msg: "update keymap"
         });
         /// #endif
-        fetchPost("/api/setting/setKeymap", {
-            data: window.siyuan.config.keymap
-        }, () => {
+        configApi.set("keymap", keymapPayload(window.siyuan.config.keymap), () => {
             /// #if !BROWSER
             sendGlobalShortcut(app);
+            syncAppMenuShortcuts();
             /// #endif
         });
     }
+};
+
+let lastAppMenuSync: string;
+
+export const syncAppMenuShortcuts = (suspended = false) => {
+    /// #if !BROWSER
+    if (!isMac()) {
+        return;
+    }
+    const appMenuHotkeyItems: Config.IKeys = {
+        config: window.siyuan.config.keymap.general.config,
+        toggleWin: window.siyuan.config.keymap.general.toggleWin,
+        undo: window.siyuan.config.keymap.editor.general.undo,
+        redo: window.siyuan.config.keymap.editor.general.redo,
+    };
+    const hotkey: Record<string, string> = {};
+    Object.keys(appMenuHotkeyItems).forEach(id => {
+        const item = appMenuHotkeyItems[id];
+        hotkey[id] = suspended ? "" : item.custom ?? item.default ?? "";
+    });
+    const data = {
+        workspaceDir: getHostCapabilities().workspaces ? window.siyuan.config.system.workspaceDir : "",
+        lang: window.siyuan.config.lang,
+        readonly: window.siyuan.config.readonly,
+        hotkey,
+    };
+    // 语言、工作空间和只读状态同样影响菜单，不能只比较快捷键。
+    const signature = JSON.stringify(data);
+    if (lastAppMenuSync === signature) {
+        return;
+    }
+    ipcRenderer.send(Constants.SIYUAN_SYNC_APP_MENU, data);
+    lastAppMenuSync = signature;
+    /// #endif
 };
 
 export const filterHotkey = (event: KeyboardEvent, app: App) => {
@@ -145,6 +203,7 @@ export const filterHotkey = (event: KeyboardEvent, app: App) => {
     // 点击最近的文档列表会 dispatch keydown 的 Enter https://github.com/siyuan-note/siyuan/issues/12967
     if (event.isTrusted && isNotCtrl(event) && !event.shiftKey && !event.altKey &&
         !["INPUT", "TEXTAREA"].includes(target.tagName) &&
+        !target.isContentEditable &&
         ["0", "1", "2", "3", "4", "j", "k", "l", ";", "s", " ", "p", "enter", "a", "s", "d", "f", "q", "x"].includes(event.key.toLowerCase())) {
         let cardElement: Element;
         window.siyuan.dialogs.find(item => {
@@ -187,11 +246,14 @@ export const filterHotkey = (event: KeyboardEvent, app: App) => {
     if (!event.altKey && event.shiftKey && isNotCtrl(event)) {
         if (event.key === "Shift") {
             window.siyuan.shiftIsPressed = true;
+            // 按下 Shift 时隐藏表格列宽调整手柄，以便 Shift+滚轮可以横向滚动表格 https://github.com/siyuan-note/siyuan/issues/13828
+            document.body.classList.add("body--shift-pressed");
             if (!event.repeat) {
                 showPopover(app, true);
             }
         } else {
             window.siyuan.shiftIsPressed = false;
+            document.body.classList.remove("body--shift-pressed");
         }
     }
 

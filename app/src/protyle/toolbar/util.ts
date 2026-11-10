@@ -1,19 +1,67 @@
-import {fetchPost, fetchSyncPost} from "../../util/fetch";
+import {fetchSyncPost} from "../../util/fetch";
+import {markToolbarHotkey} from "./hotkey";
 import {Constants} from "../../constants";
-import {focusByRange, focusByWbr} from "../util/selection";
-import {writeText} from "../util/compatibility";
+import {focusByWbr} from "../util/selection";
+import {focusByRange} from "../util/selectionOffsets";
+import {isDisabledFeature, writeText} from "../util/compatibility";
+import {isArrayEqual} from "../../util/functions";
+import {hasSameTextStyle} from "./Font";
+import {AIActions} from "../../ai/actions";
+import {
+    hasSemanticInlineType,
+    normalizeSemanticInlineElement,
+    normalizeSemanticInternalMarkerPrefix,
+    removeSemanticInlineExternalBoundaries,
+    setSemanticInlineElementMarker,
+    stripSemanticInternalMarkerPrefix
+} from "../util/inlineElementMarker";
+import {normalizeHTMLAssetIFrameBlockDOM} from "../../asset/html";
+import {destroyTabsRender, tabsRender} from "../render/tabsRender";
+import {genTemplateDocTreePlanHTML} from "../../template/docTree";
 
-export const previewTemplate = (pathString: string, element: Element, parentId: string) => {
-    if (!pathString) {
-        element.innerHTML = "";
+const templatePreviewRequests = new WeakMap<Element, object>();
+
+export const clearTemplatePreview = (element: Element) => {
+    templatePreviewRequests.delete(element);
+    if (element.firstElementChild) {
+        destroyTabsRender(element.firstElementChild);
+    }
+    element.innerHTML = "";
+};
+
+export const previewTemplate = (pathString: string, element: Element, parentId: string, source?: string) => {
+    if (!pathString || !element.isConnected || element.closest(".fn__none")) {
+        clearTemplatePreview(element);
         return;
     }
-    fetchPost("/api/template/render", {
+    const request = {};
+    templatePreviewRequests.set(element, request);
+    fetchSyncPost("/api/template/render", {
         id: parentId,
         path: pathString,
-        preview: true
-    }, (response) => {
-        element.innerHTML = `<div class="protyle-wysiwyg" style="padding: 8px">${response.data.content.replace(/contenteditable="true"/g, "")}</div>`;
+        mode: "preview",
+        preview: true,
+        ...(source === undefined ? {} : {content: source})
+    }).then((response) => {
+        // 切换模板或关闭预览后，忽略先前请求的返回结果。
+        if (templatePreviewRequests.get(element) !== request || !element.isConnected) {
+            return;
+        }
+        clearTemplatePreview(element);
+        if (response.code !== 0) {
+            return;
+        }
+        const content = normalizeHTMLAssetIFrameBlockDOM(response.data.content.replace(/contenteditable="true"/g, ""));
+        element.innerHTML = `<div class="protyle-wysiwyg" style="padding: 8px">${content}</div>`;
+        if (response.data.docTreePlan?.nodes?.length) {
+            element.insertAdjacentHTML("beforeend", genTemplateDocTreePlanHTML(response.data.docTreePlan,
+                window.siyuan.languages.newSubDoc));
+        }
+        tabsRender(element.firstElementChild, {label: window.siyuan.languages.tabItem});
+    }).catch(() => {
+        if (templatePreviewRequests.get(element) === request) {
+            clearTemplatePreview(element);
+        }
     });
 };
 
@@ -42,6 +90,49 @@ const mergeElement = (a: Element, b: Element, after = true) => {
     return isMatch;
 };
 
+export const mergeSameInlineElement = (currentElement: HTMLElement, previousElement: HTMLElement) => {
+    if (!currentElement || currentElement.nodeType !== 1 || !previousElement || previousElement.nodeType !== 1) {
+        return false;
+    }
+    const currentType = currentElement.getAttribute("data-type");
+    const previousType = previousElement.getAttribute("data-type");
+    if (!currentType || !previousType || currentElement.tagName === "BR" || currentElement.classList.contains("img")) {
+        return false;
+    }
+    const types = currentType.split(" ");
+    if (!isArrayEqual(types, previousType.split(" ")) || !hasSameTextStyle(currentElement, previousElement)) {
+        return false;
+    }
+    const isSemanticInline = hasSemanticInlineType(currentType);
+    const previousText = isSemanticInline ?
+        stripSemanticInternalMarkerPrefix(previousElement.innerText) : previousElement.innerText;
+    const currentText = isSemanticInline ?
+        stripSemanticInternalMarkerPrefix(currentElement.innerText) : currentElement.innerText;
+    if (types.includes("inline-math")) {
+        currentElement.setAttribute("data-content",
+            previousElement.getAttribute("data-content") + currentElement.getAttribute("data-content"));
+    } else if (types.includes("block-ref") &&
+        previousElement.getAttribute("data-id") === currentElement.getAttribute("data-id")) {
+        if (previousElement.dataset.subtype !== "d") {
+            currentElement.setAttribute("data-subtype", "s");
+            currentElement.textContent = previousText + currentText;
+        }
+    } else {
+        // textContent：防止赋值后 \n 转换为 br；innerText：获取 br 的 \n。
+        currentElement.textContent = previousText + currentText;
+        if (types.includes("inline-memo")) {
+            currentElement.setAttribute("data-inline-memo-content",
+                (previousElement.getAttribute("data-inline-memo-content") || "") +
+                (currentElement.getAttribute("data-inline-memo-content") || ""));
+        }
+    }
+    if (isSemanticInline) {
+        currentElement.textContent = normalizeSemanticInternalMarkerPrefix(currentElement.textContent);
+        normalizeSemanticInlineElement(currentElement);
+    }
+    return true;
+};
+
 export const removeSearchMark = (element: HTMLElement) => {
     let previousElement = element.previousSibling as HTMLElement;
     while (previousElement && previousElement.nodeType !== 3) {
@@ -66,10 +157,17 @@ export const removeSearchMark = (element: HTMLElement) => {
 };
 
 export const removeInlineType = (inlineElement: HTMLElement, type: string, range?: Range) => {
+    const wasSemanticInline = hasSemanticInlineType(inlineElement.getAttribute("data-type"));
     const types = (inlineElement.getAttribute("data-type") || "").split(" ").filter((item) => item !== "" && item !== type);
+    if (wasSemanticInline && !hasSemanticInlineType(types.join(" "))) {
+        removeSemanticInlineExternalBoundaries(inlineElement);
+    }
     if (types.length === 0) {
         const linkParentElement = inlineElement.parentElement;
-        inlineElement.outerHTML = inlineElement.innerHTML.replace(Constants.ZWSP, "") + "<wbr>";
+        if (wasSemanticInline) {
+            setSemanticInlineElementMarker(inlineElement, "remove");
+        }
+        inlineElement.outerHTML = inlineElement.innerHTML + "<wbr>";
         if (range) {
             focusByWbr(linkParentElement, range);
         }
@@ -83,6 +181,11 @@ export const removeInlineType = (inlineElement: HTMLElement, type: string, range
             inlineElement.removeAttribute("data-id");
             inlineElement.removeAttribute("data-subtype");
         }
+        if (hasSemanticInlineType(types.join(" "))) {
+            normalizeSemanticInlineElement(inlineElement);
+        } else if (wasSemanticInline) {
+            setSemanticInlineElementMarker(inlineElement, "remove");
+        }
         if (range) {
             range.selectNodeContents(inlineElement);
             range.collapse(false);
@@ -93,6 +196,11 @@ export const removeInlineType = (inlineElement: HTMLElement, type: string, range
 
 export const toolbarKeyToMenu = (toolbar: Array<string | IMenuItem>) => {
     const toolbarItem: IMenuItem [] = [{
+        name: "block-type",
+        lang: "turnInto",
+        icon: "iconParagraph",
+        tipPosition: "n",
+    }, {
         name: "block-ref",
         hotkey: window.siyuan.config.keymap.editor.insert.ref.custom,
         lang: "ref",
@@ -104,6 +212,19 @@ export const toolbarKeyToMenu = (toolbar: Array<string | IMenuItem>) => {
         lang: "link",
         icon: "iconLink",
         tipPosition: "n",
+    }, {
+        name: "ai",
+        hotkey: window.siyuan.config.keymap.editor.general.ai.custom,
+        lang: "aiEdit",
+        icon: "iconSparkles",
+        tipPosition: "n",
+        click(protyle) {
+            const editor = protyle.protyle;
+            const range = editor.toolbar.range?.cloneRange();
+            if (range && !range.collapsed) {
+                AIActions([], editor, range, editor.toolbar.element.querySelector('[data-type="ai"]'));
+            }
+        },
     }, {
         name: "strong",
         lang: "bold",
@@ -156,7 +277,7 @@ export const toolbarKeyToMenu = (toolbar: Array<string | IMenuItem>) => {
         name: "tag",
         lang: "tag",
         hotkey: window.siyuan.config.keymap.editor.insert.tag.custom,
-        icon: "iconTags",
+        icon: "iconTag",
         tipPosition: "n",
     }, {
         name: "code",
@@ -183,10 +304,25 @@ export const toolbarKeyToMenu = (toolbar: Array<string | IMenuItem>) => {
         icon: "iconFont",
         tipPosition: "n",
     }, {
+        name: "font-family",
+        lang: "fontFamily",
+        icon: "iconFont",
+        tipPosition: "n",
+    }, {
+        name: "font-size",
+        lang: "fontSize",
+        icon: "iconFont",
+        tipPosition: "n",
+    }, {
         name: "clear",
         lang: "clearInline",
         hotkey: window.siyuan.config.keymap.editor.insert.clearInline.custom,
-        icon: "iconClear",
+        icon: "iconEraser",
+        tipPosition: "n",
+    }, {
+        name: "format-painter",
+        lang: "formatPainter",
+        icon: "iconPaintRoller",
         tipPosition: "n",
     }, {
         name: "|",
@@ -197,13 +333,18 @@ export const toolbarKeyToMenu = (toolbar: Array<string | IMenuItem>) => {
         toolbarItem.find((defaultMenuItem: IMenuItem) => {
             if (typeof menuItem === "string" && defaultMenuItem.name === menuItem) {
                 currentMenuItem = defaultMenuItem;
+                markToolbarHotkey(currentMenuItem, menuItem);
                 return true;
             }
             if (typeof menuItem === "object" && defaultMenuItem.name === menuItem.name) {
                 currentMenuItem = Object.assign({}, defaultMenuItem, menuItem);
+                markToolbarHotkey(currentMenuItem, menuItem);
                 return true;
             }
         });
+        if (isDisabledFeature("ai") && currentMenuItem.name === "ai") {
+            return;
+        }
         toolbarResult.push(currentMenuItem);
     });
     return toolbarResult;
@@ -252,6 +393,9 @@ export const copyTextByType = async (ids: string[],
         }
         if (type === "ref") {
             const response = await fetchSyncPost("/api/block/getRefText", {id});
+            if (response.code !== 0) {
+                return;
+            }
             text += `((${id} '${response.data}'))`;
         } else if (type === "blockEmbed") {
             text += `{{select * from blocks where id='${id}'}}`;
@@ -259,9 +403,15 @@ export const copyTextByType = async (ids: string[],
             text += `siyuan://blocks/${id}`;
         } else if (type === "protocolMd") {
             const response = await fetchSyncPost("/api/block/getRefText", {id});
-            text += `[${response.data}](siyuan://blocks/${id})`;
+            if (response.code !== 0) {
+                return;
+            }
+            text += `[${response.data.replace("[", "\\[").replace("]", "\\]")}](siyuan://blocks/${id})`;
         } else if (type === "hPath") {
             const response = await fetchSyncPost("/api/filetree/getHPathByID", {id});
+            if (response.code !== 0 || typeof response.data !== "string") {
+                continue;
+            }
             text += response.data;
         } else if (type === "webURL") {
             text += `${window.location.origin}?id=${id}`;

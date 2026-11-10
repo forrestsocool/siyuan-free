@@ -1,22 +1,12 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
 import (
+	"slices"
+
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
@@ -24,8 +14,42 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
+const (
+	MergeDocHeadingModeFlat         = "flat"
+	MergeDocHeadingModeTree         = "tree"
+	MergeContentHeadingModePreserve = "preserve"
+	MergeContentHeadingModeDemote   = "demote"
+)
+
+type MergeHeadingOptions struct {
+	DocHeadingMode     string
+	ContentHeadingMode string
+}
+
+func mergeHeadingOptionsOrDefault(options []MergeHeadingOptions) (ret MergeHeadingOptions) {
+	if 0 < len(options) {
+		ret = options[0]
+	}
+
+	switch ret.DocHeadingMode {
+	case MergeDocHeadingModeFlat, MergeDocHeadingModeTree:
+	default:
+		ret.DocHeadingMode = ""
+	}
+	switch ret.ContentHeadingMode {
+	case MergeContentHeadingModeDemote:
+	default:
+		ret.ContentHeadingMode = MergeContentHeadingModePreserve
+	}
+	return
+}
+
+func mergeSubDocs(rootTree *parse.Tree, options MergeHeadingOptions, addRootTitle bool) (ret *parse.Tree, err error) {
 	ret = rootTree
+	if MergeContentHeadingModeDemote == options.ContentHeadingMode && addRootTitle {
+		demoteMergedContentHeadings(rootTree, 1)
+	}
+
 	rootBlock := &Block{Box: rootTree.Box, ID: rootTree.ID, Path: rootTree.Path, HPath: rootTree.HPath}
 	if err = buildBlockChildren(rootBlock); err != nil {
 		return
@@ -53,7 +77,7 @@ func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 
 	for {
 		i := 0
-		if err = walkBlock(insertPoint, rootBlock, i); err != nil {
+		if err = walkBlock(insertPoint, rootBlock, i, options, addRootTitle); err != nil {
 			return
 		}
 		if nil == rootBlock.Children {
@@ -69,15 +93,15 @@ func mergeSubDocs(rootTree *parse.Tree) (ret *parse.Tree, err error) {
 	return
 }
 
-func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
+func walkBlock(insertPoint *ast.Node, block *Block, level int, options MergeHeadingOptions, addRootTitle bool) (err error) {
 	level++
-	for i := len(block.Children) - 1; i >= 0; i-- {
-		c := block.Children[i]
-		if err = walkBlock(insertPoint, c, level); err != nil {
+	for _, c := range slices.Backward(block.Children) {
+
+		if err = walkBlock(insertPoint, c, level, options, addRootTitle); err != nil {
 			return
 		}
 
-		nodes, loadErr := loadTreeNodes(c.Box, c.Path, level)
+		nodes, loadErr := loadTreeNodes(c.Box, c.Path, level, options, addRootTitle)
 		if nil != loadErr {
 			return
 		}
@@ -97,20 +121,20 @@ func walkBlock(insertPoint *ast.Node, block *Block, level int) (err error) {
 	return
 }
 
-func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error) {
+func loadTreeNodes(box string, p string, level int, options MergeHeadingOptions, addRootTitle bool) (ret []*ast.Node, err error) {
 	luteEngine := NewLute()
 	tree, err := filesys.LoadTree(box, p, luteEngine)
 	if err != nil {
 		return
 	}
 
-	hLevel := level
-	if 6 < level {
-		hLevel = 6
+	hLevel := mergedDocHeadingLevel(level, options.DocHeadingMode, addRootTitle)
+	if MergeContentHeadingModeDemote == options.ContentHeadingMode {
+		demoteMergedContentHeadings(tree, hLevel)
 	}
 
 	heading := &ast.Node{ID: tree.Root.ID, Type: ast.NodeHeading, HeadingLevel: hLevel}
-	heading.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(tree.Root.IALAttr("title"))})
+	heading.AppendChild(&ast.Node{Type: ast.NodeText, Tokens: []byte(treenode.ReadDocumentTitle(tree.Root).Text)})
 	tree.Root.PrependChild(heading)
 	for c := tree.Root.FirstChild; nil != c; c = c.Next {
 		ret = append(ret, c)
@@ -118,8 +142,46 @@ func loadTreeNodes(box string, p string, level int) (ret []*ast.Node, err error)
 	return
 }
 
+func mergedDocHeadingLevel(depth int, mode string, addRootTitle bool) int {
+	level := depth
+	switch mode {
+	case MergeDocHeadingModeFlat:
+		level = 1
+	case MergeDocHeadingModeTree:
+		if addRootTitle {
+			level++
+		}
+	}
+	return min(6, max(1, level))
+}
+
+func demoteMergedContentHeadings(tree *parse.Tree, docHeadingLevel int) {
+	headings := collectOutlineHeadings(tree)
+	topLevel := 7
+	for _, heading := range headings {
+		if 0 < heading.HeadingLevel && heading.HeadingLevel < topLevel {
+			topLevel = heading.HeadingLevel
+		}
+	}
+	if 6 < topLevel {
+		return
+	}
+
+	delta := docHeadingLevel + 1 - topLevel
+	if delta <= 0 {
+		return
+	}
+	for _, heading := range headings {
+		heading.HeadingLevel = min(6, heading.HeadingLevel+delta)
+	}
+}
+
 func buildBlockChildren(block *Block) (err error) {
-	files, _, err := ListDocTree(block.Box, block.Path, util.SortModeUnassigned, false, false, Conf.FileTree.MaxListCount)
+	listPath := block.Path
+	if IsBoxDoc(block.Box, block.ID) {
+		listPath = "/"
+	}
+	files, _, err := ListDocTree(block.Box, listPath, util.SortModeUnassigned, false, false, Conf.FileTree.Load().MaxListCount)
 	if err != nil {
 		return
 	}

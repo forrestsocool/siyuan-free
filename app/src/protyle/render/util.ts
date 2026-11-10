@@ -32,21 +32,16 @@ export const genRenderFrame = (renderElement: Element) => {
     }
     const type = renderElement.getAttribute("data-type");
     if (type === "NodeBlockQueryEmbed") {
+        const rotateClass = renderElement.getAttribute("data-content")?.trim() ? " class=\"fn__rotate\"" : "";
         renderElement.insertAdjacentHTML("afterbegin", `<div class="protyle-icons${isInEmbedBlock(renderElement) ? " fn__none" : ""}">
-    <span aria-label="${window.siyuan.languages.refresh}" data-position="4north" class="ariaLabel protyle-icon protyle-action__reload protyle-icon--first"><svg class="fn__rotate"><use xlink:href="#iconRefresh"></use></svg></span>
+    <span aria-label="${window.siyuan.languages.refresh}" data-position="4north" class="ariaLabel protyle-icon protyle-action__reload protyle-icon--first"><svg${rotateClass}><use xlink:href="#iconRefresh"></use></svg></span>
     <span aria-label="${window.siyuan.languages.update} SQL" data-position="4north" class="ariaLabel protyle-icon protyle-action__edit"><svg><use xlink:href="#iconEdit"></use></svg></span>
+    <span aria-label="${window.siyuan.languages.refPopover}" data-position="4north" data-action="openFloat" class="ariaLabel protyle-icon"><svg><use xlink:href="#iconPictureInPicture"></use></svg></span>
     <span aria-label="${window.siyuan.languages.more}" data-position="4north" class="ariaLabel protyle-icon protyle-action__menu protyle-icon--last"><svg><use xlink:href="#iconMore"></use></svg></span>
 </div><div class="protyle-cursor">${Constants.ZWSP}</div>`);
     } else if (type === "NodeMathBlock" || renderElement.getAttribute("data-subtype") === "math") {
         renderElement.firstElementChild.innerHTML = `<span></span><span class="protyle-cursor">${Constants.ZWSP}</span>`;
     }
-};
-
-export const processClonePHElement = (item: Element) => {
-    item.querySelectorAll("protyle-html").forEach((phElement) => {
-        phElement.setAttribute("data-content", Lute.UnEscapeHTMLStr(phElement.getAttribute("data-content")));
-    });
-    return item;
 };
 
 export const setCodeTheme = (cdn = Constants.PROTYLE_CDN) => {
@@ -63,7 +58,7 @@ export const setCodeTheme = (cdn = Constants.PROTYLE_CDN) => {
             css = "github-dark";
         }
     }
-    const href = `${cdn}/js/highlight.js/styles/${css}.min.css?v=11.11.1`;
+    const href = `${cdn}/js/highlight.js/styles/${css}.min.css?v=11.12.0`;
     if (!protyleHljsStyle) {
         addStyle(href, "protyleHljsStyle");
     } else if (!protyleHljsStyle.href.includes(href)) {

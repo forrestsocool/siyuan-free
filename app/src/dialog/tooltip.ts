@@ -1,4 +1,46 @@
 import {isMobile} from "../util/functions";
+import {emitToPlugins, forEachPluginSubscriber} from "../plugin/EventBusCore";
+import {initHoverInput, isTouchHoverInput} from "../util/hoverInput";
+import type {IWindowControlsOverlay} from "../boot/windowControlsOverlay";
+
+const INTERACTIVE_TOOLTIP_SELECTOR = "a, button, input, select, textarea, [contenteditable='true'], [tabindex], [role='button']";
+
+// 已显示的交互提示保留内部操作，不因切换输入源而提前关闭。
+export const isInteractiveTooltipTarget = (target: EventTarget | null) => {
+    const tooltip = document.getElementById("tooltip");
+    return target instanceof Node && Boolean(tooltip?.classList.contains("tooltip--interactive")) &&
+        !tooltip.classList.contains("fn__none") && tooltip.contains(target);
+};
+
+// 无编辑器的窗口复用提示框渲染，不注册块预览事件。
+export const initTooltips = () => {
+    initHoverInput();
+    document.addEventListener("mouseover", (event: MouseEvent) => {
+        if (isTouchHoverInput()) {
+            return;
+        }
+        const target = (event.target as Element).closest(".ariaLabel");
+        if (target && !target.classList.contains("b3-tooltips")) {
+            let message = target.getAttribute("aria-label") || "";
+            if (target.getAttribute("data-tooltip-encoding") !== "none") {
+                try {
+                    message = decodeURIComponent(message);
+                } catch (error) {
+                    // 保留包含不完整 URI 转义的提示文本。
+                }
+            }
+            if (message) {
+                showTooltip(message, target, undefined, event);
+                return;
+            }
+        }
+        const tooltip = document.getElementById("tooltip");
+        if (!tooltip.contains(event.target as Node) || tooltip.clientHeight >= tooltip.scrollHeight) {
+            hideTooltip();
+        }
+    });
+    document.addEventListener("mouseleave", hideTooltip);
+};
 
 export const showTooltip = (
     message: string,
@@ -6,8 +48,29 @@ export const showTooltip = (
     tooltipClass?: string,
     event?: MouseEvent,
     space: number = 0.5,
+    positionOverride?: string,
 ) => {
     if (isMobile() || !message) {
+        return;
+    }
+    const isHoverTooltip = !!event && tooltipClass !== "error";
+    if (isTouchHoverInput() && isHoverTooltip) {
+        const content = document.createElement("div");
+        content.innerHTML = window.DOMPurify.sanitize(message);
+        if (!content.querySelector(INTERACTIVE_TOOLTIP_SELECTOR)) {
+            return;
+        }
+    }
+    const messageElement = document.getElementById("tooltip");
+    const showDetail = {
+        message,
+        target,
+        tooltipElement: messageElement,
+    };
+    emitToPlugins("before-show-tooltip", showDetail);
+    message = showDetail.message;
+    if (!message) {
+        hideTooltip();
         return;
     }
     let targetRect = target.getBoundingClientRect();
@@ -36,12 +99,18 @@ export const showTooltip = (
         hideTooltip();
         return;
     }
-    const messageElement = document.getElementById("tooltip");
     messageElement.className = tooltipClass ? `tooltip tooltip--${tooltipClass}` : "tooltip";
-    messageElement.innerHTML = message;
+    messageElement.innerHTML = window.DOMPurify.sanitize(message);
+    const interactive = Boolean(messageElement.querySelector(INTERACTIVE_TOOLTIP_SELECTOR));
+    messageElement.classList.toggle("tooltip--interactive", interactive);
+    messageElement.classList.toggle("tooltip--hover", isHoverTooltip && !interactive);
     // 避免原本的 top 和 left 影响计算
     messageElement.removeAttribute("style");
-    const position = target.getAttribute("data-position");
+    // 普通提示不拦截目标点击，包含链接或控件的提示仍可交互。
+    if (!interactive) {
+        messageElement.style.pointerEvents = "none";
+    }
+    const position = positionOverride || target.getAttribute("data-position");
     const parentRect = target.parentElement.getBoundingClientRect();
 
     let left;
@@ -123,10 +192,38 @@ export const showTooltip = (
             left = window.innerWidth - messageElement.clientWidth;
         }
     }
+    // 原生窗口按钮显示在页面之上，提示框进入其区域时向下避让。
+    if (document.documentElement.classList.contains("window-controls-overlay") &&
+        !document.body.classList.contains("body--fullscreen")) {
+        const overlay = (navigator as Navigator & {windowControlsOverlay?: IWindowControlsOverlay}).windowControlsOverlay;
+        if (overlay?.visible) {
+            const safe = overlay.getTitlebarAreaRect();
+            if (top < safe.bottom && (Math.max(0, left) + messageElement.clientWidth > safe.right || left < safe.left)) {
+                top = safe.bottom + 4;
+                const available = Math.max(0, window.innerHeight - top - 4);
+                const maxHeight = parseFloat(getComputedStyle(messageElement).maxHeight);
+                messageElement.style.maxHeight = Math.min(Number.isFinite(maxHeight) ? maxHeight : available, available) + "px";
+            }
+        }
+    }
     messageElement.style.top = top + "px";
-    messageElement.style.left = left + "px";
+    messageElement.style.left = Math.max(0, left) + "px";
+    // 与 data-position 同套风格：触发元素可用 data-delay 指定悬浮延迟（毫秒），未设置时沿用 SCSS 默认值
+    const tooltipDelay = target.getAttribute("data-delay");
+    if (tooltipDelay) {
+        messageElement.style.animationDelay = tooltipDelay + "ms";
+    }
 };
 
 export const hideTooltip = () => {
-    document.getElementById("tooltip").classList.add("fn__none");
+    const messageElement = document.getElementById("tooltip");
+    if (messageElement.classList.contains("fn__none")) {
+        return;
+    }
+    forEachPluginSubscriber("before-hide-tooltip", eventBus => {
+        eventBus.emit("before-hide-tooltip", {
+            tooltipElement: messageElement,
+        });
+    });
+    messageElement.classList.add("fn__none");
 };

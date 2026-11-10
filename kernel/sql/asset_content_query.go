@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package sql
 
@@ -28,11 +16,22 @@ import (
 )
 
 func QueryAssetContentNoLimit(stmt string) (ret []map[string]any, err error) {
-	return queryAssetContentRawStmt(stmt, math.MaxInt)
+	if err = CheckSingleStatement(stmt); err != nil {
+		return
+	}
+	if err = CheckAssetContentReadonlyStatement(stmt); err != nil {
+		return
+	}
+	return queryAssetContentRawStmt(stmt, nil, math.MaxInt)
 }
 
-func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]any, err error) {
-	rows, err := queryAssetContent(stmt)
+// QueryAssetContentNoLimitArgs 使用绑定参数查询资源文件内容数据库。
+func QueryAssetContentNoLimitArgs(stmt string, args ...any) (ret []map[string]any, err error) {
+	return queryAssetContentRawStmt(stmt, args, math.MaxInt)
+}
+
+func queryAssetContentRawStmt(stmt string, args []any, limit int) (ret []map[string]any, err error) {
+	rows, err := queryAssetContent(stmt, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "syntax error") {
 			return
@@ -67,7 +66,7 @@ func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]any, err
 
 		ret = append(ret, m)
 		count++
-		if noLimit && limit < count {
+		if noLimit && count >= limit {
 			break
 		}
 	}
@@ -75,9 +74,12 @@ func queryAssetContentRawStmt(stmt string, limit int) (ret []map[string]any, err
 }
 
 func SelectAssetContentsRawStmt(stmt string, page, limit int) (ret []*AssetContent) {
+	if CheckSingleStatement(stmt) != nil || CheckAssetContentReadonlyStatement(stmt) != nil {
+		return
+	}
 	parsedStmt, err := sqlparser.Parse(stmt)
 	if err != nil {
-		return selectAssetContentsRawStmt(stmt, limit)
+		return selectAssetContentsRawStmt(stmt, nil, limit)
 	}
 
 	switch parsedStmt.(type) {
@@ -139,11 +141,19 @@ func SelectAssetContentsRawStmt(stmt string, page, limit int) (ret []*AssetConte
 }
 
 func SelectAssetContentsRawStmtNoParse(stmt string, limit int) (ret []*AssetContent) {
-	return selectAssetContentsRawStmt(stmt, limit)
+	if CheckSingleStatement(stmt) != nil || CheckAssetContentReadonlyStatement(stmt) != nil {
+		return
+	}
+	return selectAssetContentsRawStmt(stmt, nil, limit)
 }
 
-func selectAssetContentsRawStmt(stmt string, limit int) (ret []*AssetContent) {
-	rows, err := queryAssetContent(stmt)
+// SelectAssetContentsRawStmtNoParseArgs 使用绑定参数查询资源文件内容，并保留调用方构造的 SQL。
+func SelectAssetContentsRawStmtNoParseArgs(stmt string, args []any, limit int) (ret []*AssetContent) {
+	return selectAssetContentsRawStmt(stmt, args, limit)
+}
+
+func selectAssetContentsRawStmt(stmt string, args []any, limit int) (ret []*AssetContent) {
+	rows, err := queryAssetContent(stmt, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "syntax error") {
 			return
@@ -163,7 +173,7 @@ func selectAssetContentsRawStmt(stmt string, limit int) (ret []*AssetContent) {
 			errCount++
 		}
 
-		if (noLimit && limit < count) || 0 < errCount {
+		if (noLimit && count >= limit) || 0 < errCount {
 			break
 		}
 	}

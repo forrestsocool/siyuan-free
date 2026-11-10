@@ -2,56 +2,94 @@ import {getNotebookName, pathPosix} from "../util/pathName";
 import {Constants} from "../constants";
 import {Dialog} from "../dialog";
 import {fetchPost, fetchSyncPost} from "../util/fetch";
-import {focusByRange} from "../protyle/util/selection";
+import {focusByRange} from "../protyle/util/selectionOffsets";
 import {genSearch, updateConfig} from "./util";
-import {App} from "../index";
+import type {App} from "../index";
+import {cancelSearchRequest} from "./request";
+import {
+    hasExplicitSearchScope,
+    replaceSearchConfigPath,
+    resolveGlobalSearchScope,
+    setSearchConfigTemporaryPath,
+} from "./config";
+import {beginSearchPathRequest} from "./path";
+import {isDisabledFeature, isInIOS} from "../protyle/util/compatibility";
+import {focusSearchInput} from "./focus";
+import {applySearchOpenOptions, SearchOpenOptions} from "./openOptions";
 
-export const openSearch = async (options: {
+let openSearchVersion = 0;
+
+export const openSearch = async (options: SearchOpenOptions & {
     app: App,
     hotkey: string,
-    key?: string,
     notebookId?: string,
-    searchPath?: string
+    notebookIds?: string[],
+    searchPath?: string,
+    focusInput?: boolean,
 }) => {
+    if (window.siyuan.isPublish && options.hotkey === Constants.DIALOG_REPLACE) {
+        return;
+    }
+    const version = ++openSearchVersion;
+    const selection = getSelection();
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : undefined;
+    const existingSearchDialog = window.siyuan.dialogs.find((item) => item.element.querySelector("#searchList"));
+    const existingSearchElement = existingSearchDialog?.element.querySelector(".b3-dialog__body");
+    const isCurrentPathRequest = existingSearchElement ? beginSearchPathRequest(existingSearchElement) : undefined;
     const localData = window.siyuan.storage[Constants.LOCAL_SEARCHDATA];
+    const hasScopedPath = hasExplicitSearchScope(options);
     let hPath = "";
     let idPath: string[] = [];
-    if (options.notebookId) {
+    if (options.notebookIds?.length) {
+        idPath = [...options.notebookIds];
+        hPath = options.notebookIds.map((notebookId) => getNotebookName(notebookId)).join(" ");
+    } else if (options.notebookId) {
         hPath = getNotebookName(options.notebookId);
         idPath.push(options.notebookId);
-        if (options.searchPath && options.searchPath !== "/") {
+        if (options.searchPath && options.searchPath !== "/" && isInIOS() && options.focusInput) {
+            // 外接键盘打开搜索时同步切换输入焦点，路径名称由 genSearch 的异步刷新补全。
+            idPath[0] = pathPosix().join(idPath[0], options.searchPath);
+        } else if (options.searchPath && options.searchPath !== "/") {
             const response = await fetchSyncPost("/api/filetree/getHPathByPath", {
                 notebook: options.notebookId,
                 path: options.searchPath.endsWith(".sy") ? options.searchPath : options.searchPath + ".sy"
             });
+            if (version !== openSearchVersion || (isCurrentPathRequest && !isCurrentPathRequest())) {
+                return;
+            }
+            if (response.code !== 0 || typeof response.data !== "string") {
+                return;
+            }
             hPath = pathPosix().join(hPath, response.data);
             idPath[0] = pathPosix().join(idPath[0], options.searchPath);
         }
     } else if (Constants.DIALOG_GLOBALSEARCH === options.hotkey) {
-        if (localData.removed) {
-            hPath = "";
-            idPath = [];
-        } else {
-            hPath = localData.hPath;
-            idPath = [...localData.idPath];
-        }
+        const globalScope = resolveGlobalSearchScope(localData);
+        hPath = globalScope.hPath;
+        idPath = globalScope.idPath;
     }
     const config = {
         removed: localData.removed,
-        k: options.key || localData.k,
+        k: localData.k,
         r: localData.r,
         hasReplace: options.hotkey === Constants.DIALOG_REPLACE,
-        method: localData.method,
+        method: localData.method === 4 && (isDisabledFeature("ai") || !window.siyuan.config.ai.embedding.enabled) ? 0 : localData.method,
         hPath,
         idPath,
         group: localData.group,
         sort: localData.sort,
         types: Object.assign({}, localData.types),
+        subTypes: Object.assign({}, localData.subTypes),
         replaceTypes: Object.assign({}, localData.replaceTypes),
-        page: options.key ? 1 : localData.page
+        page: localData.page
     };
+    applySearchOpenOptions(config, options);
+    setSearchConfigTemporaryPath(config, hasScopedPath || options.hotkey === Constants.DIALOG_SEARCH);
     // 搜索中继续执行 ctrl+F/P 不退出 https://github.com/siyuan-note/siyuan/issues/11637
     const exitDialog = window.siyuan.dialogs.find((item) => {
+        if (item !== existingSearchDialog || (isCurrentPathRequest && !isCurrentPathRequest())) {
+            return false;
+        }
         // 再次打开
         if (item.element.querySelector("#searchList")) {
             const searchElement = item.element.querySelector(".b3-dialog__body");
@@ -60,35 +98,67 @@ export const openSearch = async (options: {
             if (selectText) {
                 cloneData.k = selectText;
             }
+            applySearchOpenOptions(cloneData, options);
+            if (hasScopedPath) {
+                setSearchConfigTemporaryPath(item.data, true);
+            } else if (options.hotkey === Constants.DIALOG_GLOBALSEARCH) {
+                setSearchConfigTemporaryPath(item.data, false);
+            }
             item.element.setAttribute("data-key", options.hotkey);
-            if (options.hotkey === Constants.DIALOG_REPLACE) {
+            if (options.notebookId || options.notebookIds?.length) {
+                cloneData.hasReplace = options.hotkey === Constants.DIALOG_REPLACE;
+                cloneData.hPath = hPath;
+                cloneData.idPath = [...idPath];
+                item.data = updateConfig(searchElement, cloneData, item.data, item.editors.edit, {
+                    storageConfig: replaceSearchConfigPath(cloneData, localData),
+                });
+            } else if (options.hotkey === Constants.DIALOG_REPLACE) {
                 cloneData.hasReplace = true;
-                item.data = updateConfig(searchElement, cloneData, item.data, item.editors.edit);
+                item.data = updateConfig(searchElement, cloneData, item.data, item.editors.edit, {
+                    storageConfig: replaceSearchConfigPath(cloneData, localData),
+                });
             } else if (options.hotkey === Constants.DIALOG_GLOBALSEARCH) {
                 cloneData.hasReplace = false;
-                cloneData.hPath = "";
-                cloneData.idPath = [];
-                item.data = updateConfig(searchElement, cloneData, item.data, item.editors.edit);
+                cloneData.hPath = hPath;
+                cloneData.idPath = [...idPath];
+                item.data = updateConfig(searchElement, cloneData, item.data, item.editors.edit, {
+                    storageConfig: replaceSearchConfigPath(cloneData, localData),
+                });
             } else if (options.hotkey === Constants.DIALOG_SEARCH) {
-                cloneData.hasReplace = false;
                 const toPath = item.editors.edit.protyle.path;
+                const toNotebook = item.editors.edit.protyle.notebookId;
                 fetchPost("/api/filetree/getHPathsByPaths", {paths: [toPath]}, (response) => {
-                    cloneData.idPath = [pathPosix().join(item.editors.edit.protyle.notebookId, toPath)];
-                    cloneData.hPath = response.data[0];
-                    item.data.idPath = cloneData.idPath;
-                    item.data.hPath = cloneData.hPath;
-                    item.data = updateConfig(searchElement, cloneData, item.data, item.editors.edit);
+                    if (version !== openSearchVersion || !item.element.isConnected ||
+                        item.element.getAttribute("data-key") !== Constants.DIALOG_SEARCH ||
+                        (isCurrentPathRequest && !isCurrentPathRequest())) {
+                        return;
+                    }
+                    if (!Array.isArray(response.data) || typeof response.data[0] !== "string") {
+                        return;
+                    }
+                    const currentData = JSON.parse(JSON.stringify(item.data)) as Config.IUILayoutTabSearchConfig;
+                    currentData.hasReplace = false;
+                    if (selectText) {
+                        currentData.k = selectText;
+                    }
+                    applySearchOpenOptions(currentData, options);
+                    currentData.idPath = [pathPosix().join(toNotebook, toPath)];
+                    currentData.hPath = response.data[0];
+                    setSearchConfigTemporaryPath(item.data, true);
+                    item.data = updateConfig(searchElement, currentData, item.data, item.editors.edit, {
+                        storageConfig: replaceSearchConfigPath(
+                            currentData, window.siyuan.storage[Constants.LOCAL_SEARCHDATA]),
+                    });
                 });
             }
             return true;
         }
     });
     if (exitDialog) {
+        if (options.focusInput) {
+            focusSearchInput(existingSearchElement.querySelector("#searchInput"));
+        }
         return;
-    }
-    let range: Range;
-    if (getSelection().rangeCount > 0) {
-        range = getSelection().getRangeAt(0);
     }
     const dialog = new Dialog({
         positionId: options.hotkey,
@@ -99,6 +169,7 @@ export const openSearch = async (options: {
             if (range && !options) {
                 focusByRange(range);
             }
+            cancelSearchRequest(dialog.element.querySelector(".b3-dialog__body"));
             dialog.editors.edit.destroy();
             dialog.editors.unRefEdit.destroy();
         },
@@ -117,4 +188,7 @@ export const openSearch = async (options: {
         dialog.destroy({focus: "false"});
     });
     dialog.data = config;
+    if (options.focusInput) {
+        focusSearchInput(dialog.element.querySelector("#searchInput"));
+    }
 };

@@ -1,32 +1,31 @@
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SiYuan - https://github.com/siyuan-note/siyuan
+// Copyright (c) 2020-present, b3log.org
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package sql
 
 import (
-	"fmt"
-
 	"github.com/88250/lute/ast"
 	"github.com/siyuan-note/siyuan/kernel/av"
-	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func RenderAttributeViewTable(attrView *av.AttributeView, view *av.View, query string, depth *int, cachedAttrViews map[string]*av.AttributeView) (ret *av.Table) {
-	viewable := attrView.RenderedViewables[view.ID]
-	if nil != viewable {
-		ret = viewable.(*av.Table)
-		return
+func RenderAttributeViewTable(attrView *av.AttributeView, view *av.View, query string, depth *int, cachedAttrViews map[string]*av.AttributeView, ignoreRows bool) (ret *av.Table) {
+	context := NewAttributeViewRenderContext()
+	ret = renderAttributeViewTable(attrView, view, query, depth, cachedAttrViews, ignoreRows, false, context)
+	context.PushTemplateErrors()
+	return
+}
+
+func renderAttributeViewTable(attrView *av.AttributeView, view *av.View, query string, depth *int,
+	cachedAttrViews map[string]*av.AttributeView, ignoreRows, deferTemplateValues bool,
+	renderContext *AttributeViewRenderContext) (ret *av.Table) {
+	if !ignoreRows && !deferTemplateValues && view.LayoutType != av.LayoutTypeCalendar {
+		viewable := attrView.RenderedViewables[view.ID]
+		if nil != viewable {
+			if ret = av.TableFromViewable(viewable); nil != ret {
+				return
+			}
+		}
 	}
 
 	ret = &av.Table{
@@ -36,36 +35,46 @@ func RenderAttributeViewTable(attrView *av.AttributeView, view *av.View, query s
 	}
 
 	// 组装列
-	for _, col := range view.Table.Columns {
+	for _, col := range view.GetTableLayout().Columns {
 		key, getErr := attrView.GetKey(col.ID)
 		if nil != getErr {
-			// 找不到字段则在视图中删除
-			removeMissingField(attrView, view, col.ID)
+			// 找不到字段则在视图中删除（元数据查询场景不写盘）
+			if !ignoreRows {
+				removeMissingField(attrView, view, col.ID, renderContext)
+			}
 			continue
 		}
 
 		ret.Columns = append(ret.Columns, &av.TableColumn{
 			BaseInstanceField: &av.BaseInstanceField{
-				ID:           key.ID,
-				Name:         key.Name,
-				Type:         key.Type,
-				Icon:         key.Icon,
-				Wrap:         col.Wrap,
-				Hidden:       col.Hidden,
-				Desc:         key.Desc,
-				Calc:         col.Calc,
-				Options:      key.Options,
-				NumberFormat: key.NumberFormat,
-				Template:     key.Template,
-				Relation:     key.Relation,
-				Rollup:       key.Rollup,
-				Date:         key.Date,
-				Created:      key.Created,
-				Updated:      key.Updated,
+				ID:             key.ID,
+				Name:           key.Name,
+				Type:           key.Type,
+				Icon:           key.Icon,
+				Wrap:           col.Wrap,
+				Hidden:         col.Hidden && !((av.LayoutTypeList == view.LayoutType || av.LayoutTypeCalendar == view.LayoutType) && av.KeyTypeBlock == key.Type),
+				Desc:           key.Desc,
+				Calc:           col.Calc,
+				Options:        key.Options,
+				NumberFormat:   key.NumberFormat,
+				DateFormat:     key.DateFormat,
+				Template:       key.Template,
+				RenderTemplate: key.RenderTemplate,
+				Relation:       key.Relation,
+				Rollup:         key.Rollup,
+				Date:           key.Date,
+				Created:        key.Created,
+				Updated:        key.Updated,
 			},
 			Width: col.Width,
 			Pin:   col.Pin,
+			Align: col.Align,
 		})
+	}
+
+	// 菜单等只需要字段/视图元数据的场景，跳过全部行处理
+	if ignoreRows {
+		return
 	}
 
 	rowsValues := generateAttrViewItems(attrView, view) // 生成行
@@ -73,19 +82,24 @@ func RenderAttributeViewTable(attrView *av.AttributeView, view *av.View, query s
 
 	// 生成行单元格
 	for rowID, rowValues := range rowsValues {
+		// 按字段 ID 建索引，避免后续列循环里对每个单元格做线性查找
+		kvByCol := map[string]*av.KeyValues{}
+		for _, keyValues := range rowValues {
+			if _, ok := kvByCol[keyValues.Key.ID]; !ok { // 同一字段存在多个值时只取第一个
+				kvByCol[keyValues.Key.ID] = keyValues
+			}
+		}
+
 		var tableRow av.TableRow
 		for _, col := range ret.Columns {
 			var tableCell *av.TableCell
-			for _, keyValues := range rowValues {
-				if keyValues.Key.ID == col.ID {
-					tableCell = &av.TableCell{
-						BaseValue: &av.BaseValue{
-							ID:        keyValues.Values[0].ID,
-							Value:     keyValues.Values[0],
-							ValueType: col.Type,
-						},
-					}
-					break
+			if keyValues, ok := kvByCol[col.ID]; ok {
+				tableCell = &av.TableCell{
+					BaseValue: &av.BaseValue{
+						ID:        keyValues.Values[0].ID,
+						Value:     keyValues.Values[0],
+						ValueType: col.Type,
+					},
 				}
 			}
 			if nil == tableCell {
@@ -102,7 +116,8 @@ func RenderAttributeViewTable(attrView *av.AttributeView, view *av.View, query s
 			if nil != col.Date {
 				filedDateIsTime = col.Date.FillSpecificTime
 			}
-			fillAttributeViewBaseValue(tableCell.BaseValue, col.ID, rowID, col.NumberFormat, col.Template, filedDateIsTime)
+			fillAttributeViewBaseValue(tableCell.BaseValue, col.ID, rowID, col.NumberFormat, col.DateFormat, col.Template,
+				filedDateIsTime)
 			tableRow.Cells = append(tableRow.Cells, tableCell)
 		}
 		ret.Rows = append(ret.Rows, &tableRow)
@@ -122,12 +137,11 @@ func RenderAttributeViewTable(attrView *av.AttributeView, view *av.View, query s
 	ials := BatchGetBlockAttrs(ialIDs)
 
 	// 渲染自动生成的字段值，比如关联、汇总、创建时间和更新时间
-	fillAttributeViewAutoGeneratedValues(attrView, ret, ials, depth, cachedAttrViews)
+	fillAttributeViewAutoGeneratedValues(attrView, ret, ials, depth, cachedAttrViews, renderContext)
 
-	// 最后渲染模板字段，这样模板就可以使用汇总、关联、创建时间和更新时间的值了
-	renderTemplateErr := fillAttributeViewTemplateValues(attrView, view, ret, ials)
-	if nil != renderTemplateErr {
-		util.PushErrMsg(fmt.Sprintf(util.Langs[util.Lang][44], util.EscapeHTML(renderTemplateErr.Error())), 30000)
+	if !deferTemplateValues {
+		// 最后渲染模板字段，这样模板就可以使用汇总、关联、创建时间和更新时间的值了
+		fillAttributeViewTemplateValues(attrView, view, ret, ials, renderContext)
 	}
 
 	filterByQuery(query, ret)

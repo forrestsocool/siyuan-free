@@ -1,18 +1,21 @@
 const path = require("path");
+const PreserveWatchAssetsPlugin = require("./scripts/preserve-watch-assets");
 const webpack = require("webpack");
 const pkg = require("./package.json");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const {CleanWebpackPlugin} = require("clean-webpack-plugin");
 const {EsbuildPlugin} = require("esbuild-loader");
 
 module.exports = (env, argv) => {
     return {
         mode: argv.mode || "development",
         watch: argv.mode !== "production",
-        devtool: argv.mode !== "production" ? "eval-source-map" : false,
+        devtool: argv.mode !== "production" ? "source-map" : false,
         target: "electron-renderer",
         output: {
+            // 首次输出时清理，开发期间的后续输出由插件保留旧资源。
+            clean: true,
+            globalObject: "globalThis",
             publicPath: "auto",
             filename: "[name].[chunkhash].js",
             path: path.resolve(__dirname, "stage/build/app"),
@@ -20,6 +23,7 @@ module.exports = (env, argv) => {
         entry: {
             "main": "./src/index.ts",
             "window": "./src/window/index.ts",
+            "settings": "./src/config/setting/window.ts",
         },
         resolve: {
             extensions: [".ts", ".js", ".tpl", ".scss", ".png", ".svg"],
@@ -32,6 +36,38 @@ module.exports = (env, argv) => {
                     sourcemap: argv.mode !== "production",
                 }),
             ],
+            // 把 webpack runtime 提到独立小文件，避免业务码变动连带改变 vendors/common 的 chunkhash
+            runtimeChunk: "single",
+            splitChunks: {
+                chunks: "all",
+                minSize: 20000,
+                cacheGroups: {
+                    // MP3 编码器仅由录音 Worker 使用，单独分包可避免主界面提前加载。
+                    recordMediaEncoder: {
+                        test: /[\\/]node_modules[\\/]@breezystack[\\/]lamejs[\\/]/,
+                        name: "record-media-encoder",
+                        chunks: "all",
+                        priority: 20,
+                        enforce: true,
+                    },
+                    // 第三方依赖统一进 vendors chunk（dayjs、iconv-lite、@tiptap/* 等）
+                    vendors: {
+                        test: /[\\/]node_modules[\\/]/,
+                        name: "vendors",
+                        chunks: "all",
+                        priority: 10,
+                    },
+                    // main 与 window 两入口共享的业务码（constants / layout / protyle / editor / plugin ...），
+                    // 提取到 common chunk 以消除两入口约 90% 的重复打包
+                    common: {
+                        name: "common",
+                        chunks: "all",
+                        minChunks: 2,
+                        priority: 5,
+                        reuseExistingChunk: true,
+                    },
+                },
+            },
         },
         module: {
             rules: [
@@ -39,7 +75,8 @@ module.exports = (env, argv) => {
                     test: /\.tpl/,
                     include: [
                         path.resolve(__dirname, "src/assets/template/app/index.tpl"),
-                        path.resolve(__dirname, "src/assets/template/app/window.tpl")],
+                        path.resolve(__dirname, "src/assets/template/app/window.tpl"),
+                        path.resolve(__dirname, "src/assets/template/app/settings.tpl")],
                     loader: "html-loader",
                     options: {
                         sources: false,
@@ -86,7 +123,12 @@ module.exports = (env, argv) => {
                     ],
                 },
                 {
+                    test: /task-(canceled|in-progress|unchecked)\.svg$/,
+                    type: "asset/inline",
+                },
+                {
                     test: /\.(png|svg)$/,
+                    exclude: /task-(canceled|in-progress|unchecked)\.svg$/,
                     use: [
                         {
                             loader: "file-loader",
@@ -100,11 +142,7 @@ module.exports = (env, argv) => {
             ],
         },
         plugins: [
-            new CleanWebpackPlugin({
-                cleanStaleWebpackAssets: false,
-                cleanOnceBeforeBuildPatterns: [
-                    path.join(__dirname, "stage/build/app")],
-            }),
+            new PreserveWatchAssetsPlugin(),
             new webpack.DefinePlugin({
                 SIYUAN_VERSION: JSON.stringify(pkg.version),
                 NODE_ENV: JSON.stringify(argv.mode),
@@ -123,6 +161,12 @@ module.exports = (env, argv) => {
                 chunks: ["window"],
                 filename: "window.html",
                 template: "src/assets/template/app/window.tpl",
+            }),
+            new HtmlWebpackPlugin({
+                inject: "head",
+                chunks: ["settings"],
+                filename: "settings.html",
+                template: "src/assets/template/app/settings.tpl",
             }),
         ],
     };

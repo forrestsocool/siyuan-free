@@ -24,14 +24,30 @@
   }
 
   &__outer {
+    --b3-pdf-background1: var(--b3-pdf-background1-light);
+    --b3-pdf-background2: var(--b3-pdf-background2-light);
+    --b3-pdf-background3: var(--b3-pdf-background3-light);
+    --b3-pdf-background4: var(--b3-pdf-background4-light);
+    --b3-pdf-background5: var(--b3-pdf-background5-light);
+    --b3-pdf-background6: var(--b3-pdf-background6-light);
+    --b3-pdf-background7: var(--b3-pdf-background7-light);
+
     user-select: text;
     overflow: hidden;
     width: 100%;
     height: 100%;
     position: relative;
 
-    .textLayer,
-    .pdf__resize {
+    &--maximized {
+      position: fixed;
+      inset: var(--pdf-maximized-top, 0px) 0 0;
+      width: auto;
+      height: auto;
+      z-index: 8;
+      background-color: var(--b3-theme-background);
+    }
+
+    .textLayer {
       /* dark 蓝色、紫色背景显示不清楚，文档位于 https://github.com/siyuan-note/siyuan/issues/5351 */
       mix-blend-mode: multiply;
     }
@@ -51,7 +67,10 @@
   }
 
   &__rect {
+    --pdf-annotation-color: var(--b3-pdf-background1);
+
     cursor: pointer;
+    pointer-events: none;
 
     &--hl > div {
       transition: opacity 1500ms linear;
@@ -64,6 +83,8 @@
       box-sizing: border-box;
       position: absolute;
       z-index: 1;
+      border: 2px solid var(--pdf-annotation-color);
+      pointer-events: auto;
 
       &:first-child {
         border-bottom-left-radius: var(--b3-border-radius);
@@ -75,17 +96,143 @@
         border-bottom-right-radius: var(--b3-border-radius);
       }
     }
+
+    &[data-mode="rect"] > div {
+      cursor: move;
+      pointer-events: none;
+    }
+
+    &-edge {
+      position: absolute;
+      pointer-events: auto;
+
+      &--n,
+      &--s {
+        left: -2px;
+        right: -2px;
+        height: 8px;
+      }
+
+      &--n {
+        top: -5px;
+      }
+
+      &--s {
+        bottom: -5px;
+      }
+
+      &--e,
+      &--w {
+        top: -2px;
+        bottom: -2px;
+        width: 8px;
+      }
+
+      &--e {
+        right: -5px;
+      }
+
+      &--w {
+        left: -5px;
+      }
+    }
+
+    &--selected > div {
+      z-index: 2;
+    }
+
+    &--dragging > div {
+      cursor: grabbing;
+    }
+
+    &-resize {
+      position: absolute;
+      z-index: 3;
+      width: 10px;
+      height: 10px;
+      box-sizing: border-box;
+      border: 2px solid var(--pdf-annotation-color);
+      border-radius: 50%;
+      background-color: var(--b3-theme-surface);
+      pointer-events: auto;
+
+      &--nw {
+        top: 0;
+        left: 0;
+        transform: translate(-50%, -50%);
+      }
+
+      &--ne {
+        top: 0;
+        right: 0;
+        transform: translate(50%, -50%);
+      }
+
+      &--sw {
+        bottom: 0;
+        left: 0;
+        transform: translate(-50%, 50%);
+      }
+
+      &--se {
+        right: 0;
+        bottom: 0;
+        transform: translate(50%, 50%);
+      }
+
+      &[data-direction="nw"],
+      &[data-direction="se"] {
+        cursor: nwse-resize;
+      }
+
+      &[data-direction="ne"],
+      &[data-direction="sw"] {
+        cursor: nesw-resize;
+      }
+    }
+
+    &:not([data-type="border"]) > div {
+      background-color: var(--pdf-annotation-color);
+      background-color: color-mix(in srgb, var(--pdf-annotation-color) 35%, transparent);
+
+      @supports not (background-color: color-mix(in srgb, red, transparent)) {
+        opacity: .35;
+      }
+    }
   }
 
   &__resize {
     position: fixed;
+    z-index: 3;
     border: 2px solid var(--b3-pdf-background1);
     box-sizing: border-box;
     border-radius: var(--b3-border-radius);
   }
 }
 
+.pdf__rects {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: clip;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+.textLayer[hidden] ~ .pdf__rects {
+  display: none;
+}
+
 .pdf__outer--dark {
+  --b3-pdf-selection: var(--b3-pdf-selection-dark, #779170);
+  --b3-pdf-background1: var(--b3-pdf-background1-dark, var(--b3-pdf-background1-light));
+  --b3-pdf-background2: var(--b3-pdf-background2-dark, var(--b3-pdf-background2-light));
+  --b3-pdf-background3: var(--b3-pdf-background3-dark, var(--b3-pdf-background3-light));
+  --b3-pdf-background4: var(--b3-pdf-background4-dark, var(--b3-pdf-background4-light));
+  --b3-pdf-background5: var(--b3-pdf-background5-dark, var(--b3-pdf-background5-light));
+  --b3-pdf-background6: var(--b3-pdf-background6-dark, var(--b3-pdf-background6-light));
+  --b3-pdf-background7: var(--b3-pdf-background7-dark, var(--b3-pdf-background7-light));
+
   .pdfViewer .page canvas,
   .thumbnailImage {
     filter: grayscale(0%) invert(100%) contrast(100%) brightness(100%) hue-rotate(180deg);
@@ -95,8 +242,7 @@
     background-color: var(--b3-pdf-dark);
   }
 
-  .textLayer,
-  .pdf__resize {
+  .textLayer {
     z-index: 2; // pdf 缩放后 canvas 会出现在末尾，导致无法选中和查看标注
     mix-blend-mode: screen;
   }
@@ -137,7 +283,7 @@
 
 #sidebarContainer {
   position: absolute;
-  top: 30px;
+  top: 42px;
   bottom: 0;
   width: var(--sidebar-width);
   visibility: hidden;
@@ -175,7 +321,7 @@
 }
 
 #sidebarContent {
-  top: 30px;
+  top: 42px;
   bottom: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
@@ -188,7 +334,7 @@
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   position: absolute;
-  top: 30px;
+  top: 42px;
   right: 0;
   bottom: 0;
   left: 0;
@@ -214,14 +360,15 @@
 #toolbarSidebar,
 #toolbarViewer {
   width: 100%;
-  height: 30px;
+  height: 42px;
   display: flex;
   padding-left: 8px;
   box-sizing: border-box;
+  align-items: center;
 }
 
 #toolbarViewer #numPages {
-  line-height: 30px;
+  line-height: 42px;
   padding-left: 4px;
 }
 
@@ -238,7 +385,6 @@
     content: "";
     width: 1px;
     height: 100%;
-    background-color: var(--b3-border-color);
     position: absolute;
     top: 0;
     left: 3px;
@@ -319,7 +465,7 @@
 .findbar {
   left: 40px;
   position: absolute;
-  top: 30px;
+  top: 42px;
   padding: 4px 8px;
   display: flex;
   align-items: center;
@@ -335,7 +481,7 @@
 .secondaryToolbar {
   right: 4px;
   position: absolute;
-  top: 30px;
+  top: 42px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   // 需高于 pdf 中的链接
@@ -363,7 +509,7 @@
   border: none;
   background: none;
   cursor: pointer;
-  padding: 5px;
+  padding: 4px;
   user-select: none;
   width: 24px;
   box-sizing: border-box;
@@ -372,15 +518,18 @@
   color: var(--b3-theme-on-surface);
   overflow: initial;
   align-self: center;
+  border-radius: var(--b3-border-radius);
+  transition: var(--b3-background-transition) var(--b3-color-transition);
 
-  &:hover,
-  &:focus {
+  &:hover:not([disabled]),
+  &:focus:not([disabled]) {
     color: var(--b3-theme-on-background);
+    background-color: var(--b3-list-icon-hover);
   }
 
   & > svg {
-    height: 14px;
-    width: 14px;
+    height: 16px;
+    width: 16px;
   }
 
   &[disabled] {
@@ -388,9 +537,12 @@
   }
 }
 
-.toolbarButton.toggled,
 .secondaryToolbarButton.toggled {
   color: var(--b3-theme-primary);
+}
+
+.toolbarButton.toggled {
+  background-color: var(--b3-list-icon-hover);
 }
 
 .secondaryToolbarButton {
@@ -407,13 +559,11 @@
 .dropdownToolbarButton {
   --scale-select-width: 140px;
   width: var(--scale-select-width);
-  margin: 2px 8px 2px 0;
+  margin-right: 8px;
+  align-self: center;
 
   select {
     width: inherit;
-    min-width: auto;
-    padding: 0 8px;
-    height: 26px;
   }
 }
 
@@ -440,8 +590,7 @@
   min-width: 16px;
   text-align: right;
   width: 48px;
-  padding: 1px 8px;
-  margin: 2px 0;
+  align-self: center;
 }
 
 .toolbarField.pageNumber::-webkit-inner-spin-button,
@@ -752,7 +901,7 @@ a:focus > .thumbnail > .thumbnailSelectionRing,
   background: none repeat scroll 0 0 rgba(255, 255, 255, 1);
   border: 1px solid rgba(102, 102, 102, 1);
   position: fixed;
-  top: 30px;
+  top: 42px;
   right: 0;
   bottom: 0;
   font-size: 10px;

@@ -1,5 +1,9 @@
-import {isMobile} from "../util/functions";
+import {getFrontend, isMobile} from "../util/functions";
 import {Dialog} from "../dialog";
+import {closeNativeSettings, openNativeSettings} from "../config/setting/nativeWindow";
+import {isSettingsWindow} from "../config/setting/windowContext";
+import {fitSettingsWindowDialog} from "../config/setting/windowDialog";
+import {genUUID} from "../util/genID";
 
 export class Setting {
     private items: IPluginSettingOption[] = [];
@@ -7,6 +11,11 @@ export class Setting {
     private destroyCallback: () => void;
     private width: string;
     private height: string;
+    private openInWindow: boolean;
+    private windowKey = "plugin-" + genUUID();
+    private windowOpen = false;
+    private closeWindowCallback: () => void;
+    private windowSession = 0;
     public dialog:Dialog;
 
     constructor(options: {
@@ -14,11 +23,13 @@ export class Setting {
         width?: string,
         destroyCallback?: () => void
         confirmCallback?: () => void
+        openInWindow?: boolean
     }) {
         this.confirmCallback = options.confirmCallback;
         this.destroyCallback = options.destroyCallback;
         this.width = options.width || (isMobile() ? "92vw" : "768px");
         this.height = options.height || "80vh";
+        this.openInWindow = options.openInWindow === true;
     }
 
     public addItem(options: IPluginSettingOption) {
@@ -26,6 +37,37 @@ export class Setting {
     }
 
     public open(name: string) {
+        if (this.openInWindow && getFrontend().startsWith("desktop") && !isSettingsWindow()) {
+            if (!this.windowOpen) {
+                this.windowOpen = true;
+                this.windowSession++;
+            }
+            const session = this.windowSession;
+            const closed = () => {
+                if (!this.windowOpen || session !== this.windowSession) return;
+                this.windowOpen = false;
+                this.dialog = undefined;
+                this.items.forEach(item => {
+                    if (item.actionElement && item.actionElement.ownerDocument !== document) {
+                        document.adoptNode(item.actionElement);
+                    }
+                });
+                this.destroyCallback?.();
+            };
+            this.closeWindowCallback = closed;
+            void openNativeSettings(window.siyuan.ws.app, {}, {
+                name, closed, isOpen: () => this.windowOpen && session === this.windowSession,
+                mount: create => {
+                    this.dialog = create({width: this.width, height: this.height, items: this.items,
+                        confirmCallback: this.confirmCallback, destroyCallback: closed});
+                },
+            }, this.windowKey).catch(error => {
+                closed();
+                console.error(error);
+            });
+            return;
+        }
+        const windowRoot = isSettingsWindow() && window.siyuan.dialogs.length === 0;
         const dialog = new Dialog({
             title: name,
             content: `<div class="b3-dialog__content">
@@ -41,6 +83,9 @@ export class Setting {
                 if (this.destroyCallback) {
                     this.destroyCallback();
                 }
+                if (windowRoot) {
+                    window.close();
+                }
             }
         });
         const contentElement = dialog.element.querySelector(".b3-dialog__content");
@@ -54,19 +99,19 @@ export class Setting {
             if (typeof item.direction === "undefined") {
                 item.direction = (!actionElement || "TEXTAREA" === actionElement.tagName) ? "row" : "column";
             }
+            const titleBlock = `<div class="config-name">${item.title}</div>
+        ${item.description ? `<div class="b3-label__text">${item.description}</div>` : ""}`;
             if (item.direction === "row") {
-                html = `<${tagName} class="b3-label">
+                html = `<${tagName} class="b3-label config-item">
     <div class="fn__block">
-        ${item.title}
-        ${item.description ? `<div class="b3-label__text">${item.description}</div>` : ""}
+        ${titleBlock}
         <div class="fn__hr"></div>
     </div>
 </${tagName}>`;
             } else {
-                html = `<${tagName} class="fn__flex b3-label config__item">
+                html = `<${tagName} class="fn__flex b3-label config-item">
     <div class="fn__flex-1">
-        ${item.title}
-        ${item.description ? `<div class="b3-label__text">${item.description}</div>` : ""}
+        ${titleBlock}
     </div>
     <span class="fn__space${actionElement ? "" : " fn__none"}"></span>
 </${tagName}>`;
@@ -83,7 +128,10 @@ export class Setting {
                     actionElement.classList.add("fn__block");
                 } else {
                     actionElement.classList.remove("fn__block");
-                    actionElement.classList.add("fn__flex-center", "fn__size200");
+                    actionElement.classList.add("fn__flex-center");
+                    if (!actionElement.classList.contains("b3-switch")) {
+                        actionElement.classList.add("fn__size200");
+                    }
                     contentElement.lastElementChild.insertAdjacentElement("beforeend", actionElement);
                 }
             }
@@ -100,5 +148,17 @@ export class Setting {
             dialog.destroy();
         });
         this.dialog = dialog;
+        if (windowRoot) {
+            fitSettingsWindowDialog(dialog);
+        }
+    }
+
+    public close() {
+        if (this.windowOpen) {
+            closeNativeSettings(this.windowKey);
+            this.closeWindowCallback?.();
+        } else {
+            this.dialog?.destroy();
+        }
     }
 }

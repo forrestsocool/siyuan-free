@@ -1,3 +1,7 @@
+import {tabsRender} from "./render/tabsRender";
+import {setAutoDirection} from "./render/autoDirection";
+import {renderExportJSEmbeds} from "./export/jsEmbed";
+import {applyExportHeadingPageBreaks} from "./export/headingPageBreaks";
 import { graphvizRender } from "./render/graphvizRender";
 import { highlightRender } from "./render/highlightRender";
 import { mathRender } from "./render/mathRender";
@@ -11,6 +15,10 @@ import { plantumlRender } from "./render/plantumlRender";
 import "../assets/scss/export.scss";
 
 class Protyle {
+    public static setAutoDirection = setAutoDirection;
+    public static renderExportJSEmbeds = renderExportJSEmbeds;
+    public static applyExportHeadingPageBreaks = applyExportHeadingPageBreaks;
+    public static tabsRender = tabsRender;
     /** 对 graphviz 进行渲染 */
     public static graphvizRender = graphvizRender;
     /** 为 element 中的代码块进行高亮渲染 */

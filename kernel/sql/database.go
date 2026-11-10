@@ -1,25 +1,15 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package sql
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -43,6 +33,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/siyuan-note/eventbus"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/search"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -53,6 +44,18 @@ var (
 	assetContentDB *sql.DB
 
 	initDatabaseLock = sync.RWMutex{}
+
+	// encryptedDBs 维护已打开的加密笔记本独立 db 连接，按 boxID 索引。
+	// UnlockBox 时打开并注册，LockBox/Unmount 时关闭并移除。
+	encryptedDBs = &sync.Map{} // boxID -> *sql.DB
+
+	// IsEncryptedBoxFn 由 model 层注入，用于判断 boxID 是否为加密笔记本。
+	// sql 包不直接 import model（循环依赖），路由函数据此 fail-closed：
+	// 加密笔记本未解锁时绝不回退全局库，避免加密笔记本索引污染全局明文库。
+	IsEncryptedBoxFn func(boxID string) bool
+
+	// IsBoxUnlockedFn 由 model 层注入，用于在读取明文缓存前确认加密笔记本仍处于解锁状态。
+	IsBoxUnlockedFn func(boxID string) bool
 )
 
 func init() {
@@ -63,12 +66,20 @@ func init() {
 
 	sql.Register("sqlite3_extended", &sqlite3.SQLiteDriver{
 		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
-			return conn.RegisterFunc("regexp", regex, true)
+			if err := conn.RegisterFunc("regexp", regex, true); err != nil {
+				return err
+			}
+			normalizeSearchText := func(text string, caseSensitive, hanSensitive int) string {
+				return search.NormalizeSearchText(text, 0 != caseSensitive, 0 != hanSensitive)
+			}
+			return conn.RegisterFunc("search_normalize", normalizeSearchText, true)
 		},
 	})
 }
 
 func InitDatabase(forceRebuild bool) {
+	HPathRefreshLock.Lock()
+	defer HPathRefreshLock.Unlock()
 	initDatabaseLock.Lock()
 	defer initDatabaseLock.Unlock()
 
@@ -80,18 +91,53 @@ func initDatabase(forceRebuild bool) {
 	disableCache()
 	defer enableCache()
 
-	util.IncBootProgress(2, "Initializing database...")
+	util.IncBootProgress(2, util.BootL10n(301, "Initializing database..."))
 
 	if forceRebuild {
-		ClearQueue()
+		closeDatabase()
+		util.RemoveDatabaseFile(util.DBPath)
 	}
 
 	initDBConnection()
+	initIndexQueue()
 	treenode.InitBlockTree(forceRebuild)
 
 	if !forceRebuild {
 		// 检查数据库结构版本，如果版本不一致的话说明改过表结构，需要重建
 		if util.DatabaseVer == getDatabaseVer() {
+			// 老库版本一致但缺少新加的列时，做幂等迁移（不升 DatabaseVer，避免全库重建丢失已嵌入向量）
+			migrateBlockEmbeddingsSchema()
+			if err := ensureBlocksDocIndexes(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create document indexes failed: %s", err)
+			}
+			if err := ensureRefsDefIndexes(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create refs definition indexes failed: %s", err)
+			}
+			if err := ensureDocumentPathIndexes(db, true); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create document path indexes failed: %s", err)
+			}
+			if err := ensureAuxiliaryRootIndexes(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create auxiliary root indexes failed: %s", err)
+			}
+			if err := ensureTagSpansIndex(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create tag spans index failed: %s", err)
+			}
+			if err := ensureBookmarkAttributesIndex(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create bookmark attributes index failed: %s", err)
+			}
+			if err := ensureDailyNoteAttributesIndex(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create daily note attributes index failed: %s", err)
+			}
+			if err := ensureFileAnnotationRefIndex(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create file annotation reference index failed: %s", err)
+			}
+			if err := ensureRecentUpdatedBlocksIndexes(db); err != nil {
+				logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create recent updated block indexes failed: %s", err)
+			}
+			if err := cleanupInvalidRefs(db); err != nil {
+				logging.LogErrorf("cleanup invalid refs failed: %s", err)
+			}
+			recoverIndexQueue()
 			return
 		}
 		logging.LogInfof("the database structure is changed, rebuilding database...")
@@ -99,8 +145,15 @@ func initDatabase(forceRebuild bool) {
 
 	// 不存在库或者版本不一致都会走到这里
 
+	closeDatabase()
+	treenode.CloseDatabase()
+	util.RemoveDatabaseFile(util.DBPath)
+	initDBConnection()
 	initDBTables()
-	vacuum()
+	util.RemoveDatabaseFile(util.BlockTreeDBPath)
+	treenode.InitBlockTree(true)
+	// 两库失效后再清理恢复记录，避免中断时旧索引仍在但路径任务已经丢失。
+	clearQueue()
 
 	logging.LogInfof("reinitialized database [%s]", util.DBPath)
 }
@@ -145,22 +198,25 @@ func initDBTables() {
 		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create index [idx_blocks_root_id_id_hash] failed: %s", err)
 	}
 
-	_, err = db.Exec("DROP TABLE IF EXISTS blocks_fts")
-	if err != nil {
-		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "drop table [blocks_fts] failed: %s", err)
+	if err = ensureBlocksDocIndexes(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create document indexes failed: %s", err)
 	}
-	_, err = db.Exec("CREATE VIRTUAL TABLE blocks_fts USING fts5(id UNINDEXED, parent_id UNINDEXED, root_id UNINDEXED, hash UNINDEXED, box UNINDEXED, path UNINDEXED, hpath UNINDEXED, name, alias, memo, tag, content, fcontent, markdown UNINDEXED, length UNINDEXED, type UNINDEXED, subtype UNINDEXED, ial, sort UNINDEXED, created UNINDEXED, updated UNINDEXED, tokenize=\"siyuan\")")
-	if err != nil {
-		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [blocks_fts] failed: %s", err)
+	if err = ensureRecentUpdatedBlocksIndexes(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create recent updated block indexes failed: %s", err)
 	}
 
-	_, err = db.Exec("DROP TABLE IF EXISTS blocks_fts_case_insensitive")
-	if err != nil {
-		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "drop table [blocks_fts_case_insensitive] failed: %s", err)
-	}
-	_, err = db.Exec("CREATE VIRTUAL TABLE blocks_fts_case_insensitive USING fts5(id UNINDEXED, parent_id UNINDEXED, root_id UNINDEXED, hash UNINDEXED, box UNINDEXED, path UNINDEXED, hpath UNINDEXED, name, alias, memo, tag, content, fcontent, markdown UNINDEXED, length UNINDEXED, type UNINDEXED, subtype UNINDEXED, ial, sort UNINDEXED, created UNINDEXED, updated UNINDEXED, tokenize=\"siyuan case_insensitive\")")
-	if err != nil {
-		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [blocks_fts_case_insensitive] failed: %s", err)
+	if err = initFTSBlocks(); err != nil {
+		if isRecoverableDBFileError(err) {
+			logging.LogWarnf("create fts tables failed: %s, retrying with clean database...", err)
+			closeDatabase()
+			util.RemoveDatabaseFile(util.DBPath)
+			time.Sleep(time.Second)
+			initDBConnection()
+			err = initFTSBlocks()
+		}
+		if err != nil {
+			logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create fts tables failed: %s", err)
+		}
 	}
 
 	_, err = db.Exec("DROP TABLE IF EXISTS spans")
@@ -174,6 +230,9 @@ func initDBTables() {
 	_, err = db.Exec("CREATE INDEX idx_spans_root_id ON spans(root_id)")
 	if err != nil {
 		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create index [idx_spans_root_id] failed: %s", err)
+	}
+	if err = ensureTagSpansIndex(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create tag spans index failed: %s", err)
 	}
 
 	_, err = db.Exec("DROP TABLE IF EXISTS assets")
@@ -205,6 +264,12 @@ func initDBTables() {
 	if err != nil {
 		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create index [idx_attributes_root_id] failed: %s", err)
 	}
+	if err = ensureBookmarkAttributesIndex(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create bookmark attributes index failed: %s", err)
+	}
+	if err = ensureDailyNoteAttributesIndex(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create daily note attributes index failed: %s", err)
+	}
 
 	_, err = db.Exec("DROP TABLE IF EXISTS refs")
 	if err != nil {
@@ -213,6 +278,9 @@ func initDBTables() {
 	_, err = db.Exec("CREATE TABLE refs (id, def_block_id, def_block_parent_id, def_block_root_id, def_block_path, block_id, root_id, box, path, content, markdown, type)")
 	if err != nil {
 		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [refs] failed: %s", err)
+	}
+	if err = ensureRefsDefIndexes(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create refs definition indexes failed: %s", err)
 	}
 
 	_, err = db.Exec("DROP TABLE IF EXISTS file_annotation_refs")
@@ -223,6 +291,53 @@ func initDBTables() {
 	if err != nil {
 		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [refs] failed: %s", err)
 	}
+	if err = ensureFileAnnotationRefIndex(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create file annotation reference index failed: %s", err)
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS block_embeddings")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "drop table [block_embeddings] failed: %s", err)
+	}
+	_, err = db.Exec("CREATE TABLE block_embeddings (id TEXT PRIMARY KEY, root_id TEXT, box TEXT, path TEXT, embedding BLOB, model TEXT, space TEXT NOT NULL DEFAULT '', content_len INTEGER, updated TEXT, fail_count INTEGER NOT NULL DEFAULT 0, last_tried INTEGER NOT NULL DEFAULT 0, ignored_type INTEGER NOT NULL DEFAULT 0)")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [block_embeddings] failed: %s", err)
+	}
+	_, err = db.Exec("CREATE INDEX idx_block_embeddings_root_id ON block_embeddings(root_id)")
+	if err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create index [idx_block_embeddings_root_id] failed: %s", err)
+	}
+	if err = ensureDocumentPathIndexes(db, true); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create document path indexes failed: %s", err)
+	}
+	if err = ensureAuxiliaryRootIndexes(db); err != nil {
+		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create auxiliary root indexes failed: %s", err)
+	}
+}
+
+func initFTSBlocks() (err error) {
+	_, err = db.Exec("DROP TABLE IF EXISTS blocks_fts")
+	if err != nil {
+		return
+	}
+	// 采用 external content 模式：blocks_fts 不再物理存储列值，仅维护倒排索引，
+	// 原文由 content 指向的 blocks 表提供，按 content_rowid（blocks 的隐式 rowid）回表取值。
+	// 因此 FTS 行的 rowid 必须与 blocks 行的 rowid 严格一致，所有写路径需显式传 rowid。
+	_, err = db.Exec("CREATE VIRTUAL TABLE blocks_fts USING fts5(id UNINDEXED, parent_id UNINDEXED, root_id UNINDEXED, hash UNINDEXED, box UNINDEXED, path UNINDEXED, hpath UNINDEXED, name, alias, memo, tag, content, fcontent, markdown UNINDEXED, length UNINDEXED, type UNINDEXED, subtype UNINDEXED, ial, sort UNINDEXED, created UNINDEXED, updated UNINDEXED, content='blocks', content_rowid='rowid', tokenize=\"" + ftsTokenize() + "\")")
+	return
+}
+
+func RebuildFTSIndex() (err error) {
+	if err = initFTSBlocks(); err != nil {
+		return
+	}
+
+	// external content 模式下使用 'rebuild' 命令重建索引：
+	// FTS5 会扫描 blocks 表，并用 blocks 的 rowid 作为 FTS rowid，保证两者对齐。
+	// 不能再用 INSERT...SELECT FROM blocks，否则 FTS 会自分配 rowid 导致与 blocks 脱钩。
+	stmt := "INSERT INTO blocks_fts(blocks_fts) VALUES('rebuild')"
+	_, err = db.Exec(stmt)
+	return
 }
 
 func initDBConnection() {
@@ -231,13 +346,10 @@ func initDBConnection() {
 	util.LogDatabaseSize(util.DBPath)
 	dsn := util.DBPath + "?_journal_mode=WAL" +
 		"&_synchronous=OFF" +
-		"&_mmap_size=2684354560" +
 		"&_secure_delete=OFF" +
-		"&_cache_size=-20480" +
-		"&_page_size=32768" +
+		util.SQLitePageCacheDSN() +
 		"&_busy_timeout=7000" +
 		"&_ignore_check_constraints=ON" +
-		"&_temp_store=MEMORY" +
 		"&_case_sensitive_like=OFF"
 	var err error
 	db, err = sql.Open("sqlite3_extended", dsn)
@@ -283,13 +395,10 @@ func initHistoryDBConnection() {
 	util.LogDatabaseSize(util.HistoryDBPath)
 	dsn := util.HistoryDBPath + "?_journal_mode=WAL" +
 		"&_synchronous=OFF" +
-		"&_mmap_size=2684354560" +
 		"&_secure_delete=OFF" +
-		"&_cache_size=-20480" +
-		"&_page_size=32768" +
+		util.SQLitePageCacheDSN() +
 		"&_busy_timeout=7000" +
 		"&_ignore_check_constraints=ON" +
-		"&_temp_store=MEMORY" +
 		"&_case_sensitive_like=OFF"
 	var err error
 	historyDB, err = sql.Open("sqlite3_extended", dsn)
@@ -305,20 +414,36 @@ func initHistoryDBTables() {
 	historyDB.Exec("DROP TABLE histories_fts_case_insensitive")
 	_, err := historyDB.Exec("CREATE VIRTUAL TABLE histories_fts_case_insensitive USING fts5(id UNINDEXED, type UNINDEXED, op UNINDEXED, title, content, path UNINDEXED, created UNINDEXED, tokenize=\"siyuan case_insensitive\")")
 	if err != nil {
-		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [histories_fts_case_insensitive] failed: %s", err)
+		if isRecoverableDBFileError(err) {
+			logging.LogWarnf("create history fts table failed: %s, retrying with clean database...", err)
+			historyDB.Close()
+			historyDB = nil
+			if removeErr := os.RemoveAll(util.HistoryDBPath); nil != removeErr {
+				logging.LogErrorf("remove history database file [%s] failed: %s", util.HistoryDBPath, removeErr)
+			}
+			time.Sleep(time.Second)
+			initHistoryDBConnection()
+			historyDB.Exec("DROP TABLE histories_fts_case_insensitive")
+			_, err = historyDB.Exec("CREATE VIRTUAL TABLE histories_fts_case_insensitive USING fts5(id UNINDEXED, type UNINDEXED, op UNINDEXED, title, content, path UNINDEXED, created UNINDEXED, tokenize=\"siyuan case_insensitive\")")
+		}
+		if err != nil {
+			logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [histories_fts_case_insensitive] failed: %s", err)
+		}
 	}
 }
 
 var initAssetContentDatabaseLock = sync.Mutex{}
 
-func InitAssetContentDatabase(forceRebuild bool) {
+func InitAssetContentDatabase(forceRebuild bool) error {
+	assetContentTxLock.Lock()
+	defer assetContentTxLock.Unlock()
 	initAssetContentDatabaseLock.Lock()
 	defer initAssetContentDatabaseLock.Unlock()
 
 	initAssetContentDBConnection()
 
 	if !forceRebuild && gulu.File.IsExist(util.AssetContentDBPath) {
-		return
+		return nil
 	}
 
 	assetContentDB.Close()
@@ -326,11 +451,12 @@ func InitAssetContentDatabase(forceRebuild bool) {
 	runtime.GC()
 	if err := os.RemoveAll(util.AssetContentDBPath); err != nil {
 		logging.LogErrorf("remove assets database file [%s] failed: %s", util.AssetContentDBPath, err)
-		return
+		return err
 	}
 
 	initAssetContentDBConnection()
 	initAssetContentDBTables()
+	return nil
 }
 
 func initAssetContentDBConnection() {
@@ -343,13 +469,10 @@ func initAssetContentDBConnection() {
 	util.LogDatabaseSize(util.AssetContentDBPath)
 	dsn := util.AssetContentDBPath + "?_journal_mode=WAL" +
 		"&_synchronous=OFF" +
-		"&_mmap_size=2684354560" +
 		"&_secure_delete=OFF" +
-		"&_cache_size=-20480" +
-		"&_page_size=32768" +
+		util.SQLitePageCacheDSN() +
 		"&_busy_timeout=7000" +
 		"&_ignore_check_constraints=ON" +
-		"&_temp_store=MEMORY" +
 		"&_case_sensitive_like=OFF"
 	var err error
 	assetContentDB, err = sql.Open("sqlite3_extended", dsn)
@@ -365,17 +488,33 @@ func initAssetContentDBTables() {
 	assetContentDB.Exec("DROP TABLE asset_contents_fts_case_insensitive")
 	_, err := assetContentDB.Exec("CREATE VIRTUAL TABLE asset_contents_fts_case_insensitive USING fts5(id UNINDEXED, name, ext, path, size UNINDEXED, updated UNINDEXED, content, tokenize=\"siyuan case_insensitive\")")
 	if err != nil {
-		logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [asset_contents_fts_case_insensitive] failed: %s", err)
+		if isRecoverableDBFileError(err) {
+			logging.LogWarnf("create asset content fts table failed: %s, retrying with clean database...", err)
+			assetContentDB.Close()
+			assetContentDB = nil
+			if removeErr := os.RemoveAll(util.AssetContentDBPath); nil != removeErr {
+				logging.LogErrorf("remove asset content database file [%s] failed: %s", util.AssetContentDBPath, removeErr)
+			}
+			time.Sleep(time.Second)
+			initAssetContentDBConnection()
+			assetContentDB.Exec("DROP TABLE asset_contents_fts_case_insensitive")
+			_, err = assetContentDB.Exec("CREATE VIRTUAL TABLE asset_contents_fts_case_insensitive USING fts5(id UNINDEXED, name, ext, path, size UNINDEXED, updated UNINDEXED, content, tokenize=\"siyuan case_insensitive\")")
+		}
+		if err != nil {
+			logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "create table [asset_contents_fts_case_insensitive] failed: %s", err)
+		}
 	}
 }
 
 var (
-	caseSensitive  bool
-	indexAssetPath bool
+	caseSensitive  = util.NewAtomicValue(false)
+	hanSensitive   = util.NewAtomicValue(false)
+	indexAssetPath = util.NewAtomicValue(false)
 )
 
 func SetCaseSensitive(b bool) {
-	caseSensitive = b
+	caseSensitive.Store(b)
+	util.SearchCaseSensitive.Store(b)
 
 	if nil == db {
 		return
@@ -386,17 +525,50 @@ func SetCaseSensitive(b bool) {
 	} else {
 		db.Exec("PRAGMA case_sensitive_like = OFF;")
 	}
+}
 
-	util.SearchCaseSensitive = b
+func SetHanSensitive(b bool) {
+	hanSensitive.Store(b)
+	util.SearchHanSensitive.Store(b)
+}
+
+// ftsTokenize 返回 blocks FTS 表的 tokenize 参数。
+// 分词器参数在 CREATE VIRTUAL TABLE 时固化，切换区分大小写或区分繁简后需要重建索引。
+func ftsTokenize() string {
+	ret := "siyuan"
+	if !caseSensitive.Load() {
+		ret += " case_insensitive"
+	}
+	if !hanSensitive.Load() {
+		ret += " han_insensitive"
+	}
+	return ret
 }
 
 func SetIndexAssetPath(b bool) {
-	indexAssetPath = b
+	indexAssetPath.Store(b)
+}
+
+// TreeHasRefs uses the same extraction as normal indexing, including rich
+// inline titles, attribute views and embedded references.
+func TreeHasRefs(tree *parse.Tree) bool {
+	refs, annotations := refsFromTree(tree)
+	return len(refs) > 0 || len(annotations) > 0
 }
 
 func refsFromTree(tree *parse.Tree) (refs []*Ref, fileAnnotationRefs []*FileAnnotationRef) {
-	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
+	treenode.WalkWithInlineTitles(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if entering {
+			if ast.NodeCustomBlock == n.Type {
+				return ast.WalkSkipChildren
+			}
+			if ast.NodeAttributeView == n.Type {
+				for _, ref := range attributeViewRefsFromNode(tree, n) {
+					if !isRepeatedRef(refs, ref) {
+						refs = append(refs, ref)
+					}
+				}
+			}
 			return ast.WalkContinue
 		}
 
@@ -406,14 +578,10 @@ func refsFromTree(tree *parse.Tree) (refs []*Ref, fileAnnotationRefs []*FileAnno
 				refs = append(refs, ref)
 			}
 		} else if treenode.IsFileAnnotationRef(n) {
-			pathID := n.TextMarkFileAnnotationRefID
-			idx := strings.LastIndex(pathID, "/")
-			if -1 == idx {
+			filePath, annotationID := util.SplitFileAnnotationRef(n.TextMarkFileAnnotationRefID)
+			if "" == annotationID {
 				return ast.WalkContinue
 			}
-
-			filePath := pathID[:idx]
-			annotationID := pathID[idx+1:]
 
 			anchor := n.TextMarkTextContent
 			text := filePath
@@ -463,7 +631,7 @@ func buildRef(tree *parse.Tree, refNode *ast.Node) *Ref {
 
 	defBlockID, text, _ := treenode.GetBlockRef(refNode)
 	var defBlockParentID, defBlockRootID, defBlockPath string
-	defBlock := treenode.GetBlockTree(defBlockID)
+	defBlock := treenode.GetBlockTreeInBox(defBlockID, tree.Box)
 	if nil != defBlock {
 		defBlockParentID = defBlock.ParentID
 		defBlockRootID = defBlock.RootID
@@ -489,7 +657,7 @@ func buildRef(tree *parse.Tree, refNode *ast.Node) *Ref {
 func buildEmbedRef(tree *parse.Tree, embedNode *ast.Node) *Ref {
 	defBlockID := getEmbedRef(embedNode)
 	var defBlockParentID, defBlockRootID, defBlockPath string
-	defBlock := treenode.GetBlockTree(defBlockID)
+	defBlock := treenode.GetBlockTreeInBox(defBlockID, tree.Box)
 	if nil != defBlock {
 		defBlockParentID = defBlock.ParentID
 		defBlockRootID = defBlock.RootID
@@ -518,16 +686,20 @@ func getEmbedRef(embedNode *ast.Node) (queryBlockID string) {
 }
 
 func fromTree(node *ast.Node, tree *parse.Tree) (blocks []*Block, spans []*Span, assets []*Asset, attributes []*Attribute) {
+	return fromTreeWithChanges(node, tree, nil)
+}
+
+func projectTree(node *ast.Node, tree *parse.Tree, buildBlock indexBlockBuilder) (blocks []*Block, spans []*Span, assets []*Asset, attributes []*Attribute) {
 	rootID := tree.Root.ID
 	boxID := tree.Box
 	p := tree.Path
-	ast.Walk(node, func(n *ast.Node, entering bool) ast.WalkStatus {
+	treenode.WalkWithInlineTitles(node, func(n *ast.Node, entering bool) ast.WalkStatus {
 		if !entering {
 			return ast.WalkContinue
 		}
 
 		// 构造行级元素
-		spanBlocks, spanSpans, spanAssets, spanAttrs, walkStatus := buildSpanFromNode(n, tree, rootID, boxID, p)
+		spanBlocks, spanSpans, spanAssets, spanAttrs, walkStatus := buildSpanFromNode(n, tree, rootID, boxID, p, buildBlock)
 		if 0 < len(spanBlocks) {
 			blocks = append(blocks, spanBlocks...)
 		}
@@ -555,10 +727,15 @@ func fromTree(node *ast.Node, tree *parse.Tree) (blocks []*Block, spans []*Span,
 			return ast.WalkContinue
 		}
 
-		b, attrs := buildBlockFromNode(n, tree)
-		blocks = append(blocks, b)
+		b, attrs := buildBlock(n, tree)
+		if b != nil {
+			blocks = append(blocks, b)
+		}
 		if 0 < len(attrs) {
 			attributes = append(attributes, attrs...)
+		}
+		if ast.NodeCustomBlock == n.Type {
+			return ast.WalkSkipChildren
 		}
 		return ast.WalkContinue
 	})
@@ -614,7 +791,7 @@ func isAttr(name string) bool {
 	return strings.HasPrefix(name, "custom-") || "name" == name || "alias" == name || "memo" == name || "bookmark" == name || "fold" == name || "heading-fold" == name || "style" == name
 }
 
-func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string) (blocks []*Block, spans []*Span, assets []*Asset, attributes []*Attribute, walkStatus ast.WalkStatus) {
+func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string, buildBlock indexBlockBuilder) (blocks []*Block, spans []*Span, assets []*Asset, attributes []*Attribute, walkStatus ast.WalkStatus) {
 	boxLocalPath := filepath.Join(util.DataDir, boxID)
 	docDirLocalPath := filepath.Join(boxLocalPath, p)
 	switch n.Type {
@@ -636,37 +813,39 @@ func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string) (
 		spans = append(spans, span)
 		walkStatus = ast.WalkSkipChildren
 
-		destNode := n.ChildByType(ast.NodeLinkDest)
-		if nil == destNode {
-			return
-		}
-
-		// assetsLinkDestsInTree
-
-		if !util.IsAssetLinkDest(destNode.Tokens, false) {
-			return
-		}
-
-		dest := gulu.Str.FromBytes(destNode.Tokens)
 		var title string
 		if titleNode := n.ChildByType(ast.NodeLinkTitle); nil != titleNode {
 			title = gulu.Str.FromBytes(titleNode.Tokens)
 		}
-
-		hash := assetHashByLocalPath(dest, boxLocalPath, docDirLocalPath)
-		name, _ := util.LastID(dest)
-		asset := &Asset{
-			ID:      ast.NewNodeID(),
-			BlockID: parentBlock.ID,
-			RootID:  rootID,
-			Box:     boxID,
-			DocPath: p,
-			Path:    dest,
-			Name:    name,
-			Title:   title,
-			Hash:    hash,
+		dests := []string{"", treenode.ImageLivePhotoVideo(n)}
+		if destNode := n.ChildByType(ast.NodeLinkDest); destNode != nil {
+			dests[0] = destNode.TokensStr()
 		}
-		assets = append(assets, asset)
+		for i, dest := range dests {
+			if !util.IsAssetLinkDest([]byte(dest), false) {
+				continue
+			}
+			if idx := strings.Index(dest, "?"); idx > 0 {
+				dest = dest[:idx]
+			}
+			assetTitle := title
+			if i > 0 {
+				assetTitle = ""
+			}
+			hash := assetHashByLocalPath(dest, boxLocalPath, docDirLocalPath)
+			name, _ := util.LastID(dest)
+			assets = append(assets, &Asset{
+				ID:      ast.NewNodeID(),
+				BlockID: parentBlock.ID,
+				RootID:  rootID,
+				Box:     boxID,
+				DocPath: p,
+				Path:    dest,
+				Name:    name,
+				Title:   assetTitle,
+				Hash:    hash,
+			})
+		}
 		return
 	case ast.NodeTextMark:
 		typ := treenode.TypeAbbr(n.Type.String()) + " " + n.TextMarkType
@@ -734,8 +913,10 @@ func buildSpanFromNode(n *ast.Node, tree *parse.Tree, rootID, boxID, p string) (
 		}
 
 		if ast.NodeHTMLBlock == n.Type || ast.NodeIFrame == n.Type || ast.NodeWidget == n.Type || ast.NodeAudio == n.Type || ast.NodeVideo == n.Type {
-			b, attrs := buildBlockFromNode(n, tree)
-			blocks = append(blocks, b)
+			b, attrs := buildBlock(n, tree)
+			if b != nil {
+				blocks = append(blocks, b)
+			}
 			attributes = append(attributes, attrs...)
 		}
 
@@ -807,20 +988,25 @@ func BuildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block) {
 }
 
 func buildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block, attributes []*Attribute) {
+	return buildBlockFromNodeWithHeadingParent(n, tree, treenode.HeadingParent(n))
+}
+
+func buildBlockFromNodeWithHeadingParent(n *ast.Node, tree *parse.Tree, headingParent *ast.Node) (block *Block, attributes []*Attribute) {
 	boxID := tree.Box
 	p := tree.Path
 	rootID := tree.Root.ID
-	name := html.UnescapeString(n.IALAttr("name"))
-	alias := html.UnescapeString(n.IALAttr("alias"))
-	memo := html.UnescapeString(n.IALAttr("memo"))
+	// IALAttr 已解码过一次属性值转义，此处不再解码，否则落盘时正确转义的值会被还原成原始 HTML 进入索引
+	name := n.IALAttr("name")
+	alias := n.IALAttr("alias")
+	memo := n.IALAttr("memo")
 	tag := tagFromNode(n)
 
 	var content, fcontent, markdown, parentID string
 	ialContent := treenode.IALStr(n)
-	hash := treenode.NodeHash(n, tree, luteEngine)
+	hash := treenode.NodeHashWithHeadingParent(n, tree, luteEngine, headingParent)
 	var length int
 	if ast.NodeDocument == n.Type {
-		content = n.IALAttr("title")
+		content = treenode.ReadDocumentTitle(n).Text
 		fcontent = content
 		length = utf8.RuneCountInString(fcontent)
 	} else if n.IsContainerBlock() {
@@ -828,17 +1014,17 @@ func buildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block, attributes
 		if !treenode.IsNodeOCRed(n) {
 			util.PushNodeOCRQueue(n)
 		}
-		content = NodeStaticContent(n, nil, true, indexAssetPath, true)
+		content = nodeStaticContent(n, nil, true, indexAssetPath.Load(), true, true)
 
 		fc := treenode.FirstLeafBlock(n)
 		if !treenode.IsNodeOCRed(fc) {
 			util.PushNodeOCRQueue(fc)
 		}
-		fcontent = NodeStaticContent(fc, nil, true, false, true)
+		fcontent = nodeStaticContent(fc, nil, true, false, true, true)
 
 		parentID = n.Parent.ID
-		if h := treenode.HeadingParent(n); nil != h { // 如果在标题块下方，则将标题块作为父节点
-			parentID = h.ID
+		if headingParent != nil { // 如果在标题块下方，则将标题块作为父节点
+			parentID = headingParent.ID
 		}
 		length = utf8.RuneCountInString(fcontent)
 	} else {
@@ -846,11 +1032,11 @@ func buildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block, attributes
 		if !treenode.IsNodeOCRed(n) {
 			util.PushNodeOCRQueue(n)
 		}
-		content = NodeStaticContent(n, nil, true, indexAssetPath, true)
+		content = nodeStaticContent(n, nil, true, indexAssetPath.Load(), true, true)
 
 		parentID = n.Parent.ID
-		if h := treenode.HeadingParent(n); nil != h {
-			parentID = h.ID
+		if headingParent != nil {
+			parentID = headingParent.ID
 		}
 		length = utf8.RuneCountInString(content)
 	}
@@ -889,6 +1075,10 @@ func buildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block, attributes
 		Updated:  n.IALAttr("updated"),
 	}
 
+	return block, buildNodeAttributes(n, tree)
+}
+
+func buildNodeAttributes(n *ast.Node, tree *parse.Tree) (attributes []*Attribute) {
 	attrs := parse.IAL2Map(n.KramdownIAL)
 	for attrName, attrVal := range attrs {
 		if !isAttr(attrName) {
@@ -901,9 +1091,9 @@ func buildBlockFromNode(n *ast.Node, tree *parse.Tree) (block *Block, attributes
 			Value:   attrVal,
 			Type:    "b",
 			BlockID: n.ID,
-			RootID:  rootID,
-			Box:     boxID,
-			Path:    p,
+			RootID:  tree.Root.ID,
+			Box:     tree.Box,
+			Path:    tree.Path,
 		}
 		attributes = append(attributes, attr)
 	}
@@ -914,9 +1104,10 @@ func tagFromNode(node *ast.Node) (ret string) {
 	tagBuilder := bytes.Buffer{}
 
 	if ast.NodeDocument == node.Type {
-		tagIAL := html.UnescapeString(node.IALAttr("tags"))
-		tags := strings.Split(tagIAL, ",")
-		for _, t := range tags {
+		// 与 buildBlockFromNode 一致，IALAttr 已解码过一次属性值转义
+		tagIAL := node.IALAttr("tags")
+		tags := strings.SplitSeq(tagIAL, ",")
+		for t := range tags {
 			t = strings.TrimSpace(t)
 			if "" == t {
 				continue
@@ -992,9 +1183,19 @@ func deleteBlocksByIDs(tx *sql.Tx, ids []string) (err error) {
 		}
 		rowIDs = append(rowIDs, strconv.FormatInt(rowID, 10))
 	}
+	iterErr := rows.Err()
 	rows.Close()
+	if err = iterErr; err != nil {
+		logging.LogErrorf("iterate block rowIDs failed: %s", err)
+		return
+	}
 
 	if 1 > len(rowIDs) {
+		return
+	}
+
+	stmt = "DELETE FROM blocks_fts WHERE ROWID IN (" + strings.Join(rowIDs, ",") + ")"
+	if err = execStmtTx(tx, stmt); err != nil {
 		return
 	}
 
@@ -1003,35 +1204,26 @@ func deleteBlocksByIDs(tx *sql.Tx, ids []string) (err error) {
 		return
 	}
 
-	if caseSensitive {
-		stmt = "DELETE FROM blocks_fts WHERE ROWID IN (" + strings.Join(rowIDs, ",") + ")"
-		if err = execStmtTx(tx, stmt); err != nil {
-			return
-		}
-	} else {
-		stmt = "DELETE FROM blocks_fts_case_insensitive WHERE ROWID IN (" + strings.Join(rowIDs, ",") + ")"
-		if err = execStmtTx(tx, stmt); err != nil {
-			return
+	// block_embeddings 表在加密 db 中不存在（加密笔记本不参与嵌入向量化），对该表不存在的错误容错
+	stmt = "DELETE FROM block_embeddings WHERE id IN (" + strings.Join(ftsIDs, ",") + ")"
+	if _, embedErr := tx.Exec(stmt); embedErr != nil {
+		if !strings.Contains(embedErr.Error(), "no such table") {
+			err = embedErr // 非"表不存在"的真实错误照常返回
 		}
 	}
 	return
 }
 
 func deleteBlocksByBoxTx(tx *sql.Tx, box string) (err error) {
-	stmt := "DELETE FROM blocks WHERE box = ?"
+	// external content 模式下 FTS 行需按 rowid 删除，rowid 来自 blocks 表，
+	// 因此必须先删 FTS（此时 blocks 尚在），再删 blocks，否则子查询查不到 rowid。
+	stmt := "DELETE FROM blocks_fts WHERE rowid IN (SELECT rowid FROM blocks WHERE box = ?)"
 	if err = execStmtTx(tx, stmt, box); err != nil {
 		return
 	}
-	if caseSensitive {
-		stmt = "DELETE FROM blocks_fts WHERE box = ?"
-		if err = execStmtTx(tx, stmt, box); err != nil {
-			return
-		}
-	} else {
-		stmt = "DELETE FROM blocks_fts_case_insensitive WHERE box = ?"
-		if err = execStmtTx(tx, stmt, box); err != nil {
-			return
-		}
+	stmt = "DELETE FROM blocks WHERE box = ?"
+	if err = execStmtTx(tx, stmt, box); err != nil {
+		return
 	}
 	ClearCache()
 	return
@@ -1118,20 +1310,14 @@ func deleteFileAnnotationRefsByBoxTx(tx *sql.Tx, box string) (err error) {
 }
 
 func deleteByRootID(tx *sql.Tx, rootID string, context map[string]any) (err error) {
-	stmt := "DELETE FROM blocks WHERE root_id = ?"
+	// external content 模式下 FTS 行需按 rowid 删除，必须先删 FTS 再删 blocks。
+	stmt := "DELETE FROM blocks_fts WHERE rowid IN (SELECT rowid FROM blocks WHERE root_id = ?)"
 	if err = execStmtTx(tx, stmt, rootID); err != nil {
 		return
 	}
-	if caseSensitive {
-		stmt = "DELETE FROM blocks_fts WHERE root_id = ?"
-		if err = execStmtTx(tx, stmt, rootID); err != nil {
-			return
-		}
-	} else {
-		stmt = "DELETE FROM blocks_fts_case_insensitive WHERE root_id = ?"
-		if err = execStmtTx(tx, stmt, rootID); err != nil {
-			return
-		}
+	stmt = "DELETE FROM blocks WHERE root_id = ?"
+	if err = execStmtTx(tx, stmt, rootID); err != nil {
+		return
 	}
 	stmt = "DELETE FROM spans WHERE root_id = ?"
 	if err = execStmtTx(tx, stmt, rootID); err != nil {
@@ -1165,20 +1351,14 @@ func batchDeleteByRootIDs(tx *sql.Tx, rootIDs []string, context map[string]any) 
 
 	ids := strings.Join(rootIDs, "','")
 	ids = "('" + ids + "')"
-	stmt := "DELETE FROM blocks WHERE root_id IN " + ids
+	// external content 模式下 FTS 行需按 rowid 删除，必须先删 FTS 再删 blocks。
+	stmt := "DELETE FROM blocks_fts WHERE rowid IN (SELECT rowid FROM blocks WHERE root_id IN " + ids + ")"
 	if err = execStmtTx(tx, stmt); err != nil {
 		return
 	}
-	if caseSensitive {
-		stmt = "DELETE FROM blocks_fts WHERE root_id IN " + ids
-		if err = execStmtTx(tx, stmt); err != nil {
-			return
-		}
-	} else {
-		stmt = "DELETE FROM blocks_fts_case_insensitive WHERE root_id IN " + ids
-		if err = execStmtTx(tx, stmt); err != nil {
-			return
-		}
+	stmt = "DELETE FROM blocks WHERE root_id IN " + ids
+	if err = execStmtTx(tx, stmt); err != nil {
+		return
 	}
 	stmt = "DELETE FROM spans WHERE root_id IN " + ids
 	if err = execStmtTx(tx, stmt); err != nil {
@@ -1206,39 +1386,35 @@ func batchDeleteByRootIDs(tx *sql.Tx, rootIDs []string, context map[string]any) 
 }
 
 func batchDeleteByPathPrefix(tx *sql.Tx, boxID, pathPrefix string) (err error) {
-	stmt := "DELETE FROM blocks WHERE box = ? AND path LIKE ?"
-	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
+	// external content 模式下 FTS 行需按 rowid 删除，必须先删 FTS 再删 blocks。
+	condition, args := documentPathPrefixCondition("path", boxID, pathPrefix)
+	stmt := "DELETE FROM blocks_fts WHERE rowid IN (SELECT rowid FROM blocks WHERE " + condition + ")"
+	if err = execStmtTx(tx, stmt, args...); err != nil {
 		return
 	}
-	if caseSensitive {
-		stmt = "DELETE FROM blocks_fts WHERE box = ? AND path LIKE ?"
-		if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
-			return
-		}
-	} else {
-		stmt = "DELETE FROM blocks_fts_case_insensitive WHERE box = ? AND path LIKE ?"
-		if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
-			return
-		}
-	}
-	stmt = "DELETE FROM spans WHERE box = ? AND path LIKE ?"
-	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
+	stmt = "DELETE FROM blocks WHERE " + condition
+	if err = execStmtTx(tx, stmt, args...); err != nil {
 		return
 	}
-	stmt = "DELETE FROM assets WHERE box = ? AND docpath LIKE ?"
-	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
+	stmt = "DELETE FROM spans WHERE " + condition
+	if err = execStmtTx(tx, stmt, args...); err != nil {
 		return
 	}
-	stmt = "DELETE FROM refs WHERE box = ? AND path LIKE ?"
-	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
+	assetCondition, assetArgs := documentPathPrefixCondition("docpath", boxID, pathPrefix)
+	stmt = "DELETE FROM assets WHERE " + assetCondition
+	if err = execStmtTx(tx, stmt, assetArgs...); err != nil {
 		return
 	}
-	stmt = "DELETE FROM file_annotation_refs WHERE box = ? AND path LIKE ?"
-	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
+	stmt = "DELETE FROM refs WHERE " + condition
+	if err = execStmtTx(tx, stmt, args...); err != nil {
 		return
 	}
-	stmt = "DELETE FROM attributes WHERE box = ? AND path LIKE ?"
-	if err = execStmtTx(tx, stmt, boxID, pathPrefix+"%"); err != nil {
+	stmt = "DELETE FROM file_annotation_refs WHERE " + condition
+	if err = execStmtTx(tx, stmt, args...); err != nil {
+		return
+	}
+	stmt = "DELETE FROM attributes WHERE " + condition
+	if err = execStmtTx(tx, stmt, args...); err != nil {
 		return
 	}
 	ClearCache()
@@ -1249,17 +1425,6 @@ func batchUpdatePath(tx *sql.Tx, tree *parse.Tree, context map[string]any) (err 
 	stmt := "UPDATE blocks SET box = ?, path = ?, hpath = ? WHERE root_id = ?"
 	if err = execStmtTx(tx, stmt, tree.Box, tree.Path, tree.HPath, tree.ID); err != nil {
 		return
-	}
-	if caseSensitive {
-		stmt = "UPDATE blocks_fts SET box = ?, path = ?, hpath = ? WHERE root_id = ?"
-		if err = execStmtTx(tx, stmt, tree.Box, tree.Path, tree.HPath, tree.ID); err != nil {
-			return
-		}
-	} else {
-		stmt = "UPDATE blocks_fts_case_insensitive SET box = ?, path = ?, hpath = ? WHERE root_id = ?"
-		if err = execStmtTx(tx, stmt, tree.Box, tree.Path, tree.HPath, tree.ID); err != nil {
-			return
-		}
 	}
 
 	stmt = "UPDATE spans SET box = ?, path = ? WHERE root_id = ?"
@@ -1299,34 +1464,90 @@ func batchUpdateHPath(tx *sql.Tx, tree *parse.Tree, context map[string]any) (err
 		return
 	}
 
-	if caseSensitive {
-		stmt = "UPDATE blocks_fts SET hpath = ? WHERE root_id = ?"
-		if err = execStmtTx(tx, stmt, tree.HPath, tree.ID); err != nil {
-			return
-		}
-	} else {
-		stmt = "UPDATE blocks_fts_case_insensitive SET hpath = ? WHERE root_id = ?"
-		if err = execStmtTx(tx, stmt, tree.HPath, tree.ID); err != nil {
-			return
-		}
-	}
-
 	ClearCache()
 	evtHash := fmt.Sprintf("%x", sha256.Sum256([]byte(tree.ID)))[:7]
 	eventbus.Publish(eventbus.EvtSQLUpdateBlocksHPaths, context, 1, evtHash)
 	return
 }
 
+// 文档部分索引分别支持路径匹配和按根文档聚合，仅包含文档行。
+func ensureBlocksDocIndexes(database *sql.DB) (err error) {
+	for _, column := range []string{"hpath", "root_id"} {
+		if _, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_blocks_doc_" + column +
+			" ON blocks(" + column + ") WHERE type = 'd'"); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// 最近更新查询只索引符合展示条件的段落和文档，按更新时间读取即可在达到限额后停止。
+func ensureRecentUpdatedBlocksIndexes(database *sql.DB) (err error) {
+	if _, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_blocks_recent_p ON blocks(updated DESC) WHERE type = 'p' AND length > 1"); err != nil {
+		return
+	}
+	_, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_blocks_recent_d ON blocks(updated DESC) WHERE type = 'd'")
+	return
+}
+
+func ensureTagSpansIndex(database *sql.DB) (err error) {
+	_, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_spans_tag_path ON spans(path) WHERE " + tagSpanIndexPredicate)
+	return
+}
+
+func ensureBookmarkAttributesIndex(database *sql.DB) (err error) {
+	_, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_attributes_bookmark_block_id ON attributes(block_id) WHERE name = 'bookmark' AND type = 'b'")
+	return
+}
+
+func ensureDailyNoteAttributesIndex(database *sql.DB) (err error) {
+	_, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_attributes_name_value ON attributes(name, value)")
+	return
+}
+
+func ensureFileAnnotationRefIndex(database *sql.DB) (err error) {
+	_, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_file_annotation_refs_annotation_id ON file_annotation_refs(annotation_id)")
+	return
+}
+
+func ensureRefsDefIndexes(database *sql.DB) (err error) {
+	if _, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_refs_def_block_id ON refs(def_block_id)"); err != nil {
+		return
+	}
+	_, err = database.Exec("CREATE INDEX IF NOT EXISTS idx_refs_def_block_root_id ON refs(def_block_root_id)")
+	return
+}
+
+func cleanupInvalidRefs(database *sql.DB) (err error) {
+	_, err = database.Exec("DELETE FROM refs WHERE COALESCE(TRIM(def_block_id), '') = '' OR " +
+		"COALESCE(TRIM(block_id), '') = '' OR COALESCE(TRIM(root_id), '') = ''")
+	return
+}
+
 func CloseDatabase() {
+	clearFTSCountCache()
+	diagnostic := util.WatchOperation("close databases", "close index queue")
+	defer diagnostic.Finish()
+	closeIndexQueue()
+	// 退出时删除所有已打开的加密 db 文件：加密索引可由 box.Index() 全量重建，
+	// 文件无需持久化，删除可避免重启后残留旧索引数据导致下次解锁叠加重复行。
+	diagnostic.Stage("remove encrypted indexes")
+	RemoveAllEncryptedDBFiles()
+	diagnostic.Stage("remove encrypted block tree indexes")
+	treenode.RemoveAllEncryptedBlockTreeDBFiles()
+	diagnostic.Stage("close block database")
 	if err := db.Close(); err != nil {
 		logging.LogErrorf("close database failed: %s", err)
 	}
+	diagnostic.Stage("close history database")
 	if err := historyDB.Close(); err != nil {
 		logging.LogErrorf("close history database failed: %s", err)
 	}
+	diagnostic.Stage("close asset content database")
 	if err := assetContentDB.Close(); err != nil {
 		logging.LogErrorf("close asset content database failed: %s", err)
 	}
+	diagnostic.Stage("close block tree database")
 	treenode.CloseDatabase()
 	logging.LogInfof("closed database")
 }
@@ -1368,6 +1589,135 @@ func query(query string, args ...any) (*sql.Rows, error) {
 	return db.Query(query, args...)
 }
 
+// queryRowForBox 按 box 路由查询单行。加密笔记本用独立 db，否则用全局 db。boxID 为空走全局。
+// 加密笔记本未解锁（db 未打开）时返回 nil——绝不回退全局库，避免加密笔记本查询命中全局明文库。
+func queryRowForBox(boxID, query string, args ...any) *sql.Row {
+	query = strings.TrimSpace(query)
+	if "" == query {
+		logging.LogErrorf("statement is empty")
+		return nil
+	}
+	if boxDB := GetEncryptedDB(boxID); boxDB != nil {
+		return boxDB.QueryRow(query, args...)
+	}
+	if IsEncryptedBoxFn != nil && IsEncryptedBoxFn(boxID) {
+		// 加密笔记本未解锁：fail-closed，不回退全局库
+		return nil
+	}
+	if nil == db {
+		return nil
+	}
+	return db.QueryRow(query, args...)
+}
+
+// queryForBox 按 box 路由查询多行。加密笔记本用独立 db，否则用全局 db。boxID 为空走全局。
+// 加密笔记本未解锁时返回错误——绝不回退全局库。
+func queryForBox(boxID, query string, args ...any) (*sql.Rows, error) {
+	query = strings.TrimSpace(query)
+	if "" == query {
+		return nil, errors.New("statement is empty")
+	}
+	if boxDB := GetEncryptedDB(boxID); boxDB != nil {
+		return boxDB.Query(query, args...)
+	}
+	if IsEncryptedBoxFn != nil && IsEncryptedBoxFn(boxID) {
+		return nil, errors.New("encrypted box db not opened for box " + boxID)
+	}
+	if nil == db {
+		return nil, errors.New("database is nil")
+	}
+	return db.Query(query, args...)
+}
+
+func queryForBoxContext(ctx context.Context, boxID, query string, args ...any) (*sql.Rows, error) {
+	query = strings.TrimSpace(query)
+	if "" == query {
+		return nil, errors.New("statement is empty")
+	}
+	if boxDB := GetEncryptedDB(boxID); boxDB != nil {
+		return boxDB.QueryContext(ctx, query, args...)
+	}
+	if IsEncryptedBoxFn != nil && IsEncryptedBoxFn(boxID) {
+		return nil, errors.New("encrypted box db not opened for box " + boxID)
+	}
+	if nil == db {
+		return nil, errors.New("database is nil")
+	}
+	return db.QueryContext(ctx, query, args...)
+}
+
+func Exec(stmt string, args ...any) error {
+	stmt = strings.TrimSpace(stmt)
+	if "" == stmt {
+		return errors.New("statement is empty")
+	}
+
+	if nil == db {
+		return errors.New("database is nil")
+	}
+	_, err := db.Exec(stmt, args...)
+	return err
+}
+
+// migrateBlockEmbeddingsSchema 为 block_embeddings 幂等补充失败重试与忽略类型相关的列。
+// 不升 DatabaseVer（避免全库重建丢失已嵌入向量）；列已存在时跳过，老行自动取默认值 0。
+func migrateBlockEmbeddingsSchema() {
+	if nil == db {
+		return
+	}
+
+	// PRAGMA table_info 返回每列的定义，name 字段即列名
+	rows, err := db.Query("PRAGMA table_info(block_embeddings)")
+	if err != nil {
+		logging.LogErrorf("check block_embeddings columns failed: %s", err)
+		return
+	}
+	defer rows.Close()
+
+	existing := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dfltValue any
+		if err = rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			logging.LogErrorf("scan block_embeddings column info failed: %s", err)
+			return
+		}
+		existing[name] = true
+	}
+	if err = rows.Err(); err != nil {
+		logging.LogErrorf("iterate block_embeddings columns failed: %s", err)
+		return
+	}
+
+	// 表不存在（首次启动还没建）时 existing 为空，跳过；待 initDBTables 建表
+	if 0 == len(existing) {
+		return
+	}
+
+	addColumns := []string{
+		"ALTER TABLE block_embeddings ADD COLUMN fail_count INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE block_embeddings ADD COLUMN last_tried INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE block_embeddings ADD COLUMN ignored_type INTEGER NOT NULL DEFAULT 0",
+	}
+	// SQLite 的 ALTER TABLE ADD COLUMN 无法在单条语句里加多列，逐条执行；列已存在会报错，忽略
+	addColumn := func(name, ddl string) {
+		if existing[name] {
+			return
+		}
+		if _, err = db.Exec(ddl); err != nil {
+			logging.LogErrorf("add column [%s] failed: %s", name, err)
+		}
+	}
+	addColumn("fail_count", addColumns[0])
+	addColumn("last_tried", addColumns[1])
+	addColumn("ignored_type", addColumns[2])
+	// Existing vectors have unknown provenance; preserve them without guessing
+	// a space or scheduling paid re-embedding. Users can rebuild explicitly.
+	addColumn("space", "ALTER TABLE block_embeddings ADD COLUMN space TEXT NOT NULL DEFAULT ''")
+}
+
 func beginTx() (tx *sql.Tx, err error) {
 	if tx, err = db.Begin(); err != nil {
 		logging.LogErrorf("begin tx failed: %s\n  %s", err, logging.ShortStack())
@@ -1402,20 +1752,6 @@ func beginHistoryTx() (tx *sql.Tx, err error) {
 	return
 }
 
-func commitHistoryTx(tx *sql.Tx) (err error) {
-	if nil == tx {
-		logging.LogErrorf("tx is nil")
-		return errors.New("tx is nil")
-	}
-
-	if err = tx.Commit(); err != nil {
-		logging.LogErrorf("commit tx failed: %s\n  %s", err, logging.ShortStack())
-	}
-
-	closeTxPreparedStmts(tx)
-	return
-}
-
 func beginAssetContentTx() (tx *sql.Tx, err error) {
 	if tx, err = assetContentDB.Begin(); err != nil {
 		logging.LogErrorf("begin asset content tx failed: %s\n  %s", err, logging.ShortStack())
@@ -1423,20 +1759,6 @@ func beginAssetContentTx() (tx *sql.Tx, err error) {
 			os.Exit(logging.ExitCodeUnavailableDatabase)
 		}
 	}
-	return
-}
-
-func commitAssetContentTx(tx *sql.Tx) (err error) {
-	if nil == tx {
-		logging.LogErrorf("tx is nil")
-		return errors.New("tx is nil")
-	}
-
-	if err = tx.Commit(); err != nil {
-		logging.LogErrorf("commit tx failed: %s\n  %s", err, logging.ShortStack())
-	}
-
-	closeTxPreparedStmts(tx)
 	return
 }
 
@@ -1505,8 +1827,10 @@ func prepareExecInsertTx(tx *sql.Tx, stmtSQL string, args []any) (err error) {
 		tx.Rollback()
 		logging.LogErrorf("exec database stmt [%s] failed: %s\n  %s", stmtSQL, err, logging.ShortStack())
 
-		if strings.Contains(err.Error(), "database disk image is malformed") {
+		if isRecoverableDBFileError(err) {
+			closeDatabase()
 			util.RemoveDatabaseFile(util.DBPath)
+			time.Sleep(time.Second)
 			initDatabase(true)
 			logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "database disk image [%s] is malformed, please restart SiYuan kernel to rebuild it\n\t%s\n\t%v", util.DBPath, stmtSQL, args)
 		}
@@ -1520,7 +1844,10 @@ func execStmtTx(tx *sql.Tx, stmt string, args ...any) (err error) {
 		tx.Rollback()
 		logging.LogErrorf("exec database stmt [%s] failed: %s\n  %s", stmt, err, logging.ShortStack())
 
-		if strings.Contains(err.Error(), "database disk image is malformed") {
+		if isRecoverableDBFileError(err) {
+			closeDatabase()
+			util.RemoveDatabaseFile(util.DBPath)
+			time.Sleep(time.Second)
 			initDatabase(true)
 			logging.LogFatalf(logging.ExitCodeUnavailableDatabase, "database disk image [%s] is malformed, please restart SiYuan kernel to rebuild it\n\t%s\n\t%v", util.DBPath, stmt, args)
 		}
@@ -1543,9 +1870,9 @@ func nSort(n *ast.Node) int {
 		return 10
 	case ast.NodeHTMLBlock:
 		return 10
-	case ast.NodeList:
+	case ast.NodeList, ast.NodeMindmap:
 		return 20
-	case ast.NodeListItem:
+	case ast.NodeListItem, ast.NodeMindmapItem:
 		return 20
 	case ast.NodeBlockquote:
 		return 20
@@ -1576,33 +1903,74 @@ func ialAttr(ial, name string) (ret string) {
 	return
 }
 
+func isRecoverableDBFileError(err error) bool {
+	if nil == err {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "database disk image is malformed") ||
+		strings.Contains(errStr, "The parameter is incorrect") ||
+		strings.Contains(errStr, "unable to open database file")
+}
+
 func closeDatabase() {
 	if nil == db {
 		return
 	}
 
-	db.Close()
+	if err := db.Close(); err != nil {
+		logging.LogErrorf("close database failed: %s", err)
+	}
 	debug.FreeOSMemory()
 	db = nil
 	runtime.GC()
-	return
 }
 
-func SQLTemplateFuncs(templateFuncMap *template.FuncMap) {
+func SQLTemplateFuncs(templateFuncMap *template.FuncMap, boxIDs ...string) {
+	boxID := ""
+	if len(boxIDs) > 0 {
+		boxID = boxIDs[0]
+	}
+	readonlyStmts := &sync.Map{}
+	isReadonlyStmt := func(stmt string) bool {
+		if _, ok := readonlyStmts.Load(stmt); ok {
+			return true
+		}
+		if CheckSingleStatement(stmt) != nil {
+			return false
+		}
+		if boxID == "" {
+			if CheckReadonlyStatement(stmt) != nil {
+				return false
+			}
+		} else if CheckReadonlyStatementInBox(stmt, boxID) != nil {
+			return false
+		}
+		readonlyStmts.Store(stmt, struct{}{})
+		return true
+	}
+
 	(*templateFuncMap)["queryBlocks"] = func(stmt string, args ...string) (retBlocks []*Block) {
 		for _, arg := range args {
 			stmt = strings.Replace(stmt, "?", arg, 1)
 		}
-		retBlocks = SelectBlocksRawStmt(stmt, 1, 512)
+		if !isReadonlyStmt(stmt) {
+			return
+		}
+		if boxID == "" {
+			retBlocks = SelectBlocksRawStmt(stmt, 1, 512)
+		} else {
+			retBlocks = SelectBlocksRawStmtInBox(stmt, 1, 512, boxID)
+		}
 		return
 	}
 	(*templateFuncMap)["getBlock"] = func(arg any) (retBlock *Block) {
 		switch v := arg.(type) {
 		case string:
-			retBlock = GetBlock(v)
+			retBlock = GetBlockInBox(v, boxID)
 		case map[string]any:
 			if id, ok := v["id"]; ok {
-				retBlock = GetBlock(id.(string))
+				retBlock = GetBlockInBox(id.(string), boxID)
 			}
 		}
 		return
@@ -1611,11 +1979,28 @@ func SQLTemplateFuncs(templateFuncMap *template.FuncMap) {
 		for _, arg := range args {
 			stmt = strings.Replace(stmt, "?", arg, 1)
 		}
-		retSpans = SelectSpansRawStmt(stmt, 512)
+		if !isReadonlyStmt(stmt) {
+			return
+		}
+		if boxID == "" {
+			retSpans = SelectSpansRawStmt(stmt, 512)
+		} else {
+			retSpans = SelectSpansRawStmtInBox(stmt, 512, boxID)
+		}
 		return
 	}
 	(*templateFuncMap)["querySQL"] = func(stmt string) (ret []map[string]any) {
-		ret, _ = Query(stmt, 1024)
+		if !isReadonlyStmt(stmt) {
+			return
+		}
+		if boxID == "" {
+			ret, _ = Query(stmt, 1024)
+		} else {
+			ret, _ = QueryNoLimitInBox(stmt, boxID)
+			if len(ret) > 1024 {
+				ret = ret[:1024]
+			}
+		}
 		return
 	}
 }
@@ -1643,4 +2028,159 @@ func vacuum() {
 			logging.LogErrorf("vacuum asset content database failed: %s", err)
 		}
 	}
+}
+
+// OpenEncryptedDB 打开加密笔记本的独立 SQLCipher db 并注册到 encryptedDBs。
+// dek 是该 box 的 32 字节数据密钥；先用 HKDF 派生 content 子密钥（用途分离），DSN 用 raw key 格式 x'<hex>'。
+// 首次打开会建表（幂等 IF NOT EXISTS）。UnlockBox 时调用。
+func OpenEncryptedDB(boxID string, dek []byte) (err error) {
+	if _, loaded := encryptedDBs.Load(boxID); loaded {
+		return nil // 已打开
+	}
+	dbPath := util.EncryptedDBPath(boxID)
+	// 派生 content 子密钥，与 blocktree/assets/file/AV 用途分离
+	contentKey := util.DeriveSubKey(dek, "siyuan/sqlcipher/content")
+	defer clear(contentKey)
+	// SQLCipher DSN：_key=x'<hex>' 让 go-sqlite3 执行 PRAGMA key；其余 PRAGMA 与全局 siyuan.db 对齐
+	dsn := dbPath + "?_journal_mode=WAL&_synchronous=OFF&_secure_delete=OFF" +
+		util.SQLitePageCacheDSN() + "&_busy_timeout=7000&_ignore_check_constraints=ON" +
+		"&_case_sensitive_like=OFF&_key=x'" + hex.EncodeToString(contentKey) + "'"
+	boxDB, err := sql.Open("sqlite3_extended", dsn)
+	if err != nil {
+		return err
+	}
+	boxDB.SetMaxOpenConns(20)
+	boxDB.SetMaxIdleConns(4)
+	if err = util.CheckEncryptedIndexCompatibility(boxDB, "content", 1); err != nil {
+		boxDB.Close()
+		return err
+	}
+	if err = initEncryptedDBTables(boxDB); err != nil {
+		boxDB.Close()
+		return err
+	}
+	encryptedDBs.Store(boxID, boxDB)
+	return nil
+}
+
+// CloseEncryptedDB 仅关闭加密笔记本的 db 连接（不删文件）。UnlockBox 创建失败回滚时调用。
+// 关闭/锁定加密笔记本请用 RemoveEncryptedDBFile（关连接 + 删文件）。
+func CloseEncryptedDB(boxID string) {
+	if v, ok := encryptedDBs.LoadAndDelete(boxID); ok {
+		if boxDB, ok := v.(*sql.DB); ok {
+			boxDB.Close()
+		}
+	}
+}
+
+// GetEncryptedDB 返回加密笔记本的 db 句柄；未打开返回 nil。
+func GetEncryptedDB(boxID string) *sql.DB {
+	if v, ok := encryptedDBs.Load(boxID); ok {
+		if boxDB, ok := v.(*sql.DB); ok {
+			return boxDB
+		}
+	}
+	return nil
+}
+
+// GetEncryptedBoxIDs 返回所有已打开的加密 content db 对应的 boxID。
+func GetEncryptedBoxIDs() (ret []string) {
+	encryptedDBs.Range(func(key, value any) bool {
+		if boxID, ok := key.(string); ok {
+			ret = append(ret, boxID)
+		}
+		return true
+	})
+	return
+}
+
+// RemoveEncryptedDBFile 关闭连接并删除加密 db 文件（含 WAL/SHM）。删除笔记本、关闭加密笔记本时调用。
+func RemoveEncryptedDBFile(boxID string) {
+	CloseEncryptedDB(boxID)
+	dbPath := util.EncryptedDBPath(boxID)
+	for _, suffix := range []string{"", "-wal", "-shm", "-journal"} {
+		if err := os.Remove(dbPath + suffix); err != nil && !os.IsNotExist(err) {
+			logging.LogErrorf("remove encrypted db file [%s] failed: %s", dbPath+suffix, err)
+		}
+	}
+}
+
+// RemoveAllEncryptedDBFiles 关闭所有已打开的加密 content db 连接并删除其文件（含 WAL/SHM）。
+// 进程退出（CloseDatabase）时调用，避免重启后残留旧索引数据导致下次解锁叠加重复行。
+func RemoveAllEncryptedDBFiles() {
+	for _, boxID := range GetEncryptedBoxIDs() {
+		RemoveEncryptedDBFile(boxID)
+	}
+}
+
+// beginTxForBox 按 box 选 db 开事务。加密笔记本用其独立 db，否则用全局 db。
+// beginTxForBox 按 box 选 db 开事务。加密笔记本用其独立 db，否则用全局 db。
+// 加密笔记本未解锁时返回错误——绝不回退全局库，避免加密笔记本的索引写操作污染全局明文库。
+func beginTxForBox(box string) (tx *sql.Tx, err error) {
+	if boxDB := GetEncryptedDB(box); boxDB != nil {
+		if tx, err = boxDB.Begin(); err != nil {
+			logging.LogErrorf("begin tx (encrypted box %s) failed: %s\n  %s", box, err, logging.ShortStack())
+			return
+		}
+		return
+	}
+	if IsEncryptedBoxFn != nil && IsEncryptedBoxFn(box) {
+		// 加密笔记本未解锁：fail-closed，不回退全局库
+		return nil, errors.New("encrypted box db not opened for box " + box)
+	}
+	return beginTx()
+}
+
+// initEncryptedDBTables 在加密笔记本db 上建内容表（幂等）。结构与全局 siyuan.db 的内容表一致，
+// 但不含 stat 表（加密 db 不参与版本管理）。首次打开时调用。
+func initEncryptedDBTables(boxDB *sql.DB) (err error) {
+	tables := []string{
+		"CREATE TABLE IF NOT EXISTS blocks (id, parent_id, root_id, hash, box, path, hpath, name, alias, memo, tag, content, fcontent, markdown, length, type, subtype, ial, sort, created, updated)",
+		"CREATE TABLE IF NOT EXISTS spans (id, block_id, root_id, box, path, content, markdown, type, ial)",
+		"CREATE TABLE IF NOT EXISTS assets (id, block_id, root_id, box, docpath, path, name, title, hash)",
+		"CREATE TABLE IF NOT EXISTS attributes (id, name, value, type, block_id, root_id, box, path)",
+		"CREATE TABLE IF NOT EXISTS refs (id, def_block_id, def_block_parent_id, def_block_root_id, def_block_path, block_id, root_id, box, path, content, markdown, type)",
+		"CREATE TABLE IF NOT EXISTS file_annotation_refs (id, file_path, annotation_id, block_id, root_id, box, path, content, type)",
+	}
+	for _, stmt := range tables {
+		if _, err = boxDB.Exec(stmt); err != nil {
+			return
+		}
+	}
+	if err = ensureBlocksDocIndexes(boxDB); err != nil {
+		return
+	}
+	if err = ensureRecentUpdatedBlocksIndexes(boxDB); err != nil {
+		return
+	}
+	if err = ensureRefsDefIndexes(boxDB); err != nil {
+		return
+	}
+	if err = ensureDocumentPathIndexes(boxDB, false); err != nil {
+		return
+	}
+	if err = ensureAuxiliaryRootIndexes(boxDB); err != nil {
+		return
+	}
+	if err = ensureTagSpansIndex(boxDB); err != nil {
+		return
+	}
+	if err = ensureBookmarkAttributesIndex(boxDB); err != nil {
+		return
+	}
+	if err = ensureDailyNoteAttributesIndex(boxDB); err != nil {
+		return
+	}
+	if err = ensureFileAnnotationRefIndex(boxDB); err != nil {
+		return
+	}
+	if err = cleanupInvalidRefs(boxDB); err != nil {
+		return
+	}
+	// FTS5 external-content 虚拟表，tokenize 与全局保持一致（siyuan 分词器）
+	ftsStmt := "CREATE VIRTUAL TABLE IF NOT EXISTS blocks_fts USING fts5(id UNINDEXED, parent_id UNINDEXED, root_id UNINDEXED, hash UNINDEXED, box UNINDEXED, path UNINDEXED, hpath UNINDEXED, name, alias, memo, tag, content, fcontent, markdown UNINDEXED, length UNINDEXED, type UNINDEXED, subtype UNINDEXED, ial, sort UNINDEXED, created UNINDEXED, updated UNINDEXED, content='blocks', content_rowid='rowid', tokenize=\"" + ftsTokenize() + "\")"
+	if _, err = boxDB.Exec(ftsStmt); err != nil {
+		return
+	}
+	return
 }

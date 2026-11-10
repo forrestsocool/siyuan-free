@@ -4,17 +4,110 @@
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20201222093044-rx4zjoy",
-		"title": "数据库表",
+		"title": "SQL 索引表",
 		"type": "doc",
-		"updated": "20251219204456"
+		"updated": "20261024163828"
 	},
 	"Children": [
+		{
+			"ID": "20201224120447-bx9fwlf",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20201224120447-bx9fwlf",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "公开查询表包括 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "blocks"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（内容块）"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "spans"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（行级元素）"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "assets"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（资源文件引用）"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "attributes"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（块属性）"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "refs"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（块引用）"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "和"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "file_annotation_refs"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（资源文件标注引用）"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。下方列出了 blocks 表结构，其他表可通过同一 SQL 查询接口使用。"
+				}
+			]
+		},
 		{
 			"ID": "20201117103851-l9cahuc",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
-				"id": "20201117103851-l9cahuc"
+				"id": "20201117103851-l9cahuc",
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -33,20 +126,6 @@
 			]
 		},
 		{
-			"ID": "20201224120447-bx9fwlf",
-			"Type": "NodeParagraph",
-			"Properties": {
-				"id": "20201224120447-bx9fwlf",
-				"updated": "20210302223329"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "该表用于存储内容块数据。"
-				}
-			]
-		},
-		{
 			"ID": "20201224120447-cs6ur9x",
 			"Type": "NodeTable",
 			"TableAligns": [
@@ -56,7 +135,7 @@
 			"Properties": {
 				"colgroup": "|",
 				"id": "20201224120447-cs6ur9x",
-				"updated": "20221014133123"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -194,7 +273,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "content 的 SHA256 校验和"
+									"Data": "用于识别块及相关上下文变化的短哈希，不是 content 的完整 SHA256 校验和"
 								}
 							]
 						}
@@ -464,16 +543,16 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "​"
+									"Data": "​字符数：叶子块取自身 "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
-									"TextMarkTextContent": "fcontent"
+									"TextMarkTextContent": "content"
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ 长度"
+									"Data": "​，容器块取首个叶子块内容，文档块取标题"
 								}
 							]
 						}
@@ -573,7 +652,7 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "code",
-									"TextMarkTextContent": "{: name=\u0026quot;value\u0026quot;}"
+									"TextMarkTextContent": "{: name=&quot;value&quot;}"
 								},
 								{
 									"Type": "NodeText",

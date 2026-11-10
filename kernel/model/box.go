@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
@@ -20,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,6 +29,7 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/cache"
 	"github.com/siyuan-note/siyuan/kernel/conf"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/siyuan/kernel/heif"
 	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/task"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
@@ -49,44 +39,59 @@ import (
 
 // Box 笔记本。
 type Box struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Icon     string `json:"icon"`
-	Sort     int    `json:"sort"`
-	SortMode int    `json:"sortMode"`
-	Closed   bool   `json:"closed"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Icon         string `json:"icon"`
+	Sort         int    `json:"sort"`
+	SortMode     int    `json:"sortMode"`
+	Closed       bool   `json:"closed"`
+	SubFileCount int    `json:"subFileCount"`
 
 	NewFlashcardCount int `json:"newFlashcardCount"`
 	DueFlashcardCount int `json:"dueFlashcardCount"`
 	FlashcardCount    int `json:"flashcardCount"`
+
+	Encrypted bool              `json:"encrypted"` // 是否为加密笔记本
+	Unlocked  bool              `json:"unlocked"`  // 加密笔记本是否已解锁（DEK 在内存），非加密笔记本恒为 false
+	State     EncryptedBoxState `json:"state,omitempty"`
 }
 
 func StatJob() {
 
-	Conf.m.Lock()
-	Conf.Stat.TreeCount = treenode.CountTrees()
-	Conf.Stat.CTreeCount = treenode.CeilTreeCount(Conf.Stat.TreeCount)
-	Conf.Stat.BlockCount = treenode.CountBlocks()
-	Conf.Stat.CBlockCount = treenode.CeilBlockCount(Conf.Stat.BlockCount)
-	Conf.Stat.DataSize, Conf.Stat.AssetsSize = util.DataSize()
-	Conf.Stat.CDataSize = util.CeilSize(Conf.Stat.DataSize)
-	Conf.Stat.CAssetsSize = util.CeilSize(Conf.Stat.AssetsSize)
-	Conf.m.Unlock()
-	Conf.Save()
+	treeCount, blockCount := treenode.CountTrees(), treenode.CountBlocks()
+	dataSize, assetsSize := util.DataSize()
+	stat := UpdateStatConf(func(stat *conf.Stat) {
+		stat.TreeCount = treeCount
+		stat.CTreeCount = treenode.CeilTreeCount(treeCount)
+		stat.BlockCount = blockCount
+		stat.CBlockCount = treenode.CeilBlockCount(blockCount)
+		stat.DataSize, stat.AssetsSize = dataSize, assetsSize
+		stat.CDataSize = util.CeilSize(dataSize)
+		stat.CAssetsSize = util.CeilSize(assetsSize)
+	})
 
-	logging.LogInfof("auto stat [trees=%d, blocks=%d, dataSize=%s, assetsSize=%s]", Conf.Stat.TreeCount, Conf.Stat.BlockCount, humanize.BytesCustomCeil(uint64(Conf.Stat.DataSize), 2), humanize.BytesCustomCeil(uint64(Conf.Stat.AssetsSize), 2))
+	logging.LogInfof("auto stat [trees=%d, blocks=%d, dataSize=%s, assetsSize=%s]", stat.TreeCount, stat.BlockCount, humanize.BytesCustomCeil(uint64(stat.DataSize), 2), humanize.BytesCustomCeil(uint64(stat.AssetsSize), 2))
 
 	// 桌面端检查磁盘可用空间 https://github.com/siyuan-note/siyuan/issues/6873
 	if util.ContainerStd != util.Container {
 		return
 	}
 
-	if util.NeedWarnDiskUsage(Conf.Stat.DataSize) {
+	if util.NeedWarnDiskUsage(Conf.Stat.Load().DataSize) {
 		util.PushMsg(Conf.Language(179), 7000)
 	}
 }
 
 func ListNotebooks() (ret []*Box, err error) {
+	confSyncSnapshot := Conf.LoadSync()
+
+	// 启用数据同步时，缺失配置可能表示其他设备已删除笔记本，不能在列表读取过程中自动重建。
+	repairMissingConf := nil != Conf && nil != confSyncSnapshot && !confSyncSnapshot.Enabled
+	ret, err = listNotebooks(repairMissingConf)
+	return
+}
+
+func listNotebooks(repairMissingConf bool) (ret []*Box, err error) {
 	ret = []*Box{}
 	dirs, err := os.ReadDir(util.DataDir)
 	if err != nil {
@@ -110,11 +115,57 @@ func ListNotebooks() (ret []*Box, err error) {
 		boxConf := conf.NewBoxConf()
 		boxDirPath := filepath.Join(util.DataDir, id)
 		boxConfPath := filepath.Join(boxDirPath, ".siyuan", "conf.json")
+		if addressingErr := filesys.CheckDocumentAddressing(id); addressingErr != nil {
+			// 只展示关闭的笔记本；不能进入配置修复、解密元数据或索引流程。
+			logging.LogWarnf("notebook [%s] is unavailable: %s", id, addressingErr)
+			ret = append(ret, &Box{ID: id, Name: id, Closed: true, Encrypted: IsEncryptedBox(id)})
+			continue
+		}
 		isExistConf := filelock.IsExist(boxConfPath)
+		missingEncryptedIdentity := false
 		if !isExistConf {
 			if !IsUserGuide(id) {
-				// 数据同步时展开文档树操作可能导致数据丢失 https://github.com/siyuan-note/siyuan/issues/7129
-				logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
+				// conf.json 缺失时检查加密备份，确认是否为加密笔记本
+				backup, backupErr := readNotebookCryptBackup(id)
+				if backupErr != nil {
+					logging.LogErrorf("read notebook crypt backup [%s] failed: %s", boxDirPath, backupErr)
+					markRuntimeEncryptedBox(id)
+					boxConf.Encrypted = true
+					missingEncryptedIdentity = true
+					setEncryptedBoxState(id, EncryptedBoxStateError)
+				} else if backup != nil {
+					// 从备份恢复 conf.json，避免加密笔记本被当作普通笔记本处理
+					markRuntimeEncryptedBox(id)
+					boxConf.Encrypted = true
+					boxConf.BoxCrypt = backup
+					tmpBox := &Box{ID: id}
+					if saveErr := tmpBox.SaveConf(boxConf); saveErr != nil {
+						logging.LogErrorf("restore encrypted notebook conf from backup failed [%s]: %s", boxDirPath, saveErr)
+						continue
+					}
+					logging.LogWarnf("restored encrypted notebook conf from backup [%s]", boxDirPath)
+				} else if IsEncryptedBox(id) {
+					boxConf.Encrypted = true
+					missingEncryptedIdentity = true
+					setEncryptedBoxState(id, EncryptedBoxStateError)
+					logging.LogErrorf("encrypted notebook key identity is missing [%s]", boxDirPath)
+				} else {
+					if !repairMissingConf {
+						logging.LogWarnf("ignored a box without conf because automatic repair is disabled [%s]", boxDirPath)
+						continue
+					}
+					hasDocuments, scanErr := hasLiveBoxDocuments(boxDirPath)
+					if scanErr != nil {
+						logging.LogErrorf("scan box without conf [%s] failed: %s", boxDirPath, scanErr)
+						continue
+					}
+					if !hasDocuments {
+						logging.LogWarnf("ignored a box without conf and documents [%s]", boxDirPath)
+						continue
+					}
+					// 数据同步时展开文档树操作可能导致数据丢失 https://github.com/siyuan-note/siyuan/issues/7129
+					logging.LogWarnf("found a corrupted box [%s]", boxDirPath)
+				}
 			} else {
 				continue
 			}
@@ -126,36 +177,73 @@ func ListNotebooks() (ret []*Box, err error) {
 			}
 			if readErr = gulu.JSON.UnmarshalJSON(data, boxConf); nil != readErr {
 				logging.LogErrorf("parse box conf [%s] failed: %s", boxConfPath, readErr)
+				// 检查备份及加密身份，保留损坏配置中的恢复材料，不能按普通配置删除。
+				backup, backupErr := readNotebookCryptBackup(id)
+				if backupErr != nil || backup != nil || IsEncryptedBox(id) {
+					markRuntimeEncryptedBox(id)
+					continue
+				}
 				filelock.Remove(boxConfPath)
 				continue
 			}
 		}
-
-		icon := boxConf.Icon
-		if strings.Contains(icon, ".") { // 说明是自定义图标
-			// XSS through emoji name https://github.com/siyuan-note/siyuan/issues/15034
-			icon = util.FilterUploadEmojiFileName(icon)
+		if !boxConf.Encrypted && IsEncryptedBox(id) {
+			backup, backupErr := readNotebookCryptBackup(id)
+			boxConf.Encrypted = true
+			if backupErr == nil && backup != nil {
+				boxConf.BoxCrypt = backup
+			} else {
+				missingEncryptedIdentity = true
+				setEncryptedBoxState(id, EncryptedBoxStateError)
+			}
+			logging.LogWarnf("normal notebook configuration conflicts with encrypted identity [%s]", boxDirPath)
+		}
+		if boxConf.Encrypted {
+			markRuntimeEncryptedBox(id)
+		}
+		if boxConf.Encrypted && !missingEncryptedIdentity {
+			repairEncryptedBoxStateFromDEK(id)
+			if metadataErr := revealBoxMetadataIfUnlocked(id, boxConf); metadataErr != nil {
+				logging.LogErrorf("decrypt encrypted notebook metadata [%s] failed: %s", id, metadataErr)
+			}
 		}
 
+		unlocked := boxConf.Encrypted && !missingEncryptedIdentity && isBoxUnlockedForAccess(id)
+		closed := boxConf.Closed
+		if boxConf.Encrypted {
+			// 加密笔记本的打开状态不能从其他设备继承，仅本机已挂载且持有 DEK 时才视为打开。
+			closed = !unlocked || !isEncryptedBoxMounted(id)
+		}
 		box := &Box{
-			ID:       id,
-			Name:     boxConf.Name,
-			Icon:     icon,
-			Sort:     boxConf.Sort,
-			SortMode: boxConf.SortMode,
-			Closed:   boxConf.Closed,
+			ID:        id,
+			Name:      boxConf.Name,
+			Icon:      filterBoxIcon(boxConf.Icon),
+			Sort:      boxConf.Sort,
+			SortMode:  boxConf.SortMode,
+			Closed:    closed,
+			Encrypted: boxConf.Encrypted,
+			Unlocked:  unlocked,
+		}
+		if box.Encrypted {
+			if missingEncryptedIdentity {
+				box.State = EncryptedBoxStateError
+			} else {
+				box.State = GetEncryptedBoxState(id)
+			}
 		}
 
-		if !isExistConf {
+		if !isExistConf && !missingEncryptedIdentity {
 			// Automatically create notebook conf.json if not found it https://github.com/siyuan-note/siyuan/issues/9647
-			box.SaveConf(boxConf)
+			if saveErr := box.SaveConf(boxConf); saveErr != nil {
+				logging.LogErrorf("save box conf [%s] failed: %s", boxDirPath, saveErr)
+			}
 			box.Unindex()
 			logging.LogWarnf("fixed a corrupted box [%s]", boxDirPath)
 		}
 		ret = append(ret, box)
 	}
 
-	switch Conf.FileTree.Sort {
+	switch Conf.FileTree.Load().Sort {
 	case util.SortModeNameASC:
 		sort.Slice(ret, func(i, j int) bool {
 			return util.PinYinCompare4FileTree(ret[i].Name, ret[j].Name)
@@ -173,11 +261,40 @@ func ListNotebooks() (ret []*Box, err error) {
 			return util.NaturalCompare(ret[j].Name, ret[i].Name)
 		})
 	case util.SortModeCustom:
-		sort.Slice(ret, func(i, j int) bool { return ret[i].Sort < ret[j].Sort })
+		sort.Slice(ret, func(i, j int) bool {
+			if ret[i].Sort != ret[j].Sort {
+				return ret[i].Sort < ret[j].Sort
+			}
+			return ret[i].ID > ret[j].ID
+		})
 	case util.SortModeCreatedASC:
 		sort.Slice(ret, func(i, j int) bool { return ret[i].ID < ret[j].ID })
 	case util.SortModeCreatedDESC:
 		sort.Slice(ret, func(i, j int) bool { return ret[i].ID > ret[j].ID })
+	}
+	return
+}
+
+// hasLiveBoxDocuments 检查笔记本正文目录中是否存在文档，忽略仅用于保存笔记本元数据和历史数据的 .siyuan 目录。
+func hasLiveBoxDocuments(boxDirPath string) (ret bool, err error) {
+	err = filepath.WalkDir(boxDirPath, func(filePath string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if filePath != boxDirPath && ".siyuan" == entry.Name() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), ".sy") {
+			ret = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	if errors.Is(err, fs.SkipAll) {
+		err = nil
 	}
 	return
 }
@@ -201,52 +318,111 @@ func (box *Box) GetConf() (ret *conf.BoxConf) {
 		return
 	}
 
-	icon := ret.Icon
-	if strings.Contains(icon, ".") {
-		// XSS through emoji name https://github.com/siyuan-note/siyuan/issues/15034
-		icon = util.FilterUploadEmojiFileName(icon)
-		ret.Icon = icon
+	if ret.Encrypted {
+		if err = revealBoxMetadataIfUnlocked(box.ID, ret); err != nil {
+			logging.LogErrorf("decrypt encrypted notebook metadata [%s] failed: %s", box.ID, err)
+		}
+	} else {
+		ret.Icon = filterBoxIcon(ret.Icon)
 	}
 	return
 }
 
-func (box *Box) SaveConf(conf *conf.BoxConf) {
+func (box *Box) SaveConf(conf *conf.BoxConf) error {
+	return box.saveConf(conf, false)
+}
+
+// SaveConfAndSync 保存用户修改的笔记本配置，并为已落盘的变更重新计划同步。
+func (box *Box) SaveConfAndSync(conf *conf.BoxConf) error {
+	return box.saveConf(conf, true)
+}
+
+func (box *Box) saveConf(conf *conf.BoxConf, syncChange bool) error {
+	if err := filesys.CheckDocumentAddressing(box.ID); err != nil {
+		return err
+	}
 	confPath := filepath.Join(util.DataDir, box.ID, ".siyuan/conf.json")
-	newData, err := gulu.JSON.MarshalIndentJSON(conf, "", "  ")
+	persisted, err := prepareBoxConfForSave(box.ID, conf)
 	if err != nil {
-		logging.LogErrorf("marshal box conf [%s] failed: %s", confPath, err)
-		return
+		return fmt.Errorf("prepare box conf [%s] failed: %w", confPath, err)
+	}
+	newData, err := gulu.JSON.MarshalIndentJSON(persisted, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal box conf [%s] failed: %w", confPath, err)
 	}
 
 	oldData, err := filelock.ReadFile(confPath)
 	if err != nil {
-		box.saveConf0(newData)
-		return
+		if err = box.saveConf0(newData); err != nil {
+			return err
+		}
+		if syncChange {
+			IncSyncIfNeeded(confPath)
+		}
+		return syncBoxConfCryptoBackup(box.ID, persisted)
 	}
 
 	if bytes.Equal(newData, oldData) {
-		return
+		return syncBoxConfCryptoBackup(box.ID, persisted)
 	}
 
-	box.saveConf0(newData)
+	if err = box.saveConf0(newData); err != nil {
+		return err
+	}
+	if syncChange {
+		IncSyncIfNeeded(confPath)
+	}
+	return syncBoxConfCryptoBackup(box.ID, persisted)
 }
 
-func (box *Box) saveConf0(data []byte) {
+func syncBoxConfCryptoBackup(boxID string, boxConf *conf.BoxConf) error {
+	if !boxConf.Encrypted || boxConf.BoxCrypt == nil {
+		return nil
+	}
+	if needWriteNotebookCryptBackup(boxID, boxConf.BoxCrypt) {
+		return writeNotebookCryptBackup(boxID, boxConf.BoxCrypt)
+	}
+	return nil
+}
+
+func (box *Box) saveConf0(data []byte) error {
+	unlock := filesys.LockDocumentConfiguration()
+	defer unlock()
+	if !ast.IsNodeIDPattern(box.ID) {
+		return fmt.Errorf("invalid box ID [%s]", box.ID)
+	}
+	if err := checkDocumentAddressingConf(box.ID, data); err != nil {
+		return err
+	}
+
 	confPath := filepath.Join(util.DataDir, box.ID, ".siyuan/conf.json")
 	if err := os.MkdirAll(filepath.Join(util.DataDir, box.ID, ".siyuan"), 0755); err != nil {
-		logging.LogErrorf("save box conf [%s] failed: %s", confPath, err)
+		return fmt.Errorf("mkdir box conf dir failed: %w", err)
 	}
 	if err := filelock.WriteFile(confPath, data); err != nil {
-		logging.LogErrorf("write box conf [%s] failed: %s", confPath, err)
 		util.ReportFileSysFatalError(err)
-		return
+		return fmt.Errorf("write box conf [%s] failed: %w", confPath, err)
 	}
+	invalidateEncryptedPublishAccessCache()
+	return nil
+}
+
+// validateBoxPath 校验 box 内相对路径，拒绝 .. 和绝对路径，确保最终路径在 <DataDir>/<boxID>/ 内。
+func (box *Box) validateBoxPath(p string) (string, error) {
+	rel, err := filesys.ValidateBoxRelativePath(box.ID, p)
+	if err != nil {
+		return "", err
+	}
+	return rel, filesys.CheckDocumentAddressing(box.ID)
 }
 
 func (box *Box) Ls(p string) (ret []*FileInfo, totals int, err error) {
+	if _, err = box.validateBoxPath(p); err != nil {
+		return
+	}
 	boxLocalPath := filepath.Join(util.DataDir, box.ID)
-	if strings.HasSuffix(p, ".sy") {
-		dir := strings.TrimSuffix(p, ".sy")
+	if before, ok := strings.CutSuffix(p, ".sy"); ok {
+		dir := before
 		absDir := filepath.Join(boxLocalPath, dir)
 		if gulu.File.IsDir(absDir) {
 			p = dir
@@ -263,6 +439,10 @@ func (box *Box) Ls(p string) (ret []*FileInfo, totals int, err error) {
 	for _, f := range entries {
 		info, infoErr := f.Info()
 		if nil != infoErr {
+			// 目录枚举后条目可能被并发移动或删除，此时跳过已失效的条目。
+			if errors.Is(infoErr, fs.ErrNotExist) {
+				continue
+			}
 			logging.LogErrorf("read file info failed: %s", infoErr)
 			continue
 		}
@@ -298,6 +478,9 @@ func (box *Box) Ls(p string) (ret []*FileInfo, totals int, err error) {
 }
 
 func (box *Box) Stat(p string) (ret *FileInfo) {
+	if _, err := box.validateBoxPath(p); err != nil {
+		return
+	}
 	absPath := filepath.Join(util.DataDir, box.ID, p)
 	info, err := os.Stat(absPath)
 	if err != nil {
@@ -316,10 +499,16 @@ func (box *Box) Stat(p string) (ret *FileInfo) {
 }
 
 func (box *Box) Exist(p string) bool {
+	if _, err := box.validateBoxPath(p); err != nil {
+		return false
+	}
 	return filelock.IsExist(filepath.Join(util.DataDir, box.ID, p))
 }
 
 func (box *Box) Mkdir(path string) error {
+	if _, err := box.validateBoxPath(path); err != nil {
+		return err
+	}
 	if err := os.Mkdir(filepath.Join(util.DataDir, box.ID, path), 0755); err != nil {
 		msg := fmt.Sprintf(Conf.Language(6), box.Name, path, err)
 		logging.LogErrorf("mkdir [path=%s] in box [%s] failed: %s", path, box.ID, err)
@@ -330,6 +519,9 @@ func (box *Box) Mkdir(path string) error {
 }
 
 func (box *Box) MkdirAll(path string) error {
+	if _, err := box.validateBoxPath(path); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Join(util.DataDir, box.ID, path), 0755); err != nil {
 		msg := fmt.Sprintf(Conf.Language(6), box.Name, path, err)
 		logging.LogErrorf("mkdir all [path=%s] in box [%s] failed: %s", path, box.ID, err)
@@ -340,6 +532,12 @@ func (box *Box) MkdirAll(path string) error {
 }
 
 func (box *Box) Move(oldPath, newPath string) error {
+	if _, err := box.validateBoxPath(oldPath); err != nil {
+		return err
+	}
+	if _, err := box.validateBoxPath(newPath); err != nil {
+		return err
+	}
 	boxLocalPath := filepath.Join(util.DataDir, box.ID)
 	fromPath := filepath.Join(boxLocalPath, oldPath)
 	toPath := filepath.Join(boxLocalPath, newPath)
@@ -353,7 +551,7 @@ func (box *Box) Move(oldPath, newPath string) error {
 	if oldDir := path.Dir(oldPath); ast.IsNodeIDPattern(path.Base(oldDir)) {
 		fromDir := filepath.Join(boxLocalPath, oldDir)
 		if util.IsEmptyDir(fromDir) {
-			filelock.Remove(fromDir)
+			util.RemoveEmptyDir(fromDir)
 		}
 	}
 	IncSync()
@@ -361,6 +559,9 @@ func (box *Box) Move(oldPath, newPath string) error {
 }
 
 func (box *Box) Remove(path string) error {
+	if _, err := box.validateBoxPath(path); err != nil {
+		return err
+	}
 	boxLocalPath := filepath.Join(util.DataDir, box.ID)
 	filePath := filepath.Join(boxLocalPath, path)
 	if err := filelock.Remove(filePath); err != nil {
@@ -373,11 +574,31 @@ func (box *Box) Remove(path string) error {
 }
 
 func (box *Box) ListFiles(path string) (ret []*FileInfo) {
+	// ListFiles 委托给 Ls，后者已有 validateBoxPath
 	fis, _, err := box.Ls(path)
 	if err != nil {
 		return
 	}
 	box.listFiles(&fis, &ret)
+	return
+}
+
+// listFilesForIndex 传播任一目录的枚举失败，避免将不完整扫描发布为已就绪索引。
+func (box *Box) listFilesForIndex(directory string) (ret []*FileInfo, err error) {
+	files, _, err := box.Ls(directory)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range files {
+		if file.isdir {
+			children, walkErr := box.listFilesForIndex(file.path)
+			if walkErr != nil {
+				return nil, walkErr
+			}
+			ret = append(ret, children...)
+		}
+		ret = append(ret, file)
+	}
 	return
 }
 
@@ -393,7 +614,6 @@ func (box *Box) listFiles(files, ret *[]*FileInfo) {
 			*ret = append(*ret, file)
 		}
 	}
-	return
 }
 
 type BoxInfo struct {
@@ -409,6 +629,16 @@ type BoxInfo struct {
 }
 
 func (box *Box) GetInfo() (ret *BoxInfo) {
+	return box.getInfo(nil)
+}
+
+// GetInfoForPublish 返回发布访问控制下笔记本的聚合信息，只统计发布读者可见的文档。
+func (box *Box) GetInfoForPublish(publishAccess PublishAccess) (ret *BoxInfo) {
+	return box.getInfo(PublishVisibleDocPathFilter(box.ID, publishAccess))
+}
+
+// getInfo 统计笔记本的聚合信息，include 为文档路径可见性判定，nil 表示统计全部文档。
+func (box *Box) getInfo(include func(docPath string) bool) (ret *BoxInfo) {
 	ret = &BoxInfo{
 		ID:   box.ID,
 		Name: util.EscapeHTML(box.Name),
@@ -439,6 +669,10 @@ func (box *Box) GetInfo() (ret *BoxInfo) {
 			continue
 		}
 
+		if nil != include && !include(fileInfo.path) {
+			continue
+		}
+
 		absPath := filepath.Join(util.DataDir, box.ID, fileInfo.path)
 		info, err := os.Stat(absPath)
 		if err != nil {
@@ -446,7 +680,9 @@ func (box *Box) GetInfo() (ret *BoxInfo) {
 			continue
 		}
 
-		ret.DocCount++
+		if id != box.ID {
+			ret.DocCount++
+		}
 		ret.Size += uint64(info.Size())
 		docModT := info.ModTime()
 		if docModT.After(docLatestModTime) {
@@ -464,30 +700,16 @@ func isSkipFile(filename string) bool {
 	return strings.HasPrefix(filename, ".") || "node_modules" == filename || "dist" == filename || "target" == filename
 }
 
-func moveTree(tree *parse.Tree) {
-	treenode.SetBlockTreePath(tree)
-	sql.MoveTreeQueue(tree)
-
-	box := Conf.Box(tree.Box)
-	subFiles := box.ListFiles(tree.Path)
-	luteEngine := util.NewLute()
-	for _, subFile := range subFiles {
-		if !strings.HasSuffix(subFile.path, ".sy") {
-			continue
-		}
-
-		subTree, err := filesys.LoadTree(box.ID, subFile.path, luteEngine) // LoadTree 会重新构造 HPath
-		if err != nil {
-			continue
-		}
-
-		treenode.SetBlockTreePath(subTree)
-		sql.MoveTreeQueue(subTree)
-		msg := fmt.Sprintf(Conf.Language(107), html.EscapeString(subTree.HPath))
-		util.PushStatusBar(msg)
+func moveTree(trees []*parse.Tree) (err error) {
+	for _, tree := range trees {
+		// Continue publishing every physically moved document after an index error.
+		// The durable move record forces authenticated index recovery on restart.
+		err = errors.Join(err, treenode.ReplaceBlockTree(tree))
+		sql.MoveTreeQueue(tree)
+		util.PushStatusBar(fmt.Sprintf(Conf.Language(107), html.EscapeString(tree.HPath)))
 	}
-
-	refreshDocInfo(tree)
+	refreshDocInfoWithoutParent(trees[0])
+	return
 }
 
 func parseKTree(kramdown []byte) (ret *parse.Tree) {
@@ -524,7 +746,7 @@ func normalizeTree(tree *parse.Tree) (yfmRootID, yfmTitle, yfmUpdated string) {
 			n.SetIALAttr("id", n.ID)
 		}
 
-		if "" == n.IALAttr("id") && (ast.NodeParagraph == n.Type || ast.NodeList == n.Type || ast.NodeListItem == n.Type || ast.NodeBlockquote == n.Type ||
+		if "" == n.IALAttr("id") && (ast.NodeParagraph == n.Type || ast.NodeList == n.Type || ast.NodeListItem == n.Type || ast.NodeMindmap == n.Type || ast.NodeMindmapItem == n.Type || ast.NodeBlockquote == n.Type ||
 			ast.NodeMathBlock == n.Type || ast.NodeCodeBlock == n.Type || ast.NodeHeading == n.Type || ast.NodeTable == n.Type || ast.NodeThematicBreak == n.Type ||
 			ast.NodeYamlFrontMatter == n.Type || ast.NodeBlockQueryEmbed == n.Type || ast.NodeSuperBlock == n.Type || ast.NodeAttributeView == n.Type ||
 			ast.NodeHTMLBlock == n.Type || ast.NodeIFrame == n.Type || ast.NodeWidget == n.Type || ast.NodeAudio == n.Type || ast.NodeVideo == n.Type || ast.NodeCallout == n.Type) {
@@ -607,7 +829,12 @@ func normalizeTree(tree *parse.Tree) (yfmRootID, yfmTitle, yfmUpdated string) {
 						continue
 					}
 
-					for _, tag := range attrV.([]any) {
+					values, ok := attrV.([]any)
+					if !ok {
+						logging.LogWarnf("unsupported YAML tags type [%T] in [%s]", attrV, n.ID)
+						continue
+					}
+					for _, tag := range values {
 						tagStr := fmt.Sprintf("%v", tag)
 						if "" == tag {
 							continue
@@ -640,7 +867,9 @@ func normalizeTree(tree *parse.Tree) (yfmRootID, yfmTitle, yfmUpdated string) {
 			}
 
 			// Import the YAML at the beginning of the Markdown as a code block https://github.com/siyuan-note/siyuan/issues/16488
-			codeBlock := &ast.Node{Type: ast.NodeCodeBlock}
+			codeBlock := &ast.Node{Type: ast.NodeCodeBlock, ID: ast.NewNodeID()}
+			codeBlock.SetIALAttr("id", codeBlock.ID)
+			codeBlock.SetIALAttr("updated", codeBlock.ID[:14])
 			openMarker := &ast.Node{Type: ast.NodeCodeBlockFenceOpenMarker, Tokens: []byte("```"), CodeBlockFenceLen: 3}
 			codeBlock.AppendChild(openMarker)
 			info := &ast.Node{Type: ast.NodeCodeBlockFenceInfoMarker, CodeBlockInfo: []byte("yaml")}
@@ -682,32 +911,23 @@ func ClearTempFiles() {
 		util.PushUpdateMsg(msgId, msg, 7000)
 	}()
 
-	bazaarTmp := filepath.Join(util.TempDir, "bazaar")
-	clearTempDir(bazaarTmp, &count, &size)
+	clearTempFiles(&count, &size)
+}
 
-	exportTmp := filepath.Join(util.TempDir, "export")
-	clearTempDir(exportTmp, &count, &size)
-
-	importTmp := filepath.Join(util.TempDir, "import")
-	clearTempDir(importTmp, &count, &size)
-
-	convertTmp := filepath.Join(util.TempDir, "convert")
-	clearTempDir(convertTmp, &count, &size)
-
-	osTmp := filepath.Join(util.TempDir, "os")
-	clearTempDir(osTmp, &count, &size)
-
-	base64Tmp := filepath.Join(util.TempDir, "base64")
-	clearTempDir(base64Tmp, &count, &size)
-
-	installTmp := filepath.Join(util.TempDir, "install")
-	clearTempDir(installTmp, &count, &size)
-
-	thumbnailsTmp := filepath.Join(util.TempDir, "thumbnails")
-	clearTempDir(thumbnailsTmp, &count, &size)
+func clearTempFiles(count *int, size *int64) {
+	heif.ClearMemoryCache("")
+	LivePhotoPreviews.Clear("")
+	for _, name := range []string{
+		"assets-cache", "bazaar", "export", "import", "convert", "pandoc", "os", "base64", "install", "thumbnails", "repo", "clipboard",
+	} {
+		clearTempDir(filepath.Join(util.TempDir, name), count, size)
+	}
 }
 
 func clearTempDir(dir string, count *int, size *int64) {
+	if IsObsidianVaultTaskActive() && sameObsidianPath(dir, filepath.Join(util.TempDir, "import", "obsidian")) {
+		return
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -733,9 +953,8 @@ func clearTempDir(dir string, count *int, size *int64) {
 	}
 
 	if util.IsEmptyDir(dir) {
-		os.Remove(dir)
+		util.RemoveEmptyDir(dir)
 	}
-	return
 }
 
 func VacuumDataIndex() {
@@ -776,20 +995,13 @@ func VacuumDataIndex() {
 		humanize.BytesCustomCeil(uint64(oldHistoryDbSize), 2), humanize.BytesCustomCeil(uint64(newHistoryDbSize), 2),
 		humanize.BytesCustomCeil(uint64(oldAssetContentDbSize), 2), humanize.BytesCustomCeil(uint64(newAssetContentDbSize), 2))
 
-	releaseSize := (oldsyDbSize - newSyDbSize) + (oldHistoryDbSize - newHistoryDbSize) + (oldAssetContentDbSize - newAssetContentDbSize)
-	if releaseSize < 0 {
-		releaseSize = 0
-	}
+	releaseSize := max((oldsyDbSize-newSyDbSize)+(oldHistoryDbSize-newHistoryDbSize)+(oldAssetContentDbSize-newAssetContentDbSize), 0)
 	msg := fmt.Sprintf(Conf.language(271), humanize.BytesCustomCeil(uint64(releaseSize), 2))
 	util.PushMsg(msg, 7000)
 }
 
 func FullReindex(needResetScroll bool) {
 	util.PushEndlessProgress(Conf.language(35))
-
-	cache.ClearTreeCache()
-	cache.ClearDocsIAL()
-	cache.ClearBlocksIAL()
 
 	task.AppendTask(task.DatabaseIndexFull, fullReindex)
 	task.AppendTask(task.DatabaseIndexRef, IndexRefs)
@@ -805,14 +1017,44 @@ func FullReindex(needResetScroll bool) {
 	}
 }
 
+func FullReindexDirect() {
+	fullReindex()
+}
+
+func ReindexFTS() {
+	defer logging.Recover()
+
+	util.PushEndlessProgress(Conf.language(296))
+	defer util.PushClearProgress()
+
+	sql.FlushQueue()
+	FlushTxQueue()
+	if err := sql.RebuildFTSIndex(); err != nil {
+		logging.LogErrorf("rebuild fts index failed, falling back to full reindex: %s", err)
+		FullReindex(false)
+	}
+}
+
 func fullReindex() {
+	fullReindexWithTxFlush(true)
+}
+
+// Snapshot checkout already drained transactions while holding flushLock.
+func fullReindexWithTxFlush(flushTransactions bool) {
+	cache.ClearTreeCache()
+	cache.ClearDocsIAL()
+	cache.ClearBlocksIAL()
+	cache.ClearAVCache()
+
 	pushSQLInsertBlocksFTSMsg, pushSQLDeleteBlocksMsg = true, true
 	defer func() {
 		sql.FlushQueue()
 		pushSQLInsertBlocksFTSMsg, pushSQLDeleteBlocksMsg = false, false
 	}()
 
-	FlushTxQueue()
+	if flushTransactions {
+		FlushTxQueue()
+	}
 
 	sql.InitDatabase(true)
 
@@ -826,32 +1068,174 @@ func fullReindex() {
 }
 
 func ChangeBoxSort(boxIDs []string) {
-	for i, boxID := range boxIDs {
-		box := &Box{ID: boxID}
-		boxConf := box.GetConf()
-		boxConf.Sort = i + 1
-		box.SaveConf(boxConf)
+	if 1 > len(boxIDs) {
+		return
 	}
 
-	var notebookIDs []string
-	for _, box := range Conf.GetOpenedBoxes() {
-		notebookIDs = append(notebookIDs, box.ID)
+	fileTreeSortLock.Lock()
+	boxes, currentIDs := loadNotebookCustomOrder()
+	orderedIDs := mergeRequestedIDOrder(currentIDs, boxIDs)
+	if equalStringSlices(currentIDs, orderedIDs) {
+		fileTreeSortLock.Unlock()
+		return
 	}
+	if err := saveNotebookCustomOrder(boxes, orderedIDs); nil != err {
+		fileTreeSortLock.Unlock()
+		logging.LogErrorf("change notebook sort failed: %s", err)
+		return
+	}
+	fileTreeSortLock.Unlock()
+	IncSync()
+	pushNotebookSortChanged()
+}
+
+// ReorderNotebooks 将笔记本移动到目标笔记本之前或之后。
+func ReorderNotebooks(sourceIDs []string, targetID, position string) (ret *ReorderResult, err error) {
+	ret = &ReorderResult{}
+	if err = validateReorderArgs(sourceIDs, targetID, position); nil != err {
+		return
+	}
+
+	fileTreeSortLock.Lock()
+	boxes, currentIDs := loadNotebookCustomOrder()
+	orderedIDs, changed, reorderErr := reorderIDSequence(currentIDs, sourceIDs, targetID, position)
+	if nil != reorderErr || !changed {
+		fileTreeSortLock.Unlock()
+		return ret, reorderErr
+	}
+	if err = saveNotebookCustomOrder(boxes, orderedIDs); nil != err {
+		fileTreeSortLock.Unlock()
+		return ret, err
+	}
+	fileTreeSortLock.Unlock()
+
+	ret.Changed = true
+	IncSync()
+	pushNotebookSortChanged()
+	return
+}
+
+func loadNotebookCustomOrder() (boxes map[string]*Box, ids []string) {
+	allBoxes, err := ListNotebooks()
+	if nil != err {
+		return map[string]*Box{}, nil
+	}
+	sort.Slice(allBoxes, func(i, j int) bool {
+		if allBoxes[i].Sort != allBoxes[j].Sort {
+			return allBoxes[i].Sort < allBoxes[j].Sort
+		}
+		return allBoxes[i].ID > allBoxes[j].ID
+	})
+	boxes = make(map[string]*Box, len(allBoxes))
+	for _, box := range allBoxes {
+		boxes[box.ID] = box
+		ids = append(ids, box.ID)
+	}
+	return
+}
+
+func mergeRequestedIDOrder(currentIDs, requestedIDs []string) (ret []string) {
+	currentSet := make(map[string]struct{}, len(currentIDs))
+	for _, id := range currentIDs {
+		currentSet[id] = struct{}{}
+	}
+	requestedSet := map[string]struct{}{}
+	var validRequestedIDs []string
+	for _, id := range requestedIDs {
+		if _, exists := currentSet[id]; !exists {
+			continue
+		}
+		if _, exists := requestedSet[id]; exists {
+			continue
+		}
+		validRequestedIDs = append(validRequestedIDs, id)
+		requestedSet[id] = struct{}{}
+	}
+	requestedIndex := 0
+	for _, id := range currentIDs {
+		if _, requested := requestedSet[id]; requested {
+			ret = append(ret, validRequestedIDs[requestedIndex])
+			requestedIndex++
+		} else {
+			ret = append(ret, id)
+		}
+	}
+	return
+}
+
+func saveNotebookCustomOrder(boxes map[string]*Box, orderedIDs []string) error {
+	oldSorts := map[string]int{}
+	writtenIDs := []string{}
+	for i, id := range orderedIDs {
+		box := boxes[id]
+		if nil == box {
+			return fmt.Errorf("notebook [%s] not found", id)
+		}
+		boxConf := box.GetConf()
+		oldSorts[id] = boxConf.Sort
+		newSort := i + 1
+		if boxConf.Sort == newSort {
+			continue
+		}
+		boxConf.Sort = newSort
+		if err := box.SaveConf(boxConf); nil != err {
+			for _, writtenID := range writtenIDs {
+				writtenBox := boxes[writtenID]
+				writtenConf := writtenBox.GetConf()
+				writtenConf.Sort = oldSorts[writtenID]
+				if rollbackErr := writtenBox.SaveConf(writtenConf); nil != rollbackErr {
+					logging.LogErrorf("rollback notebook [%s] sort failed: %s", writtenID, rollbackErr)
+				}
+			}
+			return err
+		}
+		writtenIDs = append(writtenIDs, id)
+	}
+	return nil
+}
+
+func pushNotebookSortChanged() {
+	_, notebookIDs := loadNotebookCustomOrder()
 	util.BroadcastByType("main", "notebookSortChanged", 0, "", map[string]any{
 		"notebookIDs": notebookIDs,
 	})
 }
 
 func SetBoxIcon(boxID, icon string) {
-	if strings.Contains(icon, ".") {
-		// XSS through emoji name https://github.com/siyuan-note/siyuan/issues/15034
-		icon = util.FilterUploadEmojiFileName(icon)
+	if !ast.IsNodeIDPattern(boxID) {
+		logging.LogErrorf("invalid box ID [%s]", boxID)
+		return
 	}
+
+	icon = filterBoxIcon(icon)
 
 	box := &Box{ID: boxID}
 	boxConf := box.GetConf()
+	oldIcon := boxConf.Icon
 	boxConf.Icon = icon
-	box.SaveConf(boxConf)
+	if err := box.SaveConf(boxConf); err != nil {
+		logging.LogErrorf("save box icon [%s] failed: %s", boxID, err)
+		return
+	}
+	if err := setBoxDocIcon(boxID, icon); err != nil {
+		logging.LogErrorf("set box document icon [%s] failed: %s", boxID, err)
+		return
+	}
+	if oldIcon != icon {
+		pushNotebookIconChanged(boxID, icon)
+	}
+	IncSync()
+}
+
+func filterBoxIcon(icon string) string {
+	if filtered, valid := util.FilterIconValue(icon); valid {
+		return filtered
+	}
+	return ""
+}
+
+func isNetworkIconURL(icon string) bool {
+	return util.IsNetworkIconURL(icon)
 }
 
 func (box *Box) UpdateHistoryGenerated() {
@@ -871,6 +1255,49 @@ func getBoxesByPaths(paths []string) (ret map[string]*Box) {
 		if nil != bt {
 			ret[bt.Path] = Conf.Box(bt.BoxID)
 		}
+	}
+	return
+}
+
+func getBoxesByPathsStrict(paths []string) (ret map[string]*Box, err error) {
+	if 1 > len(paths) {
+		return nil, ErrBlockNotFound
+	}
+
+	var ids []string
+	for _, p := range paths {
+		id := util.GetTreeID(p)
+		if !ast.IsNodeIDPattern(id) {
+			return nil, ErrBlockNotFound
+		}
+		ids = append(ids, id)
+	}
+
+	ret = map[string]*Box{}
+	bts := treenode.GetBlockTrees(ids)
+	for i, id := range ids {
+		bt := bts[id]
+		if nil == bt || "d" != bt.Type || bt.ID != bt.RootID {
+			return nil, ErrBlockNotFound
+		}
+
+		box := Conf.Box(bt.BoxID)
+		if nil == box {
+			return nil, ErrBoxNotFound
+		}
+
+		p := filepath.ToSlash(paths[i])
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p
+		}
+		if _, validateErr := filesys.ValidateBoxRelativePath(bt.BoxID, p); validateErr != nil {
+			return nil, ErrBlockNotFound
+		}
+		p = normalizeBoxDocPath(bt.BoxID, path.Clean(p))
+		if p != path.Clean(bt.Path) {
+			return nil, ErrBlockNotFound
+		}
+		ret[bt.Path] = box
 	}
 	return
 }

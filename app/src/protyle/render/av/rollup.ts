@@ -1,4 +1,5 @@
 import {Menu} from "../../../plugin/Menu";
+import {markMenuInnerScroll} from "../../../menus/Menu";
 import {hasClosestByClassName} from "../../util/hasClosest";
 import {upDownHint} from "../../../util/upDownHint";
 import {fetchPost} from "../../../util/fetch";
@@ -21,7 +22,8 @@ const updateCol = (options: {
         return;
     }
     options.target.querySelector(".b3-menu__accelerator").textContent = itemElement.querySelector(".b3-list-item__text").textContent;
-    const colData = getFieldsByData(options.data).find((item) => {
+    const fields = getFieldsByData(options.data);
+    const colData = fields.find((item) => {
         if (item.id === options.colId) {
             if (!item.rollup) {
                 item.rollup = {};
@@ -29,12 +31,16 @@ const updateCol = (options: {
             return true;
         }
     });
+    const oldColValue = JSON.parse(JSON.stringify(colData.rollup)) as IAVCellRollupValue;
     if (options.isRelation) {
         if (itemElement.dataset.colId === colData.rollup?.relationKeyID) {
             return;
         }
+        const oldRelationColumn = fields.find((item) => item.id === oldColValue.relationKeyID);
         colData.rollup = {
-            relationKeyID: itemElement.dataset.colId
+            relationKeyID: itemElement.dataset.colId,
+            filters: oldRelationColumn?.relation?.avID === itemElement.dataset.targetAvId ?
+                oldColValue.filters : undefined,
         };
         const goSearchRollupTargetElement = options.target.nextElementSibling as HTMLElement;
         goSearchRollupTargetElement.querySelector(".b3-menu__accelerator").textContent = "";
@@ -54,8 +60,12 @@ const updateCol = (options: {
         goSearchRollupCalcElement.setAttribute("data-col-type", itemElement.dataset.colType);
         goSearchRollupCalcElement.querySelector(".b3-menu__accelerator").textContent = window.siyuan.languages.original;
     }
-    const oldColValue = JSON.parse(JSON.stringify(colData.rollup));
-    transaction(options.protyle, [{
+    const relationColumn = fields.find((item) => item.id === colData.rollup?.relationKeyID);
+    const filterElement = options.target.closest(".b3-menu")?.querySelector(
+        '[data-type="goAttrViewColFilters"][data-filter-type="rollup"]');
+    const canFilter = options.isRelation ? !!itemElement.dataset.targetAvId : !!relationColumn?.relation?.avID;
+    filterElement?.classList.toggle("b3-menu__item--disabled", !canFilter);
+    const doOperations: IOperation[] = [{
         action: "updateAttrViewColRollup",
         id: options.colId,
         avID: options.data.id,
@@ -64,7 +74,17 @@ const updateCol = (options: {
         data: {
             calc: colData.rollup.calc,
         },
-    }], [{
+    }];
+    if (colData.rollup.relationKeyID) {
+        doOperations.push({
+            action: "setAttrViewColRollupFilters",
+            id: options.colId,
+            avID: options.data.id,
+            keyID: options.colId,
+            data: JSON.parse(JSON.stringify(colData.rollup.filters || [])),
+        });
+    }
+    const undoOperations: IOperation[] = [{
         action: "updateAttrViewColRollup",
         id: options.colId,
         avID: options.data.id,
@@ -73,7 +93,17 @@ const updateCol = (options: {
         data: {
             calc: oldColValue.calc,
         }
-    }]);
+    }];
+    if (oldColValue.relationKeyID) {
+        undoOperations.push({
+            action: "setAttrViewColRollupFilters",
+            id: options.colId,
+            avID: options.data.id,
+            keyID: options.colId,
+            data: JSON.parse(JSON.stringify(oldColValue.filters || [])),
+        });
+    }
+    transaction(options.protyle, doOperations, undoOperations);
 };
 
 const genSearchList = (element: Element, keyword: string, avId: string, isRelation: boolean, cb?: () => void) => {
@@ -86,7 +116,7 @@ const genSearchList = (element: Element, keyword: string, avId: string, isRelati
         keyword
     }, (response) => {
         let html = "";
-        response.data.keys.forEach((item: IAVColumn, index: number) => {
+        response.data.keys.forEach((item, index) => {
             html += `<div class="b3-list-item b3-list-item--narrow${index === 0 ? " b3-list-item--focus" : ""}" data-col-id="${item.id}" ${isRelation ? `data-target-av-id="${item.relation.avID}"` : `data-col-type="${item.type}"`}>
         ${item.icon ? unicode2Emoji(item.icon, "b3-list-item__graphic", true) : `<svg class="b3-list-item__graphic"><use xlink:href="#${getColIconByType(item.type)}"></use></svg>`}
         <span class="b3-list-item__text">${escapeHtml(item.name || window.siyuan.languages.title)}</span>
@@ -112,10 +142,10 @@ export const goSearchRollupCol = (options: {
         iconHTML: "",
         type: "empty",
         label: `<div class="fn__flex-column b3-menu__filter">
-    <input class="b3-text-field fn__flex-shrink" placeholder="${window.siyuan.languages[options.isRelation ? "searchRelation" : "searchRollupProperty"]}"/>
+    <input spellcheck="false" class="b3-text-field fn__flex-shrink" placeholder="${window.siyuan.languages[options.isRelation ? "searchRelation" : "searchRollupProperty"]}"/>
     <div class="fn__hr"></div>
     <div class="b3-list fn__flex-1 b3-list--background">
-        <img style="margin: 0 auto;display: block;width: 64px;height: 64px" src="/stage/loading-pure.svg">
+        <div class="fn__flex" style="height:64px;align-items:center;justify-content:center"><span class="b3-loading" aria-hidden="true"></span></div>
     </div>
 </div>`,
         bind(element) {
@@ -159,7 +189,7 @@ export const goSearchRollupCol = (options: {
             });
         }
     });
-    menu.element.querySelector(".b3-menu__items").setAttribute("style", "overflow: initial");
+    markMenuInnerScroll(menu.element);
 };
 
 export const getRollupHTML = (options: { data?: IAV, cellElements?: HTMLElement[], colData?: IAVColumn }) => {
@@ -174,7 +204,9 @@ export const getRollupHTML = (options: { data?: IAV, cellElements?: HTMLElement[
             }
         });
     }
-    return `<button class="b3-menu__item b3-menu__item--current" data-type="goSearchRollupCol" data-old-value='${JSON.stringify(colData.rollup || {})}'>
+    const relationColumn = getFieldsByData(options.data).find((item) => item.id === colData.rollup?.relationKeyID);
+    const canFilter = !!relationColumn?.relation?.avID;
+    return `<button class="b3-menu__item" data-type="goSearchRollupCol" data-old-value='${JSON.stringify(colData.rollup || {})}'>
     <span class="b3-menu__label">${window.siyuan.languages.relation}</span>
     <span class="b3-menu__accelerator"></span>
     <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
@@ -187,6 +219,10 @@ export const getRollupHTML = (options: { data?: IAV, cellElements?: HTMLElement[
 <button class="b3-menu__item" data-type="goSearchRollupCalc">
     <span class="b3-menu__label">${window.siyuan.languages.rollupCalc}</span>
     <span class="b3-menu__accelerator">${getNameByOperator(colData.rollup?.calc?.operator, true)}</span>
+    <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
+</button>
+<button class="b3-menu__item${canFilter ? "" : " b3-menu__item--disabled"}" data-type="goAttrViewColFilters" data-filter-type="rollup">
+    <span class="b3-menu__label">${window.siyuan.languages.filter}</span>
     <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
 </button>`;
 };
@@ -213,7 +249,7 @@ export const bindRollupData = (options: {
         }
         if (oldValue.keyID && targetKeyAVId) {
             fetchPost("/api/av/getAttributeView", {id: targetKeyAVId}, (response) => {
-                response.data.av.keyValues.find((item: { key: { id: string, name: string, type: TAVCol } }) => {
+                response.data.av.keyValues.find((item) => {
                     if (item.key.id === oldValue.keyID) {
                         goSearchRollupTargetElement.querySelector(".b3-menu__accelerator").textContent = item.key.name;
                         const goSearchRollupCalcElement = options.menuElement.querySelector('[data-type="goSearchRollupCalc"]') as HTMLElement;

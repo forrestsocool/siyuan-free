@@ -2,6 +2,8 @@ import {Constants} from "../../constants";
 import {merge} from "./merge";
 import {hintEmbed, hintRef, hintSlash, hintTag} from "../hint/extend";
 import {toolbarKeyToMenu} from "../toolbar/util";
+import {isMobile} from "../../util/functions";
+import {getDefaultToolbar} from "../toolbar/defaults";
 
 export class Options {
     public options: IProtyleOptions;
@@ -89,7 +91,7 @@ export class Options {
             },
             mode: "both",
         },
-        toolbar: Constants.PROTYLE_TOOLBAR,
+        toolbar: getDefaultToolbar(isMobile()),
         typewriterMode: false,
         upload: {
             max: 1024 * 1024 * 1024 * 16,

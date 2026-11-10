@@ -2,6 +2,29 @@ import {hideElements} from "../ui/hideElements";
 import {getAllModels} from "../../layout/getAll";
 import {updateOutline} from "../../editor/util";
 import {resize} from "./resize";
+import {forEachPluginSubscriber} from "../../plugin/EventBusCore";
+import {areProtylePluginExtensionsEnabled} from "../runtimeCapabilities";
+
+/// #if MOBILE
+export const updateMobileTitleReadonly = (protyle: IProtyle) => {
+    if (window.siyuan.mobile.editor?.protyle !== protyle) {
+        return;
+    }
+    const inputElement = document.getElementById("toolbarName") as HTMLInputElement;
+    const readonlyElement = document.getElementById("toolbarNameReadonly");
+    if (!inputElement || !readonlyElement) {
+        return;
+    }
+    const readonly = protyle.disabled || !protyle.preview.element.classList.contains("fn__none");
+    if (readonly && !inputElement.readOnly && document.activeElement === inputElement) {
+        inputElement.blur();
+    }
+    inputElement.readOnly = readonly;
+    readonlyElement.textContent = inputElement.value;
+    inputElement.classList.toggle("fn__none", readonly);
+    readonlyElement.classList.toggle("fn__none", !readonly);
+};
+/// #endif
 
 export const setEditMode = (protyle: IProtyle, type: TEditorMode) => {
     if (type === "preview") {
@@ -10,7 +33,7 @@ export const setEditMode = (protyle: IProtyle, type: TEditorMode) => {
         }
         protyle.preview.element.classList.remove("fn__none");
         protyle.contentElement.classList.add("fn__none");
-        protyle.scroll?.element.classList.add("fn__none");
+        protyle.scroll?.update(protyle);
         if (protyle.options.render.breadcrumb) {
             protyle.breadcrumb?.element.classList.add("fn__none");
             protyle.breadcrumb.toggleExit(true);
@@ -25,9 +48,7 @@ export const setEditMode = (protyle: IProtyle, type: TEditorMode) => {
         }
         protyle.preview.element.classList.add("fn__none");
         protyle.contentElement.classList.remove("fn__none");
-        if (protyle.options.render.scroll) {
-            protyle.scroll?.element.classList.remove("fn__none");
-        }
+        protyle.scroll?.update(protyle);
         if (protyle.options.render.breadcrumb) {
             protyle.breadcrumb?.element.classList.remove("fn__none");
             protyle.breadcrumb.toggleExit(!protyle.block.showAll);
@@ -37,8 +58,13 @@ export const setEditMode = (protyle: IProtyle, type: TEditorMode) => {
         /// #endif
         resize(protyle);
     }
+    /// #if MOBILE
+    updateMobileTitleReadonly(protyle);
+    /// #endif
     hideElements(["gutterOnly", "toolbar", "select", "hint", "util"], protyle);
-    protyle.app.plugins.forEach(item => {
-        item.eventBus.emit("switch-protyle-mode", {protyle});
-    });
+    if (areProtylePluginExtensionsEnabled(protyle)) {
+        forEachPluginSubscriber("switch-protyle-mode", eventBus => {
+            eventBus.emit("switch-protyle-mode", {protyle});
+        });
+    }
 };

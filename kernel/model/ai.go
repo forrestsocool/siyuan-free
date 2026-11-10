@@ -1,31 +1,42 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"io"
 	"strings"
+	"time"
 
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
 	"github.com/sashabaranov/go-openai"
+	"github.com/siyuan-note/siyuan/kernel/conf"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
+
+func EnabledUserSkills() []string {
+	confAIReadSnapshot := Conf.LoadAI()
+
+	if Conf == nil || confAIReadSnapshot == nil || confAIReadSnapshot.Agent == nil || confAIReadSnapshot.Agent.Skills == nil {
+		return nil
+	}
+	return append([]string(nil), confAIReadSnapshot.Agent.Skills.UserEnabled...)
+}
+
+func DisabledBuiltinSkills() []string {
+	confAIReadSnapshot := Conf.LoadAI()
+
+	if Conf == nil || confAIReadSnapshot == nil || confAIReadSnapshot.Agent == nil || confAIReadSnapshot.Agent.Skills == nil {
+		return nil
+	}
+	return append([]string(nil), confAIReadSnapshot.Agent.Skills.BuiltinDisabled...)
+}
 
 func ChatGPT(msg string) (ret string) {
 	if !isOpenAIAPIEnabled() {
@@ -60,7 +71,7 @@ func chatGPT(msg string, cloud bool) (ret string) {
 		return
 	}
 
-	ret, retCtxMsgs, err := chatGPTContinueWrite(msg, cachedContextMsg, cloud)
+	ret, retCtxMsgs, err := chatGPTComplete(msg, cachedContextMsg, cloud)
 	if err != nil {
 		return
 	}
@@ -69,46 +80,214 @@ func chatGPT(msg string, cloud bool) (ret string) {
 }
 
 func chatGPTWithAction(msg string, action string, cloud bool) (ret string) {
-	action = strings.TrimSpace(action)
-	if "" != action {
-		msg = action + ":\n\n" + msg
-	}
-	ret, _, err := chatGPTContinueWrite(msg, nil, cloud)
+	msg = BuildAIEditorPrompt(msg, action)
+	ret, _, err := chatGPTComplete(msg, nil, cloud)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func chatGPTContinueWrite(msg string, contextMsgs []string, cloud bool) (ret string, retContextMsgs []string, err error) {
+// BuildAIEditorPrompt 将编辑器输入填充到操作模板中。没有占位符时保持现有的操作前缀格式。
+func BuildAIEditorPrompt(input, action string) string {
+	action = strings.TrimSpace(action)
+	if "" == action {
+		return input
+	}
+	if strings.Contains(action, "{{input}}") {
+		return strings.ReplaceAll(action, "{{input}}", input)
+	}
+	return action + ":\n\n" + input
+}
+
+const aiEditorSystemPrompt = `You are an inline editing engine, not a conversational assistant.
+Complete the user's request directly and output only the final content to insert.
+Never ask the user for clarification or additional information.
+If the request is ambiguous or information is incomplete, choose a reasonable interpretation and produce the best possible result using only the supplied content.
+Do not explain your process, mention missing context, add conversational preambles, or offer follow-up help.
+Preserve the source language and Markdown structure unless the user requests otherwise.
+Questions are allowed when they are part of the requested output; do not ask questions to clarify the task.`
+
+type AIEditorMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+func buildAIEditorMessages(prompt string, history []AIEditorMessage, maxHistoryMessages int) []openai.ChatCompletionMessage {
+	if maxHistoryMessages < len(history) {
+		history = history[len(history)-maxHistoryMessages:]
+	}
+	messages := make([]openai.ChatCompletionMessage, 0, len(history)+2)
+	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: aiEditorSystemPrompt})
+	for _, item := range history {
+		role := strings.TrimSpace(item.Role)
+		content := strings.TrimSpace(item.Content)
+		if "" == content || (openai.ChatMessageRoleUser != role && openai.ChatMessageRoleAssistant != role) {
+			continue
+		}
+		messages = append(messages, openai.ChatCompletionMessage{Role: role, Content: content})
+	}
+	return append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: prompt})
+}
+
+type AIEditorChatStream struct {
+	stream      *util.OpenAICompletionStream
+	cancel      context.CancelFunc
+	idleTimeout time.Duration
+}
+
+func (stream *AIEditorChatStream) Recv() (response openai.ChatCompletionStreamResponse, err error) {
+	timer, timerDone := startAIEditorCancelTimer(stream.idleTimeout, stream.cancel)
+	response, err = stream.stream.Recv()
+	if stopAIEditorCancelTimer(timer, timerDone) {
+		err = errors.New("AI editor stream idle timeout")
+	}
+	return
+}
+
+func (stream *AIEditorChatStream) Close() {
+	stream.cancel()
+	stream.stream.Close()
+}
+
+// NewAIEditorChatStream 创建绑定到编辑器请求生命周期的模型流。
+func NewAIEditorChatStream(ctx context.Context, ids []string, input, action string, history []AIEditorMessage) (*AIEditorChatStream, error) {
+	confAISnapshot := Conf.LoadAI()
+
+	if !confAISnapshot.HasAnyProvider() {
+		return nil, errors.New("no AI provider configured")
+	}
+
+	prov, m := confAISnapshot.GetEditingModel()
+	if nil == prov || nil == m {
+		return nil, errors.New("no AI editing model configured")
+	}
+	editing := confAISnapshot.Editing
+	if nil == editing {
+		return nil, errors.New("no AI editing config")
+	}
+
+	if "" == input && 0 < len(ids) {
+		input = getBlocksContent(ids)
+	}
+	prompt := BuildAIEditorPrompt(input, action)
+	if "" == strings.TrimSpace(prompt) {
+		return nil, errors.New("AI editor input is empty")
+	}
+
+	messages := buildAIEditorMessages(prompt, history, editing.MaxHistoryMessages)
+
+	req := openai.ChatCompletionRequest{
+		Model:               m.Name,
+		MaxCompletionTokens: editing.MaxCompletionTokens,
+		Temperature:         float32(editing.Temperature),
+		Messages:            messages,
+		Stream:              true,
+	}
+	streamCtx, cancel := context.WithCancel(ctx)
+	streamCtx = util.ContextWithOpenAIResponsesBaseURL(streamCtx, prov.BaseURL)
+	requestTimeout := time.Duration(prov.RequestTimeout) * time.Second
+	requestTimer, requestTimerDone := startAIEditorCancelTimer(requestTimeout, cancel)
+	client := NewAIProviderClient(prov, m.Name)
+	completionStream, err := util.CreateOpenAICompletionStream(streamCtx, client, prov.Protocol, req, nil)
+	requestTimedOut := stopAIEditorCancelTimer(requestTimer, requestTimerDone)
+	if requestTimedOut {
+		err = errors.New("AI editor request timeout")
+	}
+	if nil != err {
+		cancel()
+		return nil, err
+	}
+	if nil == completionStream {
+		cancel()
+		return nil, errors.New("AI editor model returned nil stream")
+	}
+	return &AIEditorChatStream{
+		stream:      completionStream,
+		cancel:      cancel,
+		idleTimeout: 120 * time.Second,
+	}, nil
+}
+
+func startAIEditorCancelTimer(timeout time.Duration, cancel context.CancelFunc) (*time.Timer, <-chan struct{}) {
+	if 0 >= timeout {
+		return nil, nil
+	}
+	done := make(chan struct{})
+	timer := time.AfterFunc(timeout, func() {
+		cancel()
+		close(done)
+	})
+	return timer, done
+}
+
+func stopAIEditorCancelTimer(timer *time.Timer, done <-chan struct{}) bool {
+	if nil == timer {
+		return false
+	}
+	if timer.Stop() {
+		return false
+	}
+	<-done
+	return true
+}
+
+func IsAIEditorStreamDone(err error) bool {
+	return errors.Is(err, io.EOF)
+}
+
+func chatGPTComplete(msg string, contextMsgs []string, cloud bool) (ret string, retContextMsgs []string, err error) {
+	confAISnapshot := Conf.LoadAI()
+
 	util.PushEndlessProgress("Requesting...")
 	defer util.ClearPushProgress(100)
 
-	if Conf.AI.OpenAI.APIMaxContexts < len(contextMsgs) {
-		contextMsgs = contextMsgs[len(contextMsgs)-Conf.AI.OpenAI.APIMaxContexts:]
+	prov, m := confAISnapshot.GetEditingModel()
+	if nil == prov || nil == m {
+		err = errors.New("no AI provider configured")
+		return
+	}
+
+	editing := confAISnapshot.Editing
+	if nil == editing {
+		err = errors.New("no AI editing config")
+		return
+	}
+
+	if editing.MaxHistoryMessages < len(contextMsgs) {
+		contextMsgs = contextMsgs[len(contextMsgs)-editing.MaxHistoryMessages:]
 	}
 
 	var gpt GPT
 	if cloud {
 		gpt = &CloudGPT{}
 	} else {
-		gpt = &OpenAIGPT{c: util.NewOpenAIClient(Conf.AI.OpenAI.APIKey, Conf.AI.OpenAI.APIProxy, Conf.AI.OpenAI.APIBaseURL, Conf.AI.OpenAI.APIUserAgent, Conf.AI.OpenAI.APIVersion, Conf.AI.OpenAI.APIProvider)}
-	}
-
-	buf := &bytes.Buffer{}
-	for i := 0; i < Conf.AI.OpenAI.APIMaxContexts; i++ {
-		part, stop, chatErr := gpt.chat(msg, contextMsgs)
-		buf.WriteString(part)
-
-		if stop || nil != chatErr {
-			break
+		gpt = &OpenAIGPT{
+			c:                   NewAIProviderClient(prov, m.Name),
+			apiBaseURL:          prov.BaseURL,
+			m:                   m,
+			protocol:            prov.Protocol,
+			timeout:             prov.RequestTimeout,
+			maxCompletionTokens: editing.MaxCompletionTokens,
+			temperature:         editing.Temperature,
 		}
-
-		util.PushEndlessProgress("Continue requesting...")
 	}
 
-	ret = buf.String()
-	ret = strings.TrimSpace(ret)
+	part, stop, chatErr := gpt.chat(msg, contextMsgs)
+	if nil != chatErr {
+		err = chatErr
+		return
+	}
+
+	// stop==false means finish_reason=length: the output was truncated at
+	// MaxCompletionTokens. Retrying the same prompt would almost certainly hit
+	// the same limit again, so we return whatever was produced and notify the
+	// user instead of silently looping. See https://github.com/siyuan-note/siyuan/issues/17797
+	if !stop {
+		util.PushMsg(Conf.Language(297), 5000)
+	}
+
+	ret = strings.TrimSpace(part)
 	if "" != ret {
 		retContextMsgs = append(retContextMsgs, msg, ret)
 	}
@@ -116,7 +295,7 @@ func chatGPTContinueWrite(msg string, contextMsgs []string, cloud bool) (ret str
 }
 
 func isOpenAIAPIEnabled() bool {
-	if "" == Conf.AI.OpenAI.APIKey {
+	if !Conf.AI.Load().HasAnyProvider() {
 		util.PushMsg(Conf.Language(193), 5000)
 		return false
 	}
@@ -168,11 +347,18 @@ type GPT interface {
 }
 
 type OpenAIGPT struct {
-	c *openai.Client
+	c                   *util.AIClient
+	apiBaseURL          string
+	m                   *conf.Model
+	protocol            string
+	timeout             int
+	maxCompletionTokens int
+	temperature         float64
 }
 
 func (gpt *OpenAIGPT) chat(msg string, contextMsgs []string) (partRet string, stop bool, err error) {
-	return util.ChatGPT(msg, contextMsgs, gpt.c, Conf.AI.OpenAI.APIModel, Conf.AI.OpenAI.APIMaxTokens, Conf.AI.OpenAI.APITemperature, Conf.AI.OpenAI.APITimeout)
+	return util.ChatGPT(msg, contextMsgs, gpt.c, gpt.apiBaseURL, gpt.protocol, gpt.m.Name, gpt.maxCompletionTokens,
+		gpt.temperature, gpt.timeout)
 }
 
 type CloudGPT struct {

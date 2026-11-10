@@ -2,11 +2,7 @@ name: Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - main
-      - "codex/**"
+  workflow_call:
   pull_request:
 
 jobs:
@@ -27,7 +23,10 @@ jobs:
           cache-dependency-path: kernel/go.sum
 
       - name: Test local unlock extras
-        run: go test ./model -run 'Test(EnsureLocalUnlockUser|LocalInbox)' -count=1 -vet=off
+        run: go test -tags 'fts5 sqlcipher' ./model ./api -run 'Test(EnsureLocalUnlockUser|RefreshUserUsesLocalUnlockUser|GetCloudUserUsesLocalUnlockUser|CloudUser|ResolveCloudUserRefresh|LocalInbox|APIContractLocal|APIContractInbox|APIContractRouterCoverage)' -count=1
+
+      - name: Check generated API contracts
+        run: go run ./apicontract/cmd/apigen --check
 
   python:
     runs-on: ubuntu-latest
@@ -53,3 +52,27 @@ jobs:
 
       - name: Run sidecar tests
         run: pytest -q
+
+      - name: Test Docker startup compatibility
+        working-directory: .
+        run: python -m unittest discover -s scripts -p test_docker_entrypoint.py -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install repository pnpm version
+        working-directory: app
+        run: npm install --global $(node -p 'require("./package.json").packageManager')
+      - name: Install frontend dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+      - name: Check frontend types
+        working-directory: app
+        run: pnpm run typecheck
+      - name: Test sync settings
+        working-directory: app
+        run: node --import tsx --test src/config/tabs/syncTab.test.ts src/config/tabs/cloudUser.test.ts

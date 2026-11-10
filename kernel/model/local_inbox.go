@@ -148,6 +148,10 @@ func GetLocalShorthands(page int) (result map[string]any, err error) {
 	if 1 > pageCount {
 		pageCount = 1
 	}
+	pageNums := make([]int, pageCount)
+	for i := range pageNums {
+		pageNums[i] = i + 1
+	}
 	start := (page - 1) * localInboxPageSize
 	if start > total {
 		start = total
@@ -169,6 +173,7 @@ func GetLocalShorthands(page int) (result map[string]any, err error) {
 		"data": map[string]any{
 			"shorthands": shorthands,
 			"pagination": map[string]any{
+				"paginationPageNums":    pageNums,
 				"paginationPage":        page,
 				"paginationPageCount":   pageCount,
 				"paginationRecordCount": total,

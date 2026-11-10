@@ -9,6 +9,14 @@ This fork keeps the built-in S3/WebDAV/Local sync implementation available for s
 
 ## NAS Compose
 
+This branch is based on SiYuan v3.8.9. Existing Compose commands that only contain
+`--workspace` and `--accessAuthCode` continue to start the server; no new `.env`
+values are required. Back up the workspace before upgrading and update clients
+that edit the same notes to a compatible version.
+
+GitHub Actions tests the local features, builds native AMD64/ARM64 images, and
+checks kernel startup and OCR before publishing the existing branch image tag.
+
 If you already run `apkdv/siyuan-unlock` with workspace data at `/share/Container/siyuan/workspace`, use `docker-compose.nas.yml`. It keeps the same host workspace mount, so existing notebooks and assets continue to live in the same directory.
 
 ```bash

@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package conf
 
@@ -25,6 +13,10 @@ import (
 )
 
 type Search struct {
+	Mindmap     *bool `json:"mindmap"`
+	MindmapItem *bool `json:"mindmapItem"`
+	CustomBlock *bool `json:"customBlock"`
+
 	Document      bool `json:"document"`
 	Heading       bool `json:"heading"`
 	List          bool `json:"list"`
@@ -43,9 +35,12 @@ type Search struct {
 	IFrameBlock   bool `json:"iframeBlock"`
 	WidgetBlock   bool `json:"widgetBlock"`
 	Callout       bool `json:"callout"`
+	Tabs          bool `json:"tabs"`
+	TabItem       bool `json:"tabItem"`
 
-	Limit         int  `json:"limit"`
-	CaseSensitive bool `json:"caseSensitive"`
+	Limit         int   `json:"limit"`
+	CaseSensitive bool  `json:"caseSensitive"`
+	HanSensitive  *bool `json:"hanSensitive"` // 区分繁简：默认开启（与既往行为一致）；关闭后全文搜索不区分简体/繁体中文字形
 
 	Name  bool `json:"name"`
 	Alias bool `json:"alias"`
@@ -68,6 +63,9 @@ type Search struct {
 
 func NewSearch() *Search {
 	return &Search{
+		Mindmap:       new(true),
+		MindmapItem:   new(false),
+		CustomBlock:   new(true),
 		Document:      true,
 		Heading:       true,
 		List:          false,
@@ -86,9 +84,12 @@ func NewSearch() *Search {
 		IFrameBlock:   false,
 		WidgetBlock:   false,
 		Callout:       false,
+		Tabs:          false,
+		TabItem:       false,
 
 		Limit:         64,
 		CaseSensitive: false,
+		HanSensitive:  new(true),
 
 		Name:  true,
 		Alias: true,
@@ -110,23 +111,68 @@ func NewSearch() *Search {
 	}
 }
 
+// HanSensitiveVal 返回 HanSensitive 的 bool 值；nil 视为 true（与既往行为一致）。
+func (s *Search) HanSensitiveVal() bool {
+	if s.HanSensitive == nil {
+		return true
+	}
+	return *s.HanSensitive
+}
+
+// SetHanSensitive 设置 HanSensitive 字段。
+func (s *Search) SetHanSensitive(v bool) {
+	s.HanSensitive = new(v)
+}
+
+func SearchLikePattern(keyword string) string {
+	return "'%" + EscapeSearchLikePattern(keyword) + "%' ESCAPE '\\'"
+}
+
+func EscapeSearchLikePattern(keyword string) string {
+	return strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_", "'", "''").Replace(keyword)
+}
+
 func (s *Search) NAMFilter(keyword string) string {
-	keyword = strings.TrimSpace(keyword)
+	pattern := SearchLikePattern(strings.TrimSpace(keyword))
 	buf := bytes.Buffer{}
 	if s.Name {
-		buf.WriteString(" OR name LIKE '%" + keyword + "%'")
+		buf.WriteString(" OR name LIKE ")
+		buf.WriteString(pattern)
 	}
 	if s.Alias {
-		buf.WriteString(" OR alias LIKE '%" + keyword + "%'")
+		buf.WriteString(" OR alias LIKE ")
+		buf.WriteString(pattern)
 	}
 	if s.Memo {
-		buf.WriteString(" OR memo LIKE '%" + keyword + "%'")
+		buf.WriteString(" OR memo LIKE ")
+		buf.WriteString(pattern)
 	}
 	return buf.String()
 }
 
+// CustomBlockEnabled 为缺少新字段的配置启用自定义块搜索。
+func (s *Search) CustomBlockEnabled() bool {
+	return s.CustomBlock == nil || *s.CustomBlock
+}
+
+// MindmapEnabled 为缺少新字段的配置启用思维导图搜索。
+func (s *Search) MindmapEnabled() bool {
+	return s.Mindmap == nil || *s.Mindmap
+}
+
+// MindmapItemEnabled 仅在显式开启时搜索思维导图项。
+func (s *Search) MindmapItemEnabled() bool {
+	return s.MindmapItem != nil && *s.MindmapItem
+}
+
 func (s *Search) TypeFilter() string {
 	buf := bytes.Buffer{}
+	if s.MindmapEnabled() {
+		buf.WriteString("'mindmap',")
+	}
+	if s.MindmapItemEnabled() {
+		buf.WriteString("'mindmap_item',")
+	}
 	if s.Document {
 		buf.WriteByte('\'')
 		buf.WriteString(treenode.TypeAbbr(ast.NodeDocument.String()))
@@ -236,6 +282,15 @@ func (s *Search) TypeFilter() string {
 		buf.WriteString(",")
 	}
 
+	if s.Tabs {
+		buf.WriteString("'tabs',")
+	}
+	if s.TabItem {
+		buf.WriteString("'tab',")
+	}
+	if s.CustomBlockEnabled() {
+		buf.WriteString("'custom',")
+	}
 	ret := buf.String()
 	if "" == ret {
 		return ret

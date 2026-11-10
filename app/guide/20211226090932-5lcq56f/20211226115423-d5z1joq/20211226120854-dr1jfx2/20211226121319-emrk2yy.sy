@@ -1,6 +1,6 @@
 {
 	"ID": "20211226121319-emrk2yy",
-	"Spec": "2",
+	"Spec": "5",
 	"Type": "NodeDocument",
 	"Properties": {
 		"icon": "1f4f0",
@@ -8,7 +8,7 @@
 		"title": "排版元素",
 		"title-img": "background-color: hsl(2, 57%, 40%);background-image: repeating-linear-gradient(transparent, transparent 50px, rgba(0,0,0,.4) 50px, rgba(0,0,0,.4) 53px, transparent 53px, transparent 63px, rgba(0,0,0,.4) 63px, rgba(0,0,0,.4) 66px, transparent 66px, transparent 116px, rgba(0,0,0,.5) 116px, rgba(0,0,0,.5) 166px, rgba(255,255,255,.2) 166px, rgba(255,255,255,.2) 169px, rgba(0,0,0,.5) 169px, rgba(0,0,0,.5) 179px, rgba(255,255,255,.2) 179px, rgba(255,255,255,.2) 182px, rgba(0,0,0,.5) 182px, rgba(0,0,0,.5) 232px, transparent 232px),repeating-linear-gradient(270deg, transparent, transparent 50px, rgba(0,0,0,.4) 50px, rgba(0,0,0,.4) 53px, transparent 53px, transparent 63px, rgba(0,0,0,.4) 63px, rgba(0,0,0,.4) 66px, transparent 66px, transparent 116px, rgba(0,0,0,.5) 116px, rgba(0,0,0,.5) 166px, rgba(255,255,255,.2) 166px, rgba(255,255,255,.2) 169px, rgba(0,0,0,.5) 169px, rgba(0,0,0,.5) 179px, rgba(255,255,255,.2) 179px, rgba(255,255,255,.2) 182px, rgba(0,0,0,.5) 182px, rgba(0,0,0,.5) 232px, transparent 232px),repeating-linear-gradient(125deg, transparent, transparent 2px, rgba(0,0,0,.2) 2px, rgba(0,0,0,.2) 3px, transparent 3px, transparent 5px, rgba(0,0,0,.2) 5px);",
 		"type": "doc",
-		"updated": "20251211094201"
+		"updated": "20261028111611"
 	},
 	"Children": [
 		{
@@ -17,7 +17,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-i45akvs",
-				"updated": "20240702222119"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
@@ -32,7 +32,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20211226122008-1e014nh",
-				"updated": "20240702222119"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
@@ -52,7 +52,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20211226122008-mc8bdbc",
-								"updated": "20240416113759"
+								"updated": "20260730184353"
 							},
 							"Children": [
 								{
@@ -60,7 +60,7 @@
 									"TextMarkType": "block-ref",
 									"TextMarkBlockRefID": "20211226115423-d5z1joq",
 									"TextMarkBlockRefSubtype": "s",
-									"TextMarkTextContent": "塊引用"
+									"TextMarkTextContent": "區塊引用"
 								}
 							]
 						}
@@ -105,7 +105,7 @@
 					},
 					"Properties": {
 						"id": "20220916195409-g57vfyf",
-						"updated": "20240702222119"
+						"updated": "20261019194453"
 					},
 					"Children": [
 						{
@@ -127,12 +127,12 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20211226122008-pei037e",
-								"updated": "20220916195424"
+								"updated": "20261019194453"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "可通過複制貼上或拖拽來上傳圖片；上傳後的圖片可通過拖拽進行大小調整。"
+									"Data": "可透過複製貼上或拖曳來上傳圖片。將滑鼠移到圖片上可顯示邊框外的小把手，拖曳右側、底部或右下角的把手可等比例調整大小；在觸控螢幕上先點選圖片顯示把手，再拖曳把手"
 								}
 							]
 						},
@@ -392,7 +392,7 @@
 					},
 					"Properties": {
 						"id": "20211226122008-lrx2o2w",
-						"updated": "20211226122008"
+						"updated": "20261024163013"
 					},
 					"Children": [
 						{
@@ -400,13 +400,13 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20211226122008-j7ct7fv",
-								"updated": "20211226122008"
+								"updated": "20261024163013"
 							},
 							"Children": [
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "快捷鍵"
+									"TextMarkTextContent": "快速鍵"
 								}
 							]
 						}
@@ -842,17 +842,67 @@
 			]
 		},
 		{
+			"ID": "20261015131447-7b390sx",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261015131447-7b390sx",
+				"updated": "20261016011750"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "可在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "外觀"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "內容"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "管理顏色"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中點選對應按鈕，分別管理顏色、文字顏色和背景顏色。"
+				}
+			]
+		},
+		{
 			"ID": "20211226122008-nufcprx",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-nufcprx",
-				"updated": "20211226122008"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "超级塊"
+					"Data": "超级區塊"
 				}
 			]
 		},
@@ -982,12 +1032,12 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-ju18gnz",
-				"updated": "20211226122008"
+				"updated": "20261024171629"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "嵌入塊"
+					"Data": "嵌入區塊"
 				}
 			]
 		},
@@ -1019,17 +1069,199 @@
 			]
 		},
 		{
+			"ID": "20261024171629-c82rywv",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024171629-c82rywv",
+				"updated": "20261024171629"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "編輯器"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "嵌入區塊"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中，可設定嵌入區塊是否顯示麵包屑，以及是否包含文件上層路徑。隱藏上層路徑後，保留文件名稱和文件內部結構。"
+				}
+			]
+		},
+		{
+			"ID": "20261024171629-v4rxlyd",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024171629-v4rxlyd",
+				"updated": "20261024171629"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "區塊標選單中的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "嵌入區塊"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "嵌入區塊導覽路徑"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 和 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "嵌入區塊"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "麵包屑顯示文件上層路徑"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 均提供「啟用」「禁用」「預設」選項。選擇「預設」會移除區塊屬性，繼承全域設定。"
+				}
+			]
+		},
+		{
 			"ID": "20211226122008-hsi1yp3",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-hsi1yp3",
-				"updated": "20220312005014"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "標題塊"
+					"Data": "標題區塊"
+				}
+			]
+		},
+		{
+			"ID": "20260730103436-t6y3n8d",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260730103436-t6y3n8d",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "點選標題左側三角可摺疊或展開目前標題；按住 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Alt"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（macOS 上為 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌥"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "）點選三角可摺疊或展開直接子標題；按住 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Alt"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（macOS 上為 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌥"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "）點選區塊標可摺疊或展開同級標題。也可以使用區塊標選單中的「摺疊/展開直接子標題」和「摺疊/展開同級標題」。"
+				}
+			]
+		},
+		{
+			"ID": "20260730103436-w2c9g5p",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260730103436-w2c9g5p",
+				"updated": "20261024163013"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "這兩個操作的快速鍵預設為空，可在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "快速鍵"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "編輯器"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中設定。"
 				}
 			]
 		},
@@ -1816,17 +2048,2060 @@
 			]
 		},
 		{
+			"ID": "20211226122008-731sqd6",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20211226122008-731sqd6",
+				"updated": "20261028111611"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "心智圖區塊"
+				}
+			]
+		},
+		{
+			"ID": "20261012014859-fnjexa9",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261012014859-fnjexa9",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "定義與列表轉換說明見"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260921215916-cfx2ewc",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "心智圖區塊"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-xvhal7o",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-xvhal7o",
+				"updated": "20261028111611"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "畫布操作"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261018163000-b7er7oa",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261018163000-b7er7oa",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "心智圖預設將滑鼠滾輪和單指滑動交給文件捲動。桌面版點擊心智圖、行動版輕點一次心智圖即可操作畫布；行動版也可使用工具列中的「手形工具」進行單指平移，關閉手形工具後可選取、拖曳或按兩下編輯節點，也可在閱讀時直接按兩下節點進入編輯。"
+				}
+			]
+		},
+		{
+			"ID": "20261028111611-4b5448e",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261028111611-4b5448e",
+				"updated": "20261028111611"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "行動版可使用文件導覽路徑列中的撤銷、重做按鈕，收起鍵盤或將心智圖全螢幕顯示後也能操作。它們共用文件的撤銷歷程，也可能撤銷心智圖以外的修改。沒有可撤銷或重做的操作時，以及文件唯讀時，按鈕隱藏。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-21uo12c",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-21uo12c",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "操作中的畫布顯示醒目邊框，可用滾輪或滑鼠右鍵拖曳平移畫布，啟用手形工具後也可用左鍵拖曳平移。一般模式下，空白區域的左鍵拖曳不會平移畫布。行動版操作時可用單指拖曳平移畫布，到達平移邊界後也不會捲動文件。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-8cc42cc",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-8cc42cc",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "點擊心智圖外部、將鍵盤焦點移到外部，或在畫布上按 Esc 即可恢復閱讀。全螢幕時保持畫布操作，離開全螢幕後恢復閱讀。"
+				}
+			]
+		},
+		{
+			"ID": "20261019142953-9ypjmtz",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261019142953-9ypjmtz",
+				"updated": "20261024212002"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "調整文件內畫布尺寸時保留中心點和縮放比例。進入全螢幕時保留縮放比例：文件畫布低於全螢幕視口時置中，否則依目前可見區域的頂邊對齊，並隨視窗高度變化即時調整。預設情況下，全螢幕中的平移和縮放僅影響本次全螢幕瀏覽，離開後恢復進入前的文件視角和閱讀位置。節點內容編輯仍正常生效。"
+				}
+			]
+		},
+		{
+			"ID": "20261024194010-jykxx0r",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024194010-jykxx0r",
+				"updated": "20261025114801"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "全螢幕時點擊 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "文件版面配置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 開啟版面配置調整。實線取景框內的橫縱中心虛線和低對比度點狀網格可輔助判斷位置與比例。取景框與進入全螢幕前的文件視口等大，全螢幕視口較高時置中，否則依頂部中點對齊，並隨視窗尺寸變化更新位置。參照固定取景框平移或縮放導圖，保持此模式開啟並離開全螢幕，即可將框內視角套用至文件；再次點擊按鈕關閉則取消本次視角調整。鎖定畫布也會取消尚未套用的視角調整。"
+				}
+			]
+		},
+		{
+			"ID": "20261020165811-mubt7ro",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261020165811-mubt7ro",
+				"updated": "20261020165811"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "將指標停留在工具列的縮放百分比上，或點擊該百分比，即可展開縮放面板。滑桿用於調整比例；點擊 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "重置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 恢復為 100%，點擊 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "符合畫布大小"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 自動調整縮放並置中顯示整張心智圖。"
+				}
+			]
+		},
+		{
+			"ID": "20261018163000-byam24i",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261018163000-byam24i",
+				"updated": "20261018200107"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "無須進入畫布操作，也可以按住 Ctrl（macOS 為 Command）捲動滑鼠滾輪，以指標為中心縮放，或按住同一按鍵並用滑鼠右鍵拖曳畫布進行暫時平移。也可直接按住滑鼠中鍵拖曳進行暫時平移，放開即結束，無須切換手形工具。暫時平移保留鍵盤焦點和節點選取狀態。觸控螢幕上可用雙指縮放、平移。這些手勢保持目前的閱讀或畫布操作狀態。已儲存的檢視鎖定仍禁止編輯、縮放和平移，解鎖後可視需要進入畫布操作。"
+				}
+			]
+		},
+		{
+			"ID": "20260928143000-t2iv0ys",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260928143000-t2iv0ys",
+				"updated": "20260928143000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "點擊思維導圖工具列中的「鎖定視圖」後，禁止編輯、縮放和平移，在導圖上滑動或滾動滑鼠滾輪將捲動文件。點擊「解鎖視圖」可恢復操作。鎖定狀態隨區塊儲存。直接嵌入完整心智圖區塊或包含它的文件時，解鎖後可編輯節點和樣式，修改會同步至來源區塊及其他嵌入位置；唯讀和歷史預覽中仍不能編輯。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-sr7kbls",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-sr7kbls",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "節點編輯"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261023003125-gh1vclp",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261023003125-gh1vclp",
+				"updated": "20261023003125"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "底部節點選單直接提供刪除、複製、剪下和貼上。貼上會新增子節點，"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "更多"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "保留貼上為同層節點的選項。懸停或點擊 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "顏色"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，可在底欄上方開啟節點樣式及樣式管理面板。不適用的操作會停用。"
+				}
+			]
+		},
+		{
+			"ID": "20261022181804-9n8owq8",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022181804-9n8owq8",
+				"updated": "20261023003125"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "選取一個或多個節點後，懸停或點擊底部節點選單的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "寬度"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，在底欄上方開啟面板。滑桿以開啟面板時的目前寬度為中心，向左縮窄，向右加寬所選節點。拖動時預覽，放開後儲存為一次可復原的修改，也可輸入精確的像素寬度。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "還原原始寬度"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "會還原各節點開啟面板時的寬度，包括原先的自動寬度；"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "預設"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "或清空數值輸入框會依內容自動調整。加寬節點可讓較長的行內公式在一行中顯示。寬度隨文件儲存，支援復原和重做。"
+				}
+			]
+		},
+		{
+			"ID": "20261003225941-6yr63oi",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261003225941-6yr63oi",
+				"updated": "20261024133605"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "按住 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Alt"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（macOS 上為 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌥"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "）並點擊節點的摺疊按鈕，可統一摺疊或展開同一父節點下的兄弟分支。只要還有兄弟分支展開，就統一摺疊；全部摺疊時，則統一展開。更深層節點的摺疊狀態保持不變。一般點擊只切換目前節點。展開與摺疊時，節點與連線會短暫過渡；系統啟用減少動態效果時不播放動畫。"
+				}
+			]
+		},
+		{
+			"ID": "20260930234403-vfgciw1",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260930234403-vfgciw1",
+				"updated": "20261017003253"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "編輯節點時，輸入 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "/"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 並選擇「插入圖片或檔案」，即可上傳本機圖片，也可以直接貼上剪貼簿圖片。圖片會儲存為文件附件。多個頂層節點形成的虛擬中心標題仍為純文字。按兩下節點中的圖片即可直接放大預覽，無需先進入節點編輯。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-ia87ag4",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-ia87ag4",
+				"updated": "20261024195223"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "外觀與連線樣式"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261017110432-qnsdugf",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261017110432-qnsdugf",
+				"updated": "20261022102848"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在心智圖工具列的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "更多"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "外觀"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "連線樣式"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中選擇曲線分岔、直角折線、曲線匯聚或圓角折線。選擇套用至整張心智圖，隨文件儲存，並支援復原和重做。切換只改變父子節點間的連線，不改變節點位置或關係線。共用主幹不能單獨選取，啟用色卡後跟隨所屬父分支的顏色；水平分支仍可單獨選取和配色。思源格式的 HTML 與 PDF 預覽使用儲存的樣式。"
+				}
+			]
+		},
+		{
+			"ID": "20261017113512-z8j1a4z",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261017113512-z8j1a4z",
+				"updated": "20261022102848"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "更多"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "新建預設連線樣式"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中選擇新建心智圖的連線樣式，也適用於首次將清單或頁籤轉換為心智圖。此偏好儲存在目前工作空間的本機設定中，不參與雲端同步。修改它不會改變既有心智圖；複製、匯入及清單或頁籤往返轉換保留原樣式。"
+				}
+			]
+		},
+		{
+			"ID": "20261022102848-dz75ii8",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022102848-dz75ii8",
+				"updated": "20261024195223"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "更多"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "外觀"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "主題"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中為目前心智圖選擇 47 種配色主題。根節點和一級節點使用色卡背景及白色文字，二級及後續節點使用透明背景，並依畫布顏色自動選擇黑色或白色文字。後代連線繼承所屬一級分支的顏色，各層級連線粗細一致。折線和圓角折線的根節點主幹依節點順序疊加繪製，後繪製的分支顏色覆蓋重疊部分。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-b6c6nnw",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-b6c6nnw",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "主題文字與連線會配合畫布明暗調整。調整分支順序會保留原有配色，新增節點自動跟隨心智圖配色。手動設定的顏色、字級和字重優先於主題。選擇預設可移除色卡，並保留手動配色和畫布背景。既有心智圖保留原有配色，重新選擇主題後套用新的分層樣式。主題不會改變節點內容、結構或摺疊狀態。"
+				}
+			]
+		},
+		{
+			"ID": "20261022102848-z2ij065",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022102848-z2ij065",
+				"updated": "20261022102848"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "更多"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "外觀"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "畫布背景"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中選擇純色背景，選擇預設則跟隨應用程式主題。在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "更多"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "外觀"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "清除手動配色"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中清除節點、階層連線、關係線和概要的手動配色，恢復使用色卡或預設顏色；畫布背景和其他格式保持不變。外觀隨文件儲存，支援復原和重做，並用於思源格式的 HTML 與 PDF 預覽。"
+				}
+			]
+		},
+		{
+			"ID": "20261022102848-bttpd92",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022102848-bttpd92",
+				"updated": "20261022132341"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "選取多個節點後，可用底部色板統一修改文字和背景顏色，也可用分支連線色板修改所選節點的入線顏色。每次批次修改均可一次復原。在對應色板中選擇預設，可恢復主題或預設配色。觸控螢幕上可使用頂部工具列的多選按鈕選取多個節點。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-ct7z9gb",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-ct7z9gb",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "關係線"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261024161816-9vsl7wa",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-9vsl7wa",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "先選取起點節點，點擊底部節點選單中的連接按鈕，再選擇目標節點，即可建立關係線。關係線用於表達父子階層之外的聯繫。"
+				}
+			]
+		},
+		{
+			"ID": "20261001015635-0kuzxlx",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-0kuzxlx",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "選取關係線後，使用底部設定中的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "箭頭方向"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，可選擇 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "正向箭頭"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（從起點指向終點，預設）、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "反向箭頭"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（從終點指向起點）、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "雙向箭頭"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 或 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "無箭頭"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。切換方向會保留連接節點、關係文字與手動路徑，支援復原與重做，不影響父子節點之間的連線。"
+				}
+			]
+		},
+		{
+			"ID": "20261001015635-wjlw51s",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-wjlw51s",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "選取關係線後，空心圓表示連接起點，實心圓表示連接終點，與箭頭方向無關。沿對應節點的任一邊緣拖曳圓形控制點，可連續調整連接位置；拖到其他有效節點上則變更連接節點，支援滑鼠與觸控操作。放開後儲存一次可復原的修改。落在空白處、無效目標、另一端節點或既有的同向連線上時取消修改；無法避開節點或控制項的位置也不會儲存。未調整的連接點維持自動選擇；已調整的位置會隨節點文字尺寸與配置變化而移動。"
+				}
+			]
+		},
+		{
+			"ID": "20261001051950-o2ih74q",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001051950-o2ih74q",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在關係線底部設定中點選 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "恢復自動接入"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，可同時恢復兩端的自動連接點，並保留手動調整的中間路徑。按兩下線段上的拖曳控制點，只會恢復自動中間路徑，保留連接點設定。關係文字、樣式與箭頭方向不變。"
+				}
+			]
+		},
+		{
+			"ID": "20261001051950-myqk0fn",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001051950-myqk0fn",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "配置變化導致已儲存的手動路徑無法使用時，會先保留指定連接點並暫時使用自動路徑；指定連接點也無法使用時，才暫時使用自動連接點，並提示具體是哪項設定無法使用。已儲存的設定不會刪除，配置恢復可用後會重新使用。唯讀視圖與匯出使用相同的繪製規則，不顯示調整控制點；唯讀視圖也會顯示回退提示。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-izsq5d0",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-izsq5d0",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "畫布尺寸"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261001015635-x8m40zw",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-x8m40zw",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "將滑鼠移到心智圖外框上即可顯示邊框外的小尺寸控制點：拖曳右側中間的控制點調整寬度，拖曳底部中間的控制點調整高度，拖曳右下角的圓角控制點同時調整寬高；觸控螢幕可直接拖曳控制點。此操作調整心智圖區塊在文件中的尺寸，不改變畫布縮放比例。放開後儲存一次可復原的修改；按 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Esc"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 或取消觸控操作可恢復原尺寸。仍可透過區塊選單設定寬度和高度。"
+				}
+			]
+		},
+		{
+			"ID": "20261001015635-ytql4qf",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-ytql4qf",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "唯讀、鎖定視圖與全螢幕狀態下不顯示尺寸控制點。心智圖作為超級區塊的直接子區塊時，只顯示底部高度控制點；寬度透過超級區塊的分欄分隔線調整。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-6yvoml8",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-6yvoml8",
+				"updated": "20261027231810"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "概要"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20260926151827-6pycwgr",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260926151827-6pycwgr",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "選取一個或多個節點後，點選底部節點選單中的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "概要"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 即可直接建立，無需再次選取或確認。僅選取節點時不顯示概要預覽，也不會建立概要。桌面端可在空白畫布框選，或按住 Ctrl/Command 點選節點；觸控螢幕上先開啟頂部工具列的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "多選"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，再逐一點選節點。同一父節點下連續的選取節點產生一個概要，不連續或不同父節點下的選取範圍分別產生多個概要，不會納入未選節點。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-rg9ghof",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-rg9ghof",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "同時選取父子節點時以最外層節點為準。分組可只含一個節點，支援範圍巢狀包含，既有相同概要會略過；範圍交叉時概要按鈕停用，並提供原因提示。括號包圍可見子樹及內層概要。全部分組一次建立，並可一次復原；建立後自動移至第一個新概要並進入文字編輯。節點選單中不適用的操作會停用，在畫布上按 Esc 結束多選模式。"
+				}
+			]
+		},
+		{
+			"ID": "20260926151827-nenflr8",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260926151827-nenflr8",
+				"updated": "20261027231810"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "按兩下概要文字即可修改文字；Enter 儲存，Esc 取消。可以透過底部工具列修改顏色或刪除概要，也可以按 Delete 刪除選取的概要。這些操作皆支援復原與重做。"
+				}
+			]
+		},
+		{
+			"ID": "20260926151827-99amoq6",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260926151827-99amoq6",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "轉成列表後，概要隱藏但資料保留，轉回心智圖後恢復顯示。範圍內插入的節點自動納入概要，刪除成員或將成員移出範圍會縮小範圍；剩一個成員仍保留概要，全部刪除時一併刪除概要。概要文字屬於附加說明，不作為可獨立搜尋或引用的正文區塊。思源格式的 HTML 與 PDF 預覽會顯示概要。 刪除內層概要會保留節點和外層概要。巢狀配置需要新版用戶端，舊版用戶端會保留配置並顯示來源列表。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-jf6gkii",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-jf6gkii",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "範例"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20211226122122-jf2d7wf",
+			"Type": "NodeMindmap",
+			"Properties": {
+				"id": "20211226122122-jf2d7wf",
+				"updated": "20260923221935",
+				"custom-sy-list-mindmap-data": "{\"version\":1,\"nodes\":{},\"relations\":[]}"
+			},
+			"ListData": {
+				"Typ": 0,
+				"Tight": true,
+				"BulletChar": 45,
+				"Marker": "LQ=="
+			},
+			"Children": [
+				{
+					"ID": "20260920131944-6zykmiw",
+					"Type": "NodeMindmapItem",
+					"Properties": {
+						"id": "20260920131944-6zykmiw",
+						"updated": "20260923221935"
+					},
+					"ListData": {
+						"Typ": 0,
+						"BulletChar": 45,
+						"Marker": "LQ=="
+					},
+					"Children": [
+						{
+							"ID": "20260920131944-ami5lo8",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260920131944-ami5lo8",
+								"updated": "20260920131944"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "教程"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260920131944-2itv9c5",
+					"Type": "NodeMindmapItem",
+					"Properties": {
+						"id": "20260920131944-2itv9c5",
+						"updated": "20260923221935"
+					},
+					"ListData": {
+						"Typ": 0,
+						"BulletChar": 45,
+						"Marker": "LQ=="
+					},
+					"Children": [
+						{
+							"ID": "20260920131944-b7l4svy",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260920131944-b7l4svy",
+								"updated": "20260920131944"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "語法指導"
+								}
+							]
+						},
+						{
+							"ID": "20260920131944-v7w5fjh",
+							"Type": "NodeMindmap",
+							"Properties": {
+								"id": "20260920131944-v7w5fjh",
+								"updated": "20260923221935"
+							},
+							"ListData": {
+								"Typ": 0,
+								"Tight": true,
+								"BulletChar": 45,
+								"Marker": "LQ=="
+							},
+							"Children": [
+								{
+									"ID": "20260920131944-r2300x0",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-r2300x0",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-cad16n2",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-cad16n2",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "普通內容"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-t3ot44v",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-t3ot44v",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-kxcbd2m",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-kxcbd2m",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "提及用戶"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-kf0jukv",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-kf0jukv",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-ezi317i",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-ezi317i",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "表情符號 Emoji"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-ts9c8ff",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-ts9c8ff",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-rmpzsmn",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-rmpzsmn",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-frlgn7w",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-frlgn7w",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "一些表情例子"
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-hfeeycf",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-hfeeycf",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-ub5bgqa",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-ub5bgqa",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "大標題 - Heading 3"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-mezxsci",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-mezxsci",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-m7wv5sn",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-m7wv5sn",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-t4e383k",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-t4e383k",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "Heading 4"
+																}
+															]
+														},
+														{
+															"ID": "20260920131944-g8201d4",
+															"Type": "NodeMindmap",
+															"Properties": {
+																"id": "20260920131944-g8201d4",
+																"updated": "20260923221935"
+															},
+															"ListData": {
+																"Typ": 0,
+																"Tight": true,
+																"BulletChar": 45,
+																"Marker": "LQ=="
+															},
+															"Children": [
+																{
+																	"ID": "20260920131944-lb6yz35",
+																	"Type": "NodeMindmapItem",
+																	"Properties": {
+																		"id": "20260920131944-lb6yz35",
+																		"updated": "20260923221935"
+																	},
+																	"ListData": {
+																		"Typ": 0,
+																		"BulletChar": 45,
+																		"Marker": "LQ=="
+																	},
+																	"Children": [
+																		{
+																			"ID": "20260920131944-3r5pper",
+																			"Type": "NodeParagraph",
+																			"Properties": {
+																				"id": "20260920131944-3r5pper",
+																				"updated": "20260920131944"
+																			},
+																			"Children": [
+																				{
+																					"Type": "NodeText",
+																					"Data": "Heading 5"
+																				}
+																			]
+																		},
+																		{
+																			"ID": "20260920131944-3i9fxai",
+																			"Type": "NodeMindmap",
+																			"Properties": {
+																				"id": "20260920131944-3i9fxai",
+																				"updated": "20260923221935"
+																			},
+																			"ListData": {
+																				"Typ": 0,
+																				"Tight": true,
+																				"BulletChar": 45,
+																				"Marker": "LQ=="
+																			},
+																			"Children": [
+																				{
+																					"ID": "20260920131944-l8hrs29",
+																					"Type": "NodeMindmapItem",
+																					"Properties": {
+																						"id": "20260920131944-l8hrs29",
+																						"updated": "20260923221935"
+																					},
+																					"ListData": {
+																						"Typ": 0,
+																						"BulletChar": 45,
+																						"Marker": "LQ=="
+																					},
+																					"Children": [
+																						{
+																							"ID": "20260920131944-w5rd3r5",
+																							"Type": "NodeParagraph",
+																							"Properties": {
+																								"id": "20260920131944-w5rd3r5",
+																								"updated": "20260920131944"
+																							},
+																							"Children": [
+																								{
+																									"Type": "NodeText",
+																									"Data": "Heading 6"
+																								}
+																							]
+																						}
+																					]
+																				}
+																			]
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-hf9qhfm",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-hf9qhfm",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-ew4xkam",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-ew4xkam",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "圖片"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-yg599ph",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-yg599ph",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-abgz1v3",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-abgz1v3",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "代碼區塊"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-hmz332k",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-hmz332k",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-nbnv3x5",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-nbnv3x5",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-yclpw6r",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-yclpw6r",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "普通"
+																}
+															]
+														}
+													]
+												},
+												{
+													"ID": "20260920131944-2rtirbz",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-2rtirbz",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-14o04gz",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-14o04gz",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "語法突顯支援"
+																}
+															]
+														},
+														{
+															"ID": "20260920131944-1u1w8jo",
+															"Type": "NodeMindmap",
+															"Properties": {
+																"id": "20260920131944-1u1w8jo",
+																"updated": "20260923221935"
+															},
+															"ListData": {
+																"Typ": 0,
+																"Tight": true,
+																"BulletChar": 45,
+																"Marker": "LQ=="
+															},
+															"Children": [
+																{
+																	"ID": "20260920131944-6dmgan1",
+																	"Type": "NodeMindmapItem",
+																	"Properties": {
+																		"id": "20260920131944-6dmgan1",
+																		"updated": "20260923221935"
+																	},
+																	"ListData": {
+																		"Typ": 0,
+																		"BulletChar": 45,
+																		"Marker": "LQ=="
+																	},
+																	"Children": [
+																		{
+																			"ID": "20260920131944-9c33xs8",
+																			"Type": "NodeParagraph",
+																			"Properties": {
+																				"id": "20260920131944-9c33xs8",
+																				"updated": "20260920131944"
+																			},
+																			"Children": [
+																				{
+																					"Type": "NodeText",
+																					"Data": "展示 Go 代碼突顯"
+																				}
+																			]
+																		}
+																	]
+																},
+																{
+																	"ID": "20260920131944-uvlxqwj",
+																	"Type": "NodeMindmapItem",
+																	"Properties": {
+																		"id": "20260920131944-uvlxqwj",
+																		"updated": "20260923221935"
+																	},
+																	"ListData": {
+																		"Typ": 0,
+																		"BulletChar": 45,
+																		"Marker": "LQ=="
+																	},
+																	"Children": [
+																		{
+																			"ID": "20260920131944-7vh3jf5",
+																			"Type": "NodeParagraph",
+																			"Properties": {
+																				"id": "20260920131944-7vh3jf5",
+																				"updated": "20260920131944"
+																			},
+																			"Children": [
+																				{
+																					"Type": "NodeText",
+																					"Data": "展示 Java 突顯"
+																				}
+																			]
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-3ki1jbt",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-3ki1jbt",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-vsec82o",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-vsec82o",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "有序、無序、任務列表"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-58wujs6",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-58wujs6",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-cw5ora5",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-cw5ora5",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-7nlnx2y",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-7nlnx2y",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "無序列表"
+																}
+															]
+														}
+													]
+												},
+												{
+													"ID": "20260920131944-s8w0v8v",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-s8w0v8v",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-2fbl1eq",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-2fbl1eq",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "有序列表"
+																}
+															]
+														}
+													]
+												},
+												{
+													"ID": "20260920131944-sgyab4r",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-sgyab4r",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-zw4sm49",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-zw4sm49",
+																"updated": "20260920131944"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "任務列表"
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-0drkjbn",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-0drkjbn",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-dd8kyou",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-dd8kyou",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "表格"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-iex52td",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-iex52td",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-kci2zk7",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-kci2zk7",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "隱藏細節"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-cy8zgot",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-cy8zgot",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-7nqti6n",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-7nqti6n",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "段落"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-5h8bcih",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-5h8bcih",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-qynq3m0",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-qynq3m0",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "連結引用"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-2rfccwu",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-2rfccwu",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-dluljqm",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-dluljqm",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "數學公式"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-triytyh",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-triytyh",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-ltbxiyr",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-ltbxiyr",
+												"updated": "20260923221935"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "心智圖區塊"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-hwbyxft",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-hwbyxft",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-usoesx3",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-usoesx3",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "流程圖"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-z09ka6r",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-z09ka6r",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-7k0s7ew",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-7k0s7ew",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "時序圖"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-pv5eqru",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-pv5eqru",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-7ss5jx1",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-7ss5jx1",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "甘特圖"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-2hyqlw9",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-2hyqlw9",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-dnyt6vp",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-dnyt6vp",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "圖表"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-qhb9hfq",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-qhb9hfq",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-gulp639",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-gulp639",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "五線譜"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-7quo0dj",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-7quo0dj",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-tv9u9h6",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-tv9u9h6",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "Graphviz"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-iwyk9e0",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-iwyk9e0",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-e22z911",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-e22z911",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "多媒體"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-vmzubh2",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-vmzubh2",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-n8e1lve",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-n8e1lve",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "註腳"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260920131944-ilg5sz3",
+					"Type": "NodeMindmapItem",
+					"Properties": {
+						"id": "20260920131944-ilg5sz3",
+						"updated": "20260923221935"
+					},
+					"ListData": {
+						"Typ": 0,
+						"BulletChar": 45,
+						"Marker": "LQ=="
+					},
+					"Children": [
+						{
+							"ID": "20260920131944-w4myf3y",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260920131944-w4myf3y",
+								"updated": "20260920131944"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "快捷鍵"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
 			"ID": "20211226122008-81ngeqd",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-81ngeqd",
-				"updated": "20251209211701"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "引述塊"
+					"Data": "引述區塊"
 				}
 			]
 		},
@@ -1840,19 +4115,19 @@
 			"Children": [
 				{
 					"Type": "NodeBlockquoteMarker",
-					"Data": "\u003e"
+					"Data": ">"
 				},
 				{
 					"ID": "20211226122008-f15cb8m",
 					"Type": "NodeParagraph",
 					"Properties": {
 						"id": "20211226122008-f15cb8m",
-						"updated": "20211226002617"
+						"updated": "20260730184353"
 					},
 					"Children": [
 						{
 							"Type": "NodeText",
-							"Data": "注意不是内容塊引用，而是引述塊（Blockquote）。"
+							"Data": "注意不是内容區塊引用，而是引述區塊（Blockquote）。"
 						}
 					]
 				}
@@ -1864,12 +4139,12 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20251209211701-hu8m4pm",
-				"updated": "20251211094201"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "提示塊"
+					"Data": "提示區塊"
 				}
 			]
 		},
@@ -2009,17 +4284,191 @@
 			]
 		},
 		{
+			"ID": "20260905124213-9j816g5",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20260905124213-9j816g5",
+				"updated": "20261003234156"
+			},
+			"HeadingLevel": 2,
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "頁籤區塊"
+				}
+			]
+		},
+		{
+			"ID": "20260905124213-kjrn1lr",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260905124213-kjrn1lr",
+				"updated": "20260905124213"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "輸入 / 並選擇頁籤區塊，可建立包含兩個頁籤的容器。按一下標題切換頁籤，按兩下或使用頁籤選單編輯標題。標題支援與提示區塊相同的行級格式，內文支援巢狀頁籤區塊。"
+				}
+			]
+		},
+		{
+			"ID": "20260905124213-ecbf51t",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260905124213-ecbf51t",
+				"updated": "20260905124213"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "使用頁籤右側的選單新增、複製、刪除或排序頁籤，切換頂部或左側版面配置。選取的頁籤與版面配置會隨文件儲存、同步；鎖定編輯的文件會在本機工作空間記住最後檢視的頁籤，不修改文件預設頁籤；發佈頁面、核心唯讀模式及加密筆記本僅於目前工作階段記住。取消頁籤版面配置會依序保留所有標題與內文。"
+				}
+			]
+		},
+		{
+			"ID": "20261003234156-6krnh0y",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261003234156-6krnh0y",
+				"updated": "20261003234156"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在頁籤項選單中選擇 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "聚焦"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，只顯示該項及其標題，反向鏈接也限定於該項；是否包含子區塊沿用現有設定。選擇 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "退出聚焦"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 後恢復完整頁籤群組，聚焦項內部的巢狀頁籤仍可正常切換。"
+				}
+			]
+		},
+		{
+			"ID": "20260905124213-egek3ii",
+			"Type": "NodeTabs",
+			"Properties": {
+				"id": "20260905124213-egek3ii",
+				"updated": "20260905124213",
+				"tabs-active-id": "20260905124213-pdsl9dr",
+				"tabs-position": "top"
+			},
+			"Children": [
+				{
+					"ID": "20260905124213-pdsl9dr",
+					"Type": "NodeTabItem",
+					"Properties": {
+						"id": "20260905124213-pdsl9dr",
+						"updated": "20260905124213"
+					},
+					"TabItemTitle": "方案一",
+					"Children": [
+						{
+							"ID": "20260905124213-gma7b89",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260905124213-gma7b89",
+								"updated": "20260905124213"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "這是第一個頁籤的內文。"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260905124213-yacxp0w",
+					"Type": "NodeTabItem",
+					"Properties": {
+						"id": "20260905124213-yacxp0w",
+						"updated": "20260905124213"
+					},
+					"TabItemTitle": "方案二",
+					"Children": [
+						{
+							"ID": "20260905124213-7yuhz0z",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260905124213-7yuhz0z",
+								"updated": "20260905124213"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "這是第二個頁籤的內文。"
+								}
+							]
+						},
+						{
+							"ID": "20260905124213-s1ubmxu",
+							"Type": "NodeTabs",
+							"Properties": {
+								"id": "20260905124213-s1ubmxu",
+								"updated": "20260905124213",
+								"tabs-active-id": "20260905124213-qnxuyb1",
+								"tabs-position": "left"
+							},
+							"Children": [
+								{
+									"ID": "20260905124213-qnxuyb1",
+									"Type": "NodeTabItem",
+									"Properties": {
+										"id": "20260905124213-qnxuyb1",
+										"updated": "20260905124213"
+									},
+									"TabItemTitle": "巢狀頁籤",
+									"Children": [
+										{
+											"ID": "20260905124213-it7f8gm",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260905124213-it7f8gm",
+												"updated": "20260905124213"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "這是第一個頁籤的內文。"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
 			"ID": "20211226122008-yn6yro1",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-yn6yro1",
-				"updated": "20211226122008"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "代碼塊"
+					"Data": "代碼區塊"
 				}
 			]
 		},
@@ -2089,7 +4538,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20211226122008-fcs48nq",
-				"updated": "20211228135827"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -2134,12 +4583,12 @@
 			"Type": "NodeBlockquote",
 			"Properties": {
 				"id": "20211226122008-ukzwvpl",
-				"updated": "20211228134904"
+				"updated": "20260616221535"
 			},
 			"Children": [
 				{
 					"Type": "NodeBlockquoteMarker",
-					"Data": "\u003e"
+					"Data": ">"
 				},
 				{
 					"ID": "20211226122008-fsflp4n",
@@ -2160,7 +4609,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2169,7 +4618,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2178,7 +4627,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2187,7 +4636,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2196,7 +4645,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2205,7 +4654,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2214,7 +4663,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2223,7 +4672,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2232,7 +4681,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2241,7 +4690,7 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": ", "
+							"Data": "​, "
 						},
 						{
 							"Type": "NodeTextMark",
@@ -2250,9 +4699,52 @@
 						},
 						{
 							"Type": "NodeText",
-							"Data": " ..."
+							"Data": "​ ..."
 						}
 					]
+				}
+			]
+		},
+		{
+			"ID": "20260616221535-0iq3rxe",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260616221535-0iq3rxe",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "另外，程式碼區塊語言還支援 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "siyuan-template"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 和 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "template"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​，兩者等價。使用後會啟用"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20211226123004-dplpw0o",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "思源範本"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "語法的高亮顯示；匯出為範本時，該程式碼區塊不會以程式碼區塊形式匯出，而是轉為普通段落文字。"
 				}
 			]
 		},
@@ -2262,12 +4754,122 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-8glkpvq",
-				"updated": "20211226122008"
+				"updated": "20261022190543"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
 					"Data": "表格"
+				}
+			]
+		},
+		{
+			"ID": "20260908091355-rch0001",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260908091355-rch0001",
+				"updated": "20260908091355"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "儲存格預設支援編輯段落、標題、列表、引述、程式碼和公式，無需手動轉換。既有文字中的 Markdown 標記保持原樣，原有粗體、連結等格式也會保留。"
+				}
+			]
+		},
+		{
+			"ID": "20260908091355-rch0002",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260908091355-rch0002",
+				"updated": "20261008221006"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "點擊儲存格即可編輯；新增表格後可直接輸入，無需再次點擊。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Enter"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 依正文編輯規則建立新段落、繼續列表項目或在程式碼區塊內換行。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Shift+Enter"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 在段落內插入軟換行。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Tab"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 和 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Shift+Tab"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 切換儲存格；列表和程式碼區塊保留對應的縮排與取消縮排操作。關閉提示後按 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Escape"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 或點擊儲存格外結束編輯，內容自動儲存。將表格複製為文字時，會保留儲存格內段落之間的空行。"
+				}
+			]
+		},
+		{
+			"ID": "20260908091355-rch0003",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260908091355-rch0003",
+				"updated": "20260909090723"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "內部段落和列表項目沒有獨立區塊 ID，支援引用既有區塊。圖片及原有行級格式可以保留。不支援巢狀表格、資料庫、超級區塊、頁籤、提示區塊、查詢嵌入、分隔線、可執行圖表、音訊、影片、掛件、HTML 和自訂區塊。貼上內容包含不支援的區塊時，會拒絕整次貼上並提示不支援的類型，原有內容不變。標準 Markdown 匯出為可讀的行級內容，HTML、PDF 和 Word 匯出保留富文字排版。"
+				}
+			]
+		},
+		{
+			"ID": "20261022190543-6w6ibfu",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022190543-6w6ibfu",
+				"updated": "20261022190543"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "拖曳列下邊界可調整列高；行動端先輕點儲存格的水平分隔線，再拖曳出現的控制柄。設定的列高是最小高度，內容較多時仍會自動撐高。選取列後，在選單中選擇 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "自動調整列高"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 可恢復自動高度。列高隨文件儲存，標準 Markdown 匯出不保證保留列高。"
 				}
 			]
 		},
@@ -2401,19 +5003,19 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20220312004712-5dfiars",
-				"updated": "20241018105327"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "HTML 塊"
+					"Data": "HTML 區塊"
 				}
 			]
 		},
 		{
 			"ID": "20220312004730-udc38az",
 			"Type": "NodeHTMLBlock",
-			"Data": "\u003cdiv\u003e\n\u003cruby\u003e\n你\u003crt\u003enǐ\u003c/rt\u003e\n　好\u003crt\u003e　hǎo\u003c/rt\u003e\n　世\u003crt\u003e　shì\u003c/rt\u003e\n　界\u003crt\u003e　jiè\u003c/rt\u003e\n\u003c/ruby\u003e\u003cbr\u003e\nHello World\n\u003c/div\u003e",
+			"Data": "<div>\n<ruby>\n你<rt>nǐ</rt>\n　好<rt>　hǎo</rt>\n　世<rt>　shì</rt>\n　界<rt>　jiè</rt>\n</ruby><br>\nHello World\n</div>",
 			"Properties": {
 				"id": "20220312004730-udc38az",
 				"updated": "20220828102621"
@@ -2424,7 +5026,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220312122707-8258e11",
-				"updated": "20241018105327"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
@@ -2436,7 +5038,7 @@
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20240427230732-snprakd",
 					"TextMarkBlockRefSubtype": "s",
-					"TextMarkTextContent": "HTML 塊注意"
+					"TextMarkTextContent": "HTML 區塊注意"
 				},
 				{
 					"Type": "NodeText",
@@ -2483,6 +5085,97 @@
 			]
 		},
 		{
+			"ID": "20261027172226-6vdqhkl",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261027172226-6vdqhkl",
+				"updated": "20261027172226"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "貼上或匯入 Markdown 時，思源預設將 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "\\(...\\)"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 識別為行內公式，將獨佔段落的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "\\[...\\]"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 識別為區塊公式。貼上的 HTML 內容也支援識別。程式碼內容保持原樣，Markdown 匯出繼續使用 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "$"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "$$"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
+				}
+			]
+		},
+		{
+			"ID": "20261027172226-ujvxsnf",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261027172226-ujvxsnf",
+				"updated": "20261027172226"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "可在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "編輯器"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "行為"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中關閉「貼上和匯入時相容 LaTeX 公式分隔符」。關閉後僅影響後續貼上和匯入，已經轉換的公式保持不變。"
+				}
+			]
+		},
+		{
 			"ID": "20211226122008-20jkuaq",
 			"Type": "NodeMathBlock",
 			"Properties": {
@@ -2512,7 +5205,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-zl8npgo",
-				"updated": "20211226122008"
+				"updated": "20261002002136"
 			},
 			"Children": [
 				{
@@ -2524,11 +5217,25 @@
 		{
 			"ID": "20220909095422-c32trma",
 			"Type": "NodeIFrame",
-			"Data": "\u003ciframe src=\"https://player.bilibili.com/player.html?bvid=BV1ov41187qM\u0026amp;page=1\u0026amp;high_quality=1\u0026amp;as_wide=1\u0026amp;allowfullscreen=true\u0026amp;aid=247401039\u0026amp;cid=319662466\u0026amp;autoplay=0\" data-src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\" sandbox=\"allow-top-navigation-by-user-activation allow-same-origin allow-forms allow-scripts allow-popups\"\u003e\u003c/iframe\u003e",
+			"Data": "<iframe src=\"https://player.bilibili.com/player.html?bvid=BV1ov41187qM&amp;page=1&amp;high_quality=1&amp;as_wide=1&amp;allowfullscreen=true&amp;aid=247401039&amp;cid=319662466&amp;autoplay=0\" data-src=\"//player.bilibili.com/player.html?aid=247401039&amp;bvid=BV1ov41187qM&amp;cid=319662466&amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\" sandbox=\"allow-top-navigation-by-user-activation allow-same-origin allow-forms allow-scripts allow-popups\"></iframe>",
 			"Properties": {
 				"id": "20220909095422-c32trma",
 				"updated": "20220909095422"
 			}
+		},
+		{
+			"ID": "20261002002136-cjh38oq",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261002002136-cjh38oq",
+				"updated": "20261002002136"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "將滑鼠移到區塊上即可顯示邊框外的小尺寸控制點：拖曳右側中間的控制點調整寬度，拖曳底部中間的控制點調整高度，拖曳右下角的圓角控制點同時調整寬高。觸控螢幕可直接拖曳控制點，單獨調整寬度或高度時會保留另一項尺寸。"
+				}
+			]
 		},
 		{
 			"ID": "20211226122008-je7yc30",
@@ -2548,7 +5255,7 @@
 		{
 			"ID": "20220909095406-zjh29cs",
 			"Type": "NodeVideo",
-			"Data": "\u003cvideo controls=\"controls\" src=\"assets/formatting_elements-20210607225733-o1keasx.mp4\" data-src=\"assets/formatting_elements-20210607213508-y2r3y55-20210608113914-q11ou4j.mp4\" style=\"width: 640px; height: 327px;\"\u003e\u003c/video\u003e",
+			"Data": "<video controls=\"controls\" src=\"assets/formatting_elements-20210607225733-o1keasx.mp4\" data-src=\"assets/formatting_elements-20210607213508-y2r3y55-20210608113914-q11ou4j.mp4\" style=\"width: 640px; height: 327px;\"></video>",
 			"Properties": {
 				"id": "20220909095406-zjh29cs",
 				"updated": "20220909095406"
@@ -2572,71 +5279,11 @@
 		{
 			"ID": "20211226122008-ed2gzq4",
 			"Type": "NodeAudio",
-			"Data": "\u003caudio controls=\"controls\" src=\"assets/record1623120470117-20210608104750-2thv5m5.wav\" data-src=\"assets/record1623077643753-20210607225403-7cg1jkq-20210608113713-4eddn56.wav\"\u003e\u003c/audio\u003e",
+			"Data": "<audio controls=\"controls\" src=\"assets/record1623120470117-20210608104750-2thv5m5.wav\" data-src=\"assets/record1623077643753-20210607225403-7cg1jkq-20210608113713-4eddn56.wav\"></audio>",
 			"Properties": {
 				"id": "20211226122008-ed2gzq4",
 				"updated": "20210608113713"
 			}
-		},
-		{
-			"ID": "20211226122008-731sqd6",
-			"Type": "NodeHeading",
-			"HeadingLevel": 2,
-			"Properties": {
-				"id": "20211226122008-731sqd6",
-				"updated": "20211226122008"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "心智圖"
-				}
-			]
-		},
-		{
-			"ID": "20211226122122-jf2d7wf",
-			"Type": "NodeCodeBlock",
-			"IsFencedCodeBlock": true,
-			"Properties": {
-				"id": "20211226122122-jf2d7wf",
-				"updated": "20211228135857"
-			},
-			"Children": [
-				{
-					"Type": "NodeCodeBlockFenceOpenMarker",
-					"Data": "```"
-				},
-				{
-					"Type": "NodeCodeBlockFenceInfoMarker",
-					"CodeBlockInfo": "bWluZG1hcA=="
-				},
-				{
-					"ID": "20220307092237-4jcq3tq",
-					"Type": "NodeCodeBlockCode",
-					"Data": "- 教程\n- 語法指導\n  - 普通內容\n  - 提及用戶\n  - 表情符號 Emoji\n    - 一些表情例子\n  - 大標題 - Heading 3\n    - Heading 4\n      - Heading 5\n        - Heading 6\n  - 圖片\n  - 代碼塊\n    - 普通\n    - 語法突顯支援\n      - 展示 Go 代碼突顯\n      - 展示 Java 突顯\n  - 有序、無序、任務列表\n    - 無序列表\n    - 有序列表\n    - 任務列表\n  - 表格\n  - 隱藏細節\n  - 段落\n  - 連結引用\n  - 數學公式\n  - 心智圖\n  - 流程圖\n  - 時序圖\n  - 甘特圖\n  - 圖表\n  - 五線譜\n  - Graphviz\n  - 多媒體\n  - 註腳\n- 快捷鍵",
-					"Properties": {
-						"id": "20220307092237-4jcq3tq"
-					}
-				},
-				{
-					"Type": "NodeCodeBlockFenceCloseMarker",
-					"Data": "```"
-				}
-			]
-		},
-		{
-			"ID": "20211226122008-fd4y9qu",
-			"Type": "NodeParagraph",
-			"Properties": {
-				"id": "20211226122008-fd4y9qu",
-				"updated": "20211226002353"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "使用 Markdown 列表語法渲染心智圖。"
-				}
-			]
 		},
 		{
 			"ID": "20211226122008-l775ci5",
@@ -2644,12 +5291,44 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-l775ci5",
-				"updated": "20211226122008"
+				"updated": "20261018213321"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
 					"Data": "流程圖"
+				}
+			]
+		},
+		{
+			"ID": "20261018213321-x7k2w2a",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261018213321-x7k2w2a",
+				"updated": "20261018213321"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "可拖曳 Mermaid 區塊右側的控制柄調整寬度。縮小後，在區塊選單中選擇 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "佈局"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "置中"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 將區塊置中顯示。"
 				}
 			]
 		},
@@ -2673,7 +5352,7 @@
 				{
 					"ID": "20220307092237-y8agrgz",
 					"Type": "NodeCodeBlockCode",
-					"Data": "graph TB\n    c1--\u003ea2\n    subgraph one\n    a1--\u003ea2\n    end\n    subgraph two\n    b1--\u003eb2\n    end\n    subgraph three\n    c1--\u003ec2\n    end",
+					"Data": "graph TB\n    c1-->a2\n    subgraph one\n    a1-->a2\n    end\n    subgraph two\n    b1-->b2\n    end\n    subgraph three\n    c1-->c2\n    end",
 					"Properties": {
 						"id": "20220307092237-y8agrgz"
 					}
@@ -2743,7 +5422,7 @@
 				{
 					"ID": "20220307092237-mexh3zo",
 					"Type": "NodeCodeBlockCode",
-					"Data": "sequenceDiagram\n    Alice-\u003e\u003eJohn: Hello John, how are you?\n    loop Every minute\n        John--\u003e\u003eAlice: Great!\n    end",
+					"Data": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    loop Every minute\n        John-->>Alice: Great!\n    end",
 					"Properties": {
 						"id": "20220307092237-mexh3zo"
 					}
@@ -2883,7 +5562,7 @@
 				{
 					"ID": "20220307092237-6d8k4om",
 					"Type": "NodeCodeBlockCode",
-					"Data": "classDiagram\nClass01 \u0026lt;|-- AveryLongClass : Cool\nClass03 *-- Class04\nClass05 o-- Class06\nClass07 .. Class08\nClass09 --\u0026gt; C2 : Where am i?\nClass09 --* C3\nClass09 --|\u0026gt; Class07\nClass07 : equals()\nClass07 : Object[] elementData\nClass01 : size()\nClass01 : int chimp\nClass01 : int gorilla\nClass08 \u0026lt;--\u0026gt; C2: Cool label",
+					"Data": "classDiagram\nClass01 &lt;|-- AveryLongClass : Cool\nClass03 *-- Class04\nClass05 o-- Class06\nClass07 .. Class08\nClass09 --&gt; C2 : Where am i?\nClass09 --* C3\nClass09 --|&gt; Class07\nClass07 : equals()\nClass07 : Object[] elementData\nClass01 : size()\nClass01 : int chimp\nClass01 : int gorilla\nClass08 &lt;--&gt; C2: Cool label",
 					"Properties": {
 						"id": "20220307092237-6d8k4om"
 					}
@@ -3125,12 +5804,163 @@
 			]
 		},
 		{
+			"ID": "20260820124102-zenumlt",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260820124102-zenumlt",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ZenUML 時序圖"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-zentw01",
+			"Type": "NodeCodeBlock",
+			"IsFencedCodeBlock": true,
+			"Properties": {
+				"id": "20260820124102-zentw01",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeCodeBlockFenceOpenMarker",
+					"Data": "```"
+				},
+				{
+					"Type": "NodeCodeBlockFenceInfoMarker",
+					"CodeBlockInfo": "bWVybWFpZA=="
+				},
+				{
+					"Type": "NodeCodeBlockCode",
+					"Data": "zenuml\ntitle Order Service\nCustomer-&gt;OrderService: Submit order\nOrderService-&gt;Database: Save order\nDatabase-&gt;OrderService: Order saved\nOrderService-&gt;Customer: Order confirmed\n"
+				},
+				{
+					"Type": "NodeCodeBlockFenceCloseMarker",
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-zentw02",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260820124102-zentw02",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "語法請參考 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://mermaid.js.org/syntax/zenuml",
+					"TextMarkTextContent": "Mermaid"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-tidytw1",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260820124102-tidytw1",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Tidy Tree 版面配置"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-tidytw2",
+			"Type": "NodeCodeBlock",
+			"IsFencedCodeBlock": true,
+			"Properties": {
+				"custom-mermaid-layout": "tidy-tree",
+				"id": "20260820124102-tidytw2",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeCodeBlockFenceOpenMarker",
+					"Data": "```"
+				},
+				{
+					"Type": "NodeCodeBlockFenceInfoMarker",
+					"CodeBlockInfo": "bWVybWFpZA=="
+				},
+				{
+					"Type": "NodeCodeBlockCode",
+					"Data": "mindmap\n  root((Project))\n    Requirements\n      Research\n      Scope\n    Design\n      Prototype\n      Review\n    Development\n      Frontend\n      Backend\n    Release\n      Testing\n      Launch\n"
+				},
+				{
+					"Type": "NodeCodeBlockFenceCloseMarker",
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-tidytw3",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260820124102-tidytw3",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "此範例將程式碼區塊的自訂屬性 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "mermaid-layout"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ 設定為 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "tidy-tree"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​，版面配置說明請參考 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://mermaid.js.org/config/layouts",
+					"TextMarkTextContent": "Mermaid"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
+				}
+			]
+		},
+		{
 			"ID": "20211226122008-6gbflza",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-6gbflza",
-				"updated": "20211226122008"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -3158,7 +5988,7 @@
 				},
 				{
 					"Type": "NodeCodeBlockCode",
-					"Data": "{\n  \u0026quot;title\u0026quot;: { \u0026quot;text\u0026quot;: \u0026quot;最近 30 天\u0026quot; },\n  \u0026quot;backgroundColor\u0026quot;: \u0026quot;transparent\u0026quot;,\n  \u0026quot;tooltip\u0026quot;: { \u0026quot;trigger\u0026quot;: \u0026quot;axis\u0026quot;, \u0026quot;axisPointer\u0026quot;: { \u0026quot;lineStyle\u0026quot;: { \u0026quot;width\u0026quot;: 0 } } },\n  \u0026quot;legend\u0026quot;: { \u0026quot;data\u0026quot;: [\u0026quot;帖子\u0026quot;, \u0026quot;用户\u0026quot;, \u0026quot;回帖\u0026quot;] },\n  \u0026quot;xAxis\u0026quot;: [{\n      \u0026quot;type\u0026quot;: \u0026quot;category\u0026quot;,\n      \u0026quot;boundaryGap\u0026quot;: false,\n      \u0026quot;data\u0026quot;: [\u0026quot;2019-05-08\u0026quot;,\u0026quot;2019-05-09\u0026quot;,\u0026quot;2019-05-10\u0026quot;,\u0026quot;2019-05-11\u0026quot;,\u0026quot;2019-05-12\u0026quot;,\u0026quot;2019-05-13\u0026quot;,\u0026quot;2019-05-14\u0026quot;,\u0026quot;2019-05-15\u0026quot;,\u0026quot;2019-05-16\u0026quot;,\u0026quot;2019-05-17\u0026quot;,\u0026quot;2019-05-18\u0026quot;,\u0026quot;2019-05-19\u0026quot;,\u0026quot;2019-05-20\u0026quot;,\u0026quot;2019-05-21\u0026quot;,\u0026quot;2019-05-22\u0026quot;,\u0026quot;2019-05-23\u0026quot;,\u0026quot;2019-05-24\u0026quot;,\u0026quot;2019-05-25\u0026quot;,\u0026quot;2019-05-26\u0026quot;,\u0026quot;2019-05-27\u0026quot;,\u0026quot;2019-05-28\u0026quot;,\u0026quot;2019-05-29\u0026quot;,\u0026quot;2019-05-30\u0026quot;,\u0026quot;2019-05-31\u0026quot;,\u0026quot;2019-06-01\u0026quot;,\u0026quot;2019-06-02\u0026quot;,\u0026quot;2019-06-03\u0026quot;,\u0026quot;2019-06-04\u0026quot;,\u0026quot;2019-06-05\u0026quot;,\u0026quot;2019-06-06\u0026quot;,\u0026quot;2019-06-07\u0026quot;],\n      \u0026quot;axisTick\u0026quot;: { \u0026quot;show\u0026quot;: false },\n      \u0026quot;axisLine\u0026quot;: { \u0026quot;show\u0026quot;: false }\n  }],\n  \u0026quot;yAxis\u0026quot;: [{ \u0026quot;type\u0026quot;: \u0026quot;value\u0026quot;, \u0026quot;axisTick\u0026quot;: { \u0026quot;show\u0026quot;: false }, \u0026quot;axisLine\u0026quot;: { \u0026quot;show\u0026quot;: false }, \u0026quot;splitLine\u0026quot;: { \u0026quot;lineStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;rgba(0, 0, 0, .38)\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;dashed\u0026quot; } } }],\n  \u0026quot;series\u0026quot;: [\n    {\n      \u0026quot;name\u0026quot;: \u0026quot;帖子\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;line\u0026quot;, \u0026quot;smooth\u0026quot;: true, \u0026quot;itemStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;#d23f31\u0026quot; }, \u0026quot;areaStyle\u0026quot;: { \u0026quot;normal\u0026quot;: {} }, \u0026quot;z\u0026quot;: 3,\n      \u0026quot;data\u0026quot;: [\u0026quot;18\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;7\u0026quot;,\u0026quot;18\u0026quot;,\u0026quot;10\u0026quot;,\u0026quot;12\u0026quot;,\u0026quot;13\u0026quot;,\u0026quot;16\u0026quot;,\u0026quot;6\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;12\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;8\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;10\u0026quot;,\u0026quot;29\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;10\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;0\u0026quot;]\n    },\n    {\n      \u0026quot;name\u0026quot;: \u0026quot;用户\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;line\u0026quot;, \u0026quot;smooth\u0026quot;: true, \u0026quot;itemStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;#f1e05a\u0026quot; }, \u0026quot;areaStyle\u0026quot;: { \u0026quot;normal\u0026quot;: {} }, \u0026quot;z\u0026quot;: 2,\n      \u0026quot;data\u0026quot;: [\u0026quot;31\u0026quot;,\u0026quot;33\u0026quot;,\u0026quot;30\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;16\u0026quot;,\u0026quot;29\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;37\u0026quot;,\u0026quot;41\u0026quot;,\u0026quot;29\u0026quot;,\u0026quot;16\u0026quot;,\u0026quot;13\u0026quot;,\u0026quot;39\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;38\u0026quot;,\u0026quot;136\u0026quot;,\u0026quot;89\u0026quot;,\u0026quot;35\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;50\u0026quot;,\u0026quot;57\u0026quot;,\u0026quot;47\u0026quot;,\u0026quot;36\u0026quot;,\u0026quot;59\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;46\u0026quot;,\u0026quot;44\u0026quot;,\u0026quot;51\u0026quot;,\u0026quot;43\u0026quot;,\u0026quot;0\u0026quot;]\n    },\n    {\n      \u0026quot;name\u0026quot;: \u0026quot;回帖\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;line\u0026quot;, \u0026quot;smooth\u0026quot;: true, \u0026quot;itemStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;#4285f4\u0026quot; }, \u0026quot;areaStyle\u0026quot;: { \u0026quot;normal\u0026quot;: {} }, \u0026quot;z\u0026quot;: 1,\n      \u0026quot;data\u0026quot;: [\u0026quot;35\u0026quot;,\u0026quot;42\u0026quot;,\u0026quot;73\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;43\u0026quot;,\u0026quot;58\u0026quot;,\u0026quot;55\u0026quot;,\u0026quot;35\u0026quot;,\u0026quot;46\u0026quot;,\u0026quot;87\u0026quot;,\u0026quot;36\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;44\u0026quot;,\u0026quot;76\u0026quot;,\u0026quot;130\u0026quot;,\u0026quot;73\u0026quot;,\u0026quot;50\u0026quot;,\u0026quot;20\u0026quot;,\u0026quot;21\u0026quot;,\u0026quot;54\u0026quot;,\u0026quot;48\u0026quot;,\u0026quot;73\u0026quot;,\u0026quot;60\u0026quot;,\u0026quot;89\u0026quot;,\u0026quot;26\u0026quot;,\u0026quot;27\u0026quot;,\u0026quot;70\u0026quot;,\u0026quot;63\u0026quot;,\u0026quot;55\u0026quot;,\u0026quot;37\u0026quot;,\u0026quot;0\u0026quot;]\n    }\n  ]\n}"
+					"Data": "{\n  &quot;title&quot;: { &quot;text&quot;: &quot;最近 30 天&quot; },\n  &quot;backgroundColor&quot;: &quot;transparent&quot;,\n  &quot;tooltip&quot;: { &quot;trigger&quot;: &quot;axis&quot;, &quot;axisPointer&quot;: { &quot;lineStyle&quot;: { &quot;width&quot;: 0 } } },\n  &quot;legend&quot;: { &quot;data&quot;: [&quot;帖子&quot;, &quot;用户&quot;, &quot;回帖&quot;] },\n  &quot;xAxis&quot;: [{\n      &quot;type&quot;: &quot;category&quot;,\n      &quot;boundaryGap&quot;: false,\n      &quot;data&quot;: [&quot;2019-05-08&quot;,&quot;2019-05-09&quot;,&quot;2019-05-10&quot;,&quot;2019-05-11&quot;,&quot;2019-05-12&quot;,&quot;2019-05-13&quot;,&quot;2019-05-14&quot;,&quot;2019-05-15&quot;,&quot;2019-05-16&quot;,&quot;2019-05-17&quot;,&quot;2019-05-18&quot;,&quot;2019-05-19&quot;,&quot;2019-05-20&quot;,&quot;2019-05-21&quot;,&quot;2019-05-22&quot;,&quot;2019-05-23&quot;,&quot;2019-05-24&quot;,&quot;2019-05-25&quot;,&quot;2019-05-26&quot;,&quot;2019-05-27&quot;,&quot;2019-05-28&quot;,&quot;2019-05-29&quot;,&quot;2019-05-30&quot;,&quot;2019-05-31&quot;,&quot;2019-06-01&quot;,&quot;2019-06-02&quot;,&quot;2019-06-03&quot;,&quot;2019-06-04&quot;,&quot;2019-06-05&quot;,&quot;2019-06-06&quot;,&quot;2019-06-07&quot;],\n      &quot;axisTick&quot;: { &quot;show&quot;: false },\n      &quot;axisLine&quot;: { &quot;show&quot;: false }\n  }],\n  &quot;yAxis&quot;: [{ &quot;type&quot;: &quot;value&quot;, &quot;axisTick&quot;: { &quot;show&quot;: false }, &quot;axisLine&quot;: { &quot;show&quot;: false }, &quot;splitLine&quot;: { &quot;lineStyle&quot;: { &quot;color&quot;: &quot;rgba(0, 0, 0, .38)&quot;, &quot;type&quot;: &quot;dashed&quot; } } }],\n  &quot;series&quot;: [\n    {\n      &quot;name&quot;: &quot;帖子&quot;, &quot;type&quot;: &quot;line&quot;, &quot;smooth&quot;: true, &quot;itemStyle&quot;: { &quot;color&quot;: &quot;#d23f31&quot; }, &quot;areaStyle&quot;: { &quot;normal&quot;: {} }, &quot;z&quot;: 3,\n      &quot;data&quot;: [&quot;18&quot;,&quot;14&quot;,&quot;22&quot;,&quot;9&quot;,&quot;7&quot;,&quot;18&quot;,&quot;10&quot;,&quot;12&quot;,&quot;13&quot;,&quot;16&quot;,&quot;6&quot;,&quot;9&quot;,&quot;15&quot;,&quot;15&quot;,&quot;12&quot;,&quot;15&quot;,&quot;8&quot;,&quot;14&quot;,&quot;9&quot;,&quot;10&quot;,&quot;29&quot;,&quot;22&quot;,&quot;14&quot;,&quot;22&quot;,&quot;9&quot;,&quot;10&quot;,&quot;15&quot;,&quot;9&quot;,&quot;9&quot;,&quot;15&quot;,&quot;0&quot;]\n    },\n    {\n      &quot;name&quot;: &quot;用户&quot;, &quot;type&quot;: &quot;line&quot;, &quot;smooth&quot;: true, &quot;itemStyle&quot;: { &quot;color&quot;: &quot;#f1e05a&quot; }, &quot;areaStyle&quot;: { &quot;normal&quot;: {} }, &quot;z&quot;: 2,\n      &quot;data&quot;: [&quot;31&quot;,&quot;33&quot;,&quot;30&quot;,&quot;23&quot;,&quot;16&quot;,&quot;29&quot;,&quot;23&quot;,&quot;37&quot;,&quot;41&quot;,&quot;29&quot;,&quot;16&quot;,&quot;13&quot;,&quot;39&quot;,&quot;23&quot;,&quot;38&quot;,&quot;136&quot;,&quot;89&quot;,&quot;35&quot;,&quot;22&quot;,&quot;50&quot;,&quot;57&quot;,&quot;47&quot;,&quot;36&quot;,&quot;59&quot;,&quot;14&quot;,&quot;23&quot;,&quot;46&quot;,&quot;44&quot;,&quot;51&quot;,&quot;43&quot;,&quot;0&quot;]\n    },\n    {\n      &quot;name&quot;: &quot;回帖&quot;, &quot;type&quot;: &quot;line&quot;, &quot;smooth&quot;: true, &quot;itemStyle&quot;: { &quot;color&quot;: &quot;#4285f4&quot; }, &quot;areaStyle&quot;: { &quot;normal&quot;: {} }, &quot;z&quot;: 1,\n      &quot;data&quot;: [&quot;35&quot;,&quot;42&quot;,&quot;73&quot;,&quot;15&quot;,&quot;43&quot;,&quot;58&quot;,&quot;55&quot;,&quot;35&quot;,&quot;46&quot;,&quot;87&quot;,&quot;36&quot;,&quot;15&quot;,&quot;44&quot;,&quot;76&quot;,&quot;130&quot;,&quot;73&quot;,&quot;50&quot;,&quot;20&quot;,&quot;21&quot;,&quot;54&quot;,&quot;48&quot;,&quot;73&quot;,&quot;60&quot;,&quot;89&quot;,&quot;26&quot;,&quot;27&quot;,&quot;70&quot;,&quot;63&quot;,&quot;55&quot;,&quot;37&quot;,&quot;0&quot;]\n    }\n  ]\n}"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3171,12 +6001,23 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20221225012231-gx68k6u",
-				"updated": "20221225012248"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "可使用如下三種格式定義："
+					"Data": "本地內核支援以下三種格式。連線至遠端內核時僅支援嚴格 JSON，不執行 JavaScript 物件運算式或函式，詳見"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260903150000-3qa6edk",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "連線至遠端內核"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
 				}
 			]
 		},
@@ -3344,7 +6185,7 @@
 								},
 								{
 									"Type": "NodeCodeBlockCode",
-									"Data": "(() =\u003e {\n    const option = {};\n    option.propName = `propValue`;\n    return option;\n})()\n"
+									"Data": "(() => {\n    const option = {};\n    option.propName = `propValue`;\n    return option;\n})()\n"
 								},
 								{
 									"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3386,7 +6227,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226122008-c2glr4f",
-				"updated": "20211226122008"
+				"updated": "20260804235500"
 			},
 			"Children": [
 				{
@@ -3414,7 +6255,7 @@
 				},
 				{
 					"Type": "NodeCodeBlockCode",
-					"Data": "%%params {tablature: [{instrument: \u0026quot;violin\u0026quot;}]}\nX: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:\u0026quot;Em\u0026quot;EEE E2G|\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;EEE E2G|\\\n\u0026quot;C7\u0026quot;_B2A \u0026quot;B7\u0026quot;=B3|\u0026quot;Em\u0026quot;EEE E2G|\n\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;GFE \u0026quot;D (Bm7)\u0026quot;F2D|\\\n1\u0026quot;Em\u0026quot;E3-E3:|2\u0026quot;Em\u0026quot;E3-E2B|:\u0026quot;Em\u0026quot;e2e gfe|\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfeg2e|\u0026quot;D\u0026quot;fedB2A|\u0026quot;Em\u0026quot;e2e gfe|\\\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfe\u0026quot;D\u0026quot;f2d|\u0026quot;Em\u0026quot;e3-e3:|"
+					"Data": "%%params {tablature: [{instrument: &quot;violin&quot;}]}\nX: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:&quot;Em&quot;EEE E2G|&quot;C7&quot;_B2A G2F|&quot;Em&quot;EEE E2G|\\\n&quot;C7&quot;_B2A &quot;B7&quot;=B3|&quot;Em&quot;EEE E2G|\n&quot;C7&quot;_B2A G2F|&quot;Em&quot;GFE &quot;D (Bm7)&quot;F2D|\\\n1&quot;Em&quot;E3-E3:|2&quot;Em&quot;E3-E2B|:&quot;Em&quot;e2e gfe|\n&quot;G&quot;g2ab3|&quot;Em&quot;gfeg2e|&quot;D&quot;fedB2A|&quot;Em&quot;e2e gfe|\\\n&quot;G&quot;g2ab3|&quot;Em&quot;gfe&quot;D&quot;f2d|&quot;Em&quot;e3-e3:|"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3468,12 +6309,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226122008-nkonel6",
-				"updated": "20230820185037"
+				"updated": "20260804235500"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "語法請參考 abcjs (github repo: paulrosen/abcjs)。"
+					"Data": "語法請參考 abcjs (GitHub repo: paulrosen/abcjs)。"
 				}
 			]
 		},
@@ -3512,7 +6353,7 @@
 				{
 					"ID": "20220307092237-gs8rd2y",
 					"Type": "NodeCodeBlockCode",
-					"Data": "digraph finite_state_machine {\n    rankdir=LR;\n    size=\"8,5\"\n    node [shape = doublecircle]; S;\n    node [shape = point ]; qi\n\n    node [shape = circle];\n    qi -\u003e S;\n    S  -\u003e q1 [ label = \"a\" ];\n    S  -\u003e S  [ label = \"a\" ];\n    q1 -\u003e S  [ label = \"a\" ];\n    q1 -\u003e q2 [ label = \"ddb\" ];\n    q2 -\u003e q1 [ label = \"b\" ];\n    q2 -\u003e q2 [ label = \"b\" ];\n}",
+					"Data": "digraph finite_state_machine {\n    rankdir=LR;\n    size=\"8,5\"\n    node [shape = doublecircle]; S;\n    node [shape = point ]; qi\n\n    node [shape = circle];\n    qi -> S;\n    S  -> q1 [ label = \"a\" ];\n    S  -> S  [ label = \"a\" ];\n    q1 -> S  [ label = \"a\" ];\n    q1 -> q2 [ label = \"ddb\" ];\n    q2 -> q1 [ label = \"b\" ];\n    q2 -> q2 [ label = \"b\" ];\n}",
 					"Properties": {
 						"id": "20220307092237-gs8rd2y"
 					}
@@ -3582,7 +6423,7 @@
 				{
 					"ID": "20220307092237-fm72x4f",
 					"Type": "NodeCodeBlockCode",
-					"Data": "st=\u003estart: Start\nop=\u003eoperation: Your Operation\ncond=\u003econdition: Yes or No?\ne=\u003eend\n\nst-\u003eop-\u003econd\ncond(yes)-\u003ee\ncond(no)-\u003eop",
+					"Data": "st=>start: Start\nop=>operation: Your Operation\ncond=>condition: Yes or No?\ne=>end\n\nst->op->cond\ncond(yes)->e\ncond(no)->op",
 					"Properties": {
 						"id": "20220307092237-fm72x4f"
 					}
@@ -3652,7 +6493,7 @@
 				{
 					"ID": "20220307092237-ptxbnn8",
 					"Type": "NodeCodeBlockCode",
-					"Data": "@startuml component\nactor client\nnode app\ndatabase db\ndb -\u003e app\napp -\u003e client\n@enduml",
+					"Data": "@startuml component\nactor client\nnode app\ndatabase db\ndb -> app\napp -> client\n@enduml",
 					"Properties": {
 						"id": "20220307092237-ptxbnn8"
 					}
@@ -3694,6 +6535,76 @@
 				"id": "20211226122008-jaxlknv",
 				"updated": "20211226002103"
 			}
+		},
+		{
+			"ID": "20260928090424-g7ra222",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260928090424-g7ra222",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "自動文字方向"
+				}
+			]
+		},
+		{
+			"ID": "20260928090424-testof8",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260928090424-testof8",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "桌面端和行動端均可在 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "外觀"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "自動文字方向"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中啟用此功能，開關位於「從右到左（RTL）」下方，預設關閉。段落和標題根據首個具有強方向性的字元自動選擇從右到左或從左到右，開頭的數字、標點和表情不決定方向。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-4c8086j",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-4c8086j",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "手動設定的區塊層級和行內方向優先。各清單項目（包含子清單項目）獨立跟隨自身首個正文區塊的方向，覈取方塊、項目符號、編號及縮排同步調整到對應一側，手動設定的清單方向優先。表格欄位順序維持原有設定。預覽及 HTML、PDF 匯出也會套用自動文字方向。"
+				}
+			]
 		}
 	]
 }

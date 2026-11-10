@@ -1,7 +1,11 @@
 import {addScript} from "../util/addScript";
+import {isFoldedRenderContent} from "./foldedContent";
 import {Constants} from "../../constants";
 import {hasClosestByAttribute, hasClosestByClassName} from "../util/hasClosest";
 import {genIconHTML} from "./util";
+import {getHostCapabilities} from "../../util/hostCapabilities";
+import {MERMAID_SANITIZE_OPTIONS} from "./mermaidSanitize";
+import {escapeHtml} from "../../util/escape";
 
 declare const flowchart: {
     parse(text: string): { drawSVG: (type: Element) => void };
@@ -14,6 +18,7 @@ export const flowchartRender = (element: Element, cdn = Constants.PROTYLE_CDN) =
     } else {
         flowchartElements = element.querySelectorAll('[data-subtype="flowchart"]:not([data-render="true"])');
     }
+    flowchartElements = Array.from(flowchartElements).filter(item => !isFoldedRenderContent(item));
     if (flowchartElements.length === 0) {
         return;
     }
@@ -66,8 +71,12 @@ const initFlowchart = (flowchartElements: Element[]) => {
         try {
             renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span><div contenteditable="false"></div>`;
             flowchart.parse(Lute.UnEscapeHTMLStr(item.getAttribute("data-content"))).drawSVG(renderElement.lastElementChild);
+            if (getHostCapabilities().remoteKernel) {
+                renderElement.lastElementChild.innerHTML = window.DOMPurify.sanitize(
+                    renderElement.lastElementChild.innerHTML, MERMAID_SANITIZE_OPTIONS);
+            }
         } catch (error) {
-            renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span><div class="ft__error" contenteditable="false">Flow Chart render error: <br>${error}</div>`;
+            renderElement.innerHTML = `<span style="position: absolute;left:0;top:0;width: 1px;">${Constants.ZWSP}</span><div class="ft__error" contenteditable="false">Flow Chart render error: <br>${escapeHtml(String(error))}</div>`;
         }
     });
 };

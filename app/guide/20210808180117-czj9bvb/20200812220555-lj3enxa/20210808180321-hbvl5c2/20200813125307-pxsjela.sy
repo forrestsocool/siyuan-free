@@ -6,7 +6,7 @@
 		"id": "20200813125307-pxsjela",
 		"title": "导入和导出",
 		"type": "doc",
-		"updated": "20250115151440"
+		"updated": "20261024163013"
 	},
 	"Children": [
 		{
@@ -15,7 +15,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20201229120428-dgzkno8",
-				"updated": "20201229120428"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
@@ -30,7 +30,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220511184321-um53ppo",
-				"updated": "20220511184328"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
@@ -44,12 +44,26 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210120161018-1mdw4fy",
-				"updated": "20220511190018"
+				"updated": "20261024161440"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "思源支持导入 Markdown 文件。所以如果你需要导入其他笔记软件的数据，请先将数据转换为 Markdown 文件。"
+					"Data": "可导入 Markdown 文件或文件夹。迁移其他软件的数据时，可先导出为 Markdown；对于提供专用导入入口的来源，也可使用对应入口。导入前请核对资源文件路径和扩展语法。"
+				}
+			]
+		},
+		{
+			"ID": "20261002211013-ujtdqw0",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261002211013-ujtdqw0",
+				"updated": "20261002211013"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "导入 Markdown 时，[^note]: 形式的脚注定义会转换为独立的有序列表项，正文中的 [^note] 会转换为上标块引用。点击引用可打开定义，通过定义的反向链接可返回引用它的正文块。脚注中的多个段落会保留在同一列表项内。没有对应定义的脚注不生成块引用，代码示例和转义的脚注语法保留为字面文本。"
 				}
 			]
 		},
@@ -119,7 +133,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20240426184018-e8mz594",
-				"updated": "20240426184237"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
@@ -147,7 +161,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "#foo"
+					"TextMarkTextContent": "#foo#"
 				},
 				{
 					"Type": "NodeText",
@@ -169,7 +183,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ - "
+					"Data": " - "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -178,7 +192,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ - "
+					"Data": " - "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -187,7 +201,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ 相关开关。"
+					"Data": " 相关开关。"
 				}
 			]
 		},
@@ -197,7 +211,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220511184340-6w8o7kg",
-				"updated": "20250115150830"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -211,12 +225,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220511184359-mea18d0",
-				"updated": "20250115150830"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在桌面端 "
+					"Data": "桌面端和移动端均可在 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -225,25 +239,16 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ - "
+					"Data": " - "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "导出"
+					"TextMarkTextContent": "应用"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​、移动端右侧栏 "
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "kbd",
-					"TextMarkTextContent": "关于"
-				},
-				{
-					"Type": "NodeText",
-					"Data": "​ 中可以进行数据导入和导出。这里的导出会将 "
+					"Data": " 中进行数据导入和导出。该导出会完整复制 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -252,7 +257,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ 文件夹完整复制并打包为 zip 压缩包。"
+					"Data": " 文件夹并打包为 ZIP 压缩包。"
 				}
 			]
 		},
@@ -388,13 +393,111 @@
 			},
 			"Children": [
 				{
+					"Type": "NodeText",
+					"Data": "​"
+				},
+				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "tag",
 					"TextMarkTextContent": "注意"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "：使用前请务必留意，避免已有数据被覆盖无法恢复。"
+					"Data": "​：使用前请务必留意，避免已有数据被覆盖无法恢复。"
+				}
+			]
+		},
+		{
+			"ID": "20261020220502-6qiv57v",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261020220502-6qiv57v",
+				"updated": "20261020225315"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Data.zip 可以直接更新当前工作空间，无需新建工作空间。导入前会先分析压缩包，加密笔记本发生冲突时，可选择默认的“跳过冲突”、“覆盖冲突”或取消。导入结果会在界面重载前列出已跳过的笔记本 ID。提交前可以取消；提交期间无法取消或关闭导入对话框。"
+				}
+			]
+		},
+		{
+			"ID": "20261020220502-gnmpswl",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261020220502-gnmpswl",
+				"updated": "20261020220502"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "导入加密内容需要输入兼容的主密码。改密前的备份可通过兼容的历史密钥读取，不会回退当前密码。加密状态或数据密钥不同的笔记本不能直接合并。覆盖只替换相同路径，保留目标独有的文件，不会传播删除；导入后的加密笔记本保持锁定，需要重新解锁。"
+				}
+			]
+		},
+		{
+			"ID": "20261020220502-l5uc6wm",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261020220502-l5uc6wm",
+				"updated": "20261020225315"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "导入先验证选中内容，再写入数据，失败或中断时可以回滚。上传原件、被覆盖文件和密钥材料保存在工作空间的 conf/data-imports/ 目录；在核对导入内容及所需历史之前，请保留这些恢复文件。恢复失败时暂停写入和同步，直到恢复成功。未提交的预检在 30 分钟后过期，并在启动或下一次导入时清理，过期后仍可取消；已提交批次的恢复文件继续保留。"
+				}
+			]
+		},
+		{
+			"ID": "20260614200806-k4r9npq",
+			"Type": "NodeHeading",
+			"HeadingLevel": 3,
+			"Properties": {
+				"id": "20260614200806-k4r9npq",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": ".sy.zip"
+				}
+			]
+		},
+		{
+			"ID": "20260614200806-6qg8yqx",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260614200806-6qg8yqx",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".sy.zip"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 是思源原生文档格式。在文档树中选择目标笔记本或文档后，使用 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "导入"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "SiYuan .sy.zip"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 选择压缩包。导入后的文档会保留内容、设置中指定包含的子文档、资源文件和块属性。"
 				}
 			]
 		},
@@ -404,7 +507,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20201229120428-9k34lga",
-				"updated": "20250115151439"
+				"updated": "20261016200946"
 			},
 			"Children": [
 				{
@@ -515,7 +618,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20210120154948-gl0hxz6",
-				"updated": "20250115151440"
+				"updated": "20261016200946"
 			},
 			"Children": [
 				{
@@ -533,12 +636,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20201229120428-ysyvyt4",
-				"updated": "20250115151440"
+				"updated": "20260426175436"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在文档树上选择文档后右键选择 "
+					"Data": "在文档上选择文档后右键选择 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -575,7 +678,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20201229120428-sokahme",
-				"updated": "20220317223356"
+				"updated": "20260614200822"
 			},
 			"Children": [
 				{
@@ -586,7 +689,8 @@
 						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20201229120428-3zal4fw"
+						"id": "20201229120428-3zal4fw",
+						"updated": "20201229120428"
 					},
 					"Children": [
 						{
@@ -613,14 +717,16 @@
 						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20201229120428-rbzugkm"
+						"id": "20201229120428-rbzugkm",
+						"updated": "20201229120428"
 					},
 					"Children": [
 						{
 							"ID": "20210302223614-6mzkgcu",
 							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20210302223614-6mzkgcu"
+								"id": "20210302223614-6mzkgcu",
+								"updated": "20210302223614"
 							},
 							"Children": [
 								{
@@ -639,14 +745,16 @@
 						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20210120155702-mhp0c0s"
+						"id": "20210120155702-mhp0c0s",
+						"updated": "20210120155702"
 					},
 					"Children": [
 						{
 							"ID": "20210302223614-zc7v8ds",
 							"Type": "NodeParagraph",
 							"Properties": {
-								"id": "20210302223614-zc7v8ds"
+								"id": "20210302223614-zc7v8ds",
+								"updated": "20210302223614"
 							},
 							"Children": [
 								{
@@ -684,6 +792,99 @@
 							]
 						}
 					]
+				},
+				{
+					"ID": "20260614200822-ltvmpym",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260614200822-ltvmpym",
+						"updated": "20260614200822"
+					},
+					"Children": [
+						{
+							"ID": "20260614200822-0hldom5",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260614200822-0hldom5",
+								"updated": "20260614200822"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": ".sy.zip"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"ID": "20260614200829-qq1g8hc",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260614200829-qq1g8hc",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": ".sy.zip"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 格式会保留文档内容、资源文件和块属性。是否包含子文档和关联文档取决于 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "设置"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "导出"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中的对应选项。"
+				}
+			]
+		},
+		{
+			"ID": "20261015174914-gajl5h2",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261015174914-gajl5h2",
+				"updated": "20261015174914"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "在“导出为图片”对话框中，关闭“导出题头图”可排除题头图并保留正文图片。此开关默认开启，独立于“添加文档标题”，会记住选择，并应用于预览、导出文件和对话框内的“复制为 PNG”。原始文档不受影响。"
+				}
+			]
+		},
+		{
+			"ID": "20261016200946-dh7sl8v",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261016200946-dh7sl8v",
+				"updated": "20261016200946"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "PDF 导出也支持独立的“导出题头图”开关，默认开启，与图片导出分别记住选择，不影响文档标题或正文图片。桌面端在 PDF 预览窗口中设置，导出时保存选择；移动端在打印设置对话框中设置，确认时保存选择。"
 				}
 			]
 		},

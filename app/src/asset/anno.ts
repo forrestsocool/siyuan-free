@@ -1,43 +1,125 @@
-import {fetchPost} from "../util/fetch";
+import {fetchPost, fetchSyncPost} from "../util/fetch";
 import {setPosition} from "../util/setPosition";
 import {hasClosestByAttribute, hasClosestByClassName} from "../protyle/util/hasClosest";
-import {setStorageVal, writeText} from "../protyle/util/compatibility";
+import {readText, writeText} from "../protyle/util/compatibility";
+import {patchAppearancePreference} from "../config/tabs/appearancePreferences";
 import {getAllModels} from "../layout/getAll";
-import {focusByRange} from "../protyle/util/selection";
+import {focusByRange} from "../protyle/util/selectionOffsets";
 import {Constants} from "../constants";
 import {Dialog} from "../dialog";
 import {showMessage} from "../dialog/message";
 import {isMobile} from "../util/functions";
 import {confirmDialog} from "../dialog/confirmDialog";
+import {escapeAttr, escapeHtml, escapeHtmlTextAndAttr} from "../util/escape";
 import {filesize} from "filesize";
+import md5 from "blueimp-md5";
+import {getRectImageName, hideRectResizeHandles, moveRectBounds, resizeRectBounds} from "./rectAnnotationResize";
+import type {RectBounds, RectResizeDirection} from "./rectAnnotationResize";
+import {
+    getCaptureCanvasBounds,
+    getCaptureDisplayWidth,
+    getLimitedCaptureScale,
+    getPdfAnnotationAssetsDirPath,
+    PDF_RECT_CAPTURE_PROFILE,
+    PDF_RECT_CAPTURE_SCALE,
+    PDF_RECT_DISPLAY_SCALE,
+} from "./pdfRectCapture";
+import {uploadStandaloneAssetFiles} from "../protyle/upload";
+import {getAssetUploadSuccesses} from "../protyle/upload/uploadResult";
+import {
+    bindPdfAnnotationPointerDrag,
+    destroyAnno,
+    getRegisteredPdfInstance,
+    registerAnnoCleanup,
+    registerPdfInstance,
+} from "./annoRuntime";
+import {appendPdfAnnotationId} from "../editor/pdfAssetLink";
+import {isPdfRectAnnotation, mergePdfTextAnnotationRects} from "./pdfTextAnnotation";
+import {pdfRectToViewport} from "./pdfCoordinates";
+import {getPdfSelectionText} from "./pdfSelectionText";
+import {AnnotationSaveQueue} from "./annotationSave";
+
+export {destroyAnno, registerPdfInstance, unregisterPdfInstance} from "./annoRuntime";
+
+const RECT_RESIZE_MIN_SIZE = 8;
+const rectCopyRequests = new WeakMap<HTMLElement, object>();
+const annotationSaveQueues = new WeakMap<object, {file: string; queue: AnnotationSaveQueue}>();
+
+const getAnnotationSaveQueue = (pdf: any, config: Record<string, IPdfAnno>) => {
+    const file = pdf.appConfig.file;
+    let state = annotationSaveQueues.get(pdf);
+    if (!state || state.file !== file) {
+        state = {file, queue: new AnnotationSaveQueue(JSON.stringify(config), (baseData, data) =>
+            fetchSyncPost("/api/asset/setFileAnnotation", {
+                path: file.replace(location.origin, "").substr(1) + ".sya", baseData, data,
+            }), () => showMessage(window.siyuan.languages.pdfAnnotationSaveFailed, 0, "error"))};
+        annotationSaveQueues.set(pdf, state);
+    }
+    return state.queue;
+};
+
+const saveConfig = (pdf: any, config: Record<string, IPdfAnno>) => {
+    void getAnnotationSaveQueue(pdf, config).save(JSON.stringify(config));
+};
 
 export const initAnno = (element: HTMLElement, pdf: any) => {
+    destroyAnno(element);
+    registerPdfInstance(element, pdf);
     getConfig(pdf);
     const pdfConfig = pdf.appConfig;
     const rectAnnoElement = pdfConfig.toolbar.rectAnno;
-    rectAnnoElement.addEventListener("click", () => {
+    const originalMainContainerTouchAction = pdfConfig.mainContainer.style.touchAction;
+    const setRectCreationMode = (enabled: boolean) => {
+        rectAnnoElement.classList.toggle("toggled", enabled);
+        pdfConfig.mainContainer.classList.toggle("rect-to-annotation", enabled);
+        pdfConfig.mainContainer.style.touchAction = enabled ? "none" : originalMainContainerTouchAction;
+    };
+    let activePointerCancel: (() => void) | undefined;
+    const startPointerDrag = (
+        pointerId: number,
+        pointermove: (event: PointerEvent) => void,
+        pointerup: (event: PointerEvent) => void,
+        pointercancel: () => void,
+    ) => {
+        if (activePointerCancel) {
+            return false;
+        }
+        const cancel = bindPdfAnnotationPointerDrag(document, pointerId, pointermove, (event) => {
+            activePointerCancel = undefined;
+            pointerup(event);
+        }, () => {
+            activePointerCancel = undefined;
+            pointercancel();
+        });
+        activePointerCancel = cancel;
+        return true;
+    };
+    const rectToolbarClick = () => {
         if (rectAnnoElement.classList.contains("toggled")) {
-            rectAnnoElement.classList.remove("toggled");
-            pdfConfig.mainContainer.classList.remove("rect-to-annotation");
+            setRectCreationMode(false);
         } else {
             pdf.pdfCursorTools.switchTool(0);
-            rectAnnoElement.classList.add("toggled");
-            pdfConfig.mainContainer.classList.add("rect-to-annotation");
+            setRectCreationMode(true);
             if (getSelection().rangeCount > 0) {
                 getSelection().getRangeAt(0).collapse(true);
             }
             hideToolbar(element);
         }
-    });
+    };
+    rectAnnoElement.addEventListener("click", rectToolbarClick);
     const rectResizeElement = pdfConfig.mainContainer.lastElementChild;
-    pdfConfig.mainContainer.addEventListener("mousedown", (event: MouseEvent) => {
-        if (event.button === 2 || !rectAnnoElement.classList.contains("toggled")) {
+    const rectCreatePointerDown = (event: PointerEvent) => {
+        if (event.button === 2 || event.isPrimary === false || !rectAnnoElement.classList.contains("toggled")) {
             // 右键
             return;
         }
-        let canvasRect = pdf.pdfViewer._getVisiblePages().first.view.canvas.getBoundingClientRect();
+        const visiblePages = pdf.pdfViewer._getVisiblePages();
+        if (!visiblePages.first?.view?.canvas || !visiblePages.last?.view?.canvas) {
+            return;
+        }
+        let canvasRect = visiblePages.first.view.canvas.getBoundingClientRect();
         if (event.clientX > canvasRect.right) {
-            canvasRect = pdf.pdfViewer._getVisiblePages().last.view.canvas.getBoundingClientRect();
+            canvasRect = visiblePages.last.view.canvas.getBoundingClientRect();
         }
         const containerRet = pdfConfig.mainContainer.getBoundingClientRect();
         const mostLeft = canvasRect.left;
@@ -51,8 +133,8 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
         }
         const mostTop = containerRet.top;
         const y = event.clientY;
-        const documentSelf = document;
-        documentSelf.onmousemove = (moveEvent) => {
+        const initialResizeStyle = rectResizeElement.getAttribute("style");
+        const pointermove = (moveEvent: PointerEvent) => {
             rectResizeElement.classList.remove("fn__none");
             let newTop = 0;
             let newLeft = 0;
@@ -100,18 +182,18 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
                 newHeight = y - newTop;
             }
             rectResizeElement.setAttribute("style",
-                `top:${newTop}px;height:${newHeight}px;left:${newLeft}px;width:${newWidth}px;background-color:${moveEvent.altKey ? "var(--b3-pdf-background1)" : ""}`);
+                `top:${newTop}px;height:${newHeight}px;left:${newLeft}px;width:${newWidth}px;opacity:${moveEvent.altKey && !CSS.supports("background-color", "color-mix(in srgb, red, transparent)") ? ".35" : "1"};background-color:${moveEvent.altKey ? "var(--b3-pdf-background1)" : ""};background-color:${moveEvent.altKey ? "color-mix(in srgb, var(--b3-pdf-background1) 35%, transparent)" : ""}`);
         };
-        documentSelf.onmouseup = () => {
-            documentSelf.onmousemove = null;
-            documentSelf.onmouseup = null;
-            documentSelf.ondragstart = null;
-            documentSelf.onselectstart = null;
-            documentSelf.onselect = null;
-            rectAnnoElement.classList.remove("toggled");
-            pdfConfig.mainContainer.classList.remove("rect-to-annotation");
+        const stopRectCreation = () => {
+            setRectCreationMode(false);
+        };
+        const pointerup = () => {
+            document.ondragstart = null;
+            document.onselectstart = null;
+            document.onselect = null;
+            stopRectCreation();
 
-            const coords = getHightlightCoordsByRect(pdf, window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor || "var(--b3-pdf-background1)", rectResizeElement,
+            const coords = getHightlightCoordsByRect(pdf, window.siyuan.config.appearance.pdfTheme.annoColor || "var(--b3-pdf-background1)", rectResizeElement,
                 rectResizeElement.style.backgroundColor ? "text" : "border");
             rectResizeElement.classList.add("fn__none");
             if (coords) {
@@ -119,30 +201,222 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
                     const newElement = showHighlight(item, pdf);
                     if (index === 0) {
                         rectElement = newElement;
-                        copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
+                        copyAnno(appendPdfAnnotationId(pdf.appConfig.file.replace(location.origin, "").substr(1),
+                            rectElement.getAttribute("data-node-id")),
                             pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
                     }
                 });
+                if (rectElement) {
+                    if (typeof selectionToolbarTimer !== "undefined") {
+                        window.clearTimeout(selectionToolbarTimer);
+                        selectionToolbarTimer = undefined;
+                    }
+                    showToolbar(element, undefined, rectElement);
+                    // 框选结束产生的点击不应立即关闭刚显示的菜单。
+                    ignoreRectClick = true;
+                    window.setTimeout(() => {
+                        ignoreRectClick = false;
+                    });
+                }
             } else {
                 rectElement = null;
             }
         };
-    });
-    element.firstElementChild.addEventListener("click", (event: MouseEvent) => {
+        const pointercancel = () => {
+            stopRectCreation();
+            rectResizeElement.classList.add("fn__none");
+            if (initialResizeStyle === null) {
+                rectResizeElement.removeAttribute("style");
+            } else {
+                rectResizeElement.setAttribute("style", initialResizeStyle);
+            }
+        };
+        if (startPointerDrag(event.pointerId, pointermove, pointerup, pointercancel)) {
+            event.preventDefault();
+        }
+    };
+    pdfConfig.mainContainer.addEventListener("pointerdown", rectCreatePointerDown);
+    let ignoreRectClick = false;
+    const pdfElement = element.firstElementChild as HTMLElement;
+    const rectChangePointerDown = (event: PointerEvent) => {
+        if (event.button !== 0 || event.isPrimary === false || rectAnnoElement.classList.contains("toggled")) {
+            return;
+        }
+        const eventTarget = event.target as HTMLElement;
+        const handleElement = eventTarget.closest(".pdf__rect-resize") as HTMLElement;
+        const edgeElement = eventTarget.closest(".pdf__rect-edge");
+        const target = eventTarget.closest(".pdf__rect") as HTMLElement;
+        if (!target || !isRectAnnotationElement(target) || (!handleElement && !edgeElement)) {
+            return;
+        }
+        const direction = handleElement?.dataset.direction as RectResizeDirection;
+        if (handleElement && !direction) {
+            return;
+        }
+        const pageElement = hasClosestByClassName(target, "page");
+        if (!pageElement) {
+            return;
+        }
+        const pageIndex = parseInt(pageElement.getAttribute("data-page-number")) - 1;
+        const page = pdf.pdfViewer.getPageView(pageIndex);
+        if (!page) {
+            return;
+        }
+        const canvasRect = page.canvas.getBoundingClientRect();
+        const annotationElement = target.firstElementChild as HTMLElement;
+        const targetRect = annotationElement.getBoundingClientRect();
+        const initial: RectBounds = {
+            left: targetRect.left,
+            top: targetRect.top,
+            right: targetRect.right,
+            bottom: targetRect.bottom,
+        };
+        const boundary: RectBounds = {
+            left: canvasRect.left,
+            top: canvasRect.top,
+            right: canvasRect.right,
+            bottom: canvasRect.bottom,
+        };
+        const startX = event.clientX;
+        const startY = event.clientY;
+        rectCopyRequests.set(target, {});
+        let bounds = initial;
+        let position: number[];
+        const updateAnnotationElement = () => {
+            position = page.viewport.convertToPdfPoint(
+                bounds.left - canvasRect.left,
+                bounds.top - canvasRect.top,
+            ).concat(page.viewport.convertToPdfPoint(
+                bounds.right - canvasRect.left,
+                bounds.bottom - canvasRect.top,
+            ));
+            setRectPosition(annotationElement, page, position);
+        };
+        let moved = false;
+        const pointermove = (moveEvent: PointerEvent) => {
+            const deltaX = moveEvent.clientX - startX;
+            const deltaY = moveEvent.clientY - startY;
+            if (!moved && Math.hypot(deltaX, deltaY) < Constants.SIZE_DRAG_THRESHOLD) {
+                return;
+            }
+            if (!moved) {
+                moved = true;
+                if (!target.classList.contains("pdf__rect--selected")) {
+                    showToolbar(element, undefined, target);
+                }
+                hideToolbarMenu(element);
+                target.classList.add("pdf__rect--dragging");
+            }
+            bounds = handleElement ?
+                resizeRectBounds(initial, boundary, direction, moveEvent.clientX, moveEvent.clientY,
+                    RECT_RESIZE_MIN_SIZE) :
+                moveRectBounds(initial, boundary, deltaX, deltaY);
+            updateAnnotationElement();
+        };
+        const pointerup = () => {
+            target.classList.remove("pdf__rect--dragging");
+            if (!moved) {
+                return;
+            }
+            ignoreRectClick = true;
+            setTimeout(() => {
+                ignoreRectClick = false;
+            });
+
+            const config = getConfig(pdf);
+            const id = target.getAttribute("data-node-id");
+            const annoItem = config?.[id] as IPdfAnno;
+            const pageItem = annoItem?.pages?.find(item => item.index === pageIndex);
+            if (!pageItem) {
+                bounds = initial;
+                updateAnnotationElement();
+                hideToolbarMenu(element);
+                return;
+            }
+            pageItem.positions = [position];
+            annoItem.mode = "rect";
+            target.dataset.mode = "rect";
+            saveConfig(pdf, config);
+            hideToolbarMenu(element);
+            copyAnno(appendPdfAnnotationId(pdf.appConfig.file.replace(location.origin, "").substr(1), id),
+                "", pdf, target, true);
+        };
+        const pointercancel = () => {
+            target.classList.remove("pdf__rect--dragging");
+            if (moved) {
+                bounds = initial;
+                updateAnnotationElement();
+                hideToolbarMenu(element);
+            }
+        };
+        if (startPointerDrag(event.pointerId, pointermove, pointerup, pointercancel)) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    };
+    pdfElement.addEventListener("pointerdown", rectChangePointerDown, {capture: true});
+    let isAnnoDestroyed = false;
+    let selectionToolbarTimer: number | undefined;
+    const showSelectionToolbar = () => {
+        if (isAnnoDestroyed || !element.isConnected) {
+            return false;
+        }
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return false;
+        }
+        const range = selection.getRangeAt(0);
+        if (range.toString() === "" || !element.contains(range.commonAncestorContainer) ||
+            !hasClosestByClassName(range.commonAncestorContainer, "pdfViewer")) {
+            return false;
+        }
+        return showToolbar(element, range);
+    };
+    const scheduleSelectionToolbar = (hideWhenEmpty = false) => {
+        if (typeof selectionToolbarTimer !== "undefined") {
+            window.clearTimeout(selectionToolbarTimer);
+        }
+        selectionToolbarTimer = window.setTimeout(() => {
+            selectionToolbarTimer = undefined;
+            if (!showSelectionToolbar() && hideWhenEmpty && !isAnnoDestroyed) {
+                hideToolbar(element);
+            }
+        });
+    };
+    const pdfPointerSelectionEnd = (event: PointerEvent) => {
+        if (event.pointerType !== "mouse" && (event.target as Element).closest(".textLayer")) {
+            scheduleSelectionToolbar();
+        }
+    };
+    pdfElement.addEventListener("pointerup", pdfPointerSelectionEnd);
+    pdfElement.addEventListener("pointercancel", pdfPointerSelectionEnd);
+    const pdfClick = (event: MouseEvent) => {
         let processed = false;
         let target = event.target as HTMLElement;
+        if (ignoreRectClick) {
+            ignoreRectClick = false;
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+        if (target.closest(".pdf__rect-resize")) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
         if (typeof event.detail === "string") {
-            window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor = event.detail === "0" ?
-                (window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor || "var(--b3-pdf-background1)")
+            const annoColor = event.detail === "0" ?
+                (window.siyuan.config.appearance.pdfTheme.annoColor || "var(--b3-pdf-background1)")
                 : `var(--b3-pdf-background${event.detail})`;
-            setStorageVal(Constants.LOCAL_PDFTHEME, window.siyuan.storage[Constants.LOCAL_PDFTHEME]);
-            const coords = getHightlightCoordsByRange(pdf, window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor);
+            void patchAppearancePreference("pdfTheme.annoColor", annoColor);
+            const coords = getHightlightCoordsByRange(pdf, annoColor);
             if (coords) {
                 coords.forEach((item, index) => {
                     const newElement = showHighlight(item, pdf);
                     if (index === 0) {
                         rectElement = newElement;
-                        copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
+                        copyAnno(appendPdfAnnotationId(pdf.appConfig.file.replace(location.origin, "").substr(1),
+                            rectElement.getAttribute("data-node-id")),
                             pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
                     }
                 });
@@ -154,26 +428,15 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
             const type = target.getAttribute("data-type");
             if (target.classList.contains("color__square")) {
                 const color = target.style.backgroundColor;
-                window.siyuan.storage[Constants.LOCAL_PDFTHEME].annoColor = color;
-                setStorageVal(Constants.LOCAL_PDFTHEME, window.siyuan.storage[Constants.LOCAL_PDFTHEME]);
+                void patchAppearancePreference("pdfTheme.annoColor", color);
                 if (rectElement) {
                     const config = getConfig(pdf);
                     const annoItem = config[rectElement.getAttribute("data-node-id")];
                     annoItem.color = color;
-                    element.querySelectorAll(`.pdf__rect[data-node-id="${rectElement.getAttribute("data-node-id")}"]`).forEach(rectItem => {
-                        Array.from(rectItem.children).forEach((item: HTMLElement) => {
-                            item.style.border = "2px solid " + color;
-                            if (annoItem.type === "text") {
-                                item.style.backgroundColor = color;
-                            } else {
-                                item.style.backgroundColor = "transparent";
-                            }
-                        });
+                    getRectElementsByNodeId(element, rectElement.getAttribute("data-node-id")).forEach(rectItem => {
+                        rectItem.style.setProperty("--pdf-annotation-color", color);
                     });
-                    fetchPost("/api/asset/setFileAnnotation", {
-                        path: pdf.appConfig.file.replace(location.origin, "").substr(1) + ".sya",
-                        data: JSON.stringify(config),
-                    });
+                    saveConfig(pdf, config);
                 } else {
                     const coords = getHightlightCoordsByRange(pdf, color);
                     if (coords) {
@@ -181,7 +444,8 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
                             const newElement = showHighlight(item, pdf);
                             if (index === 0) {
                                 rectElement = newElement;
-                                copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
+                                copyAnno(appendPdfAnnotationId(pdf.appConfig.file.replace(location.origin, "").substr(1),
+                                    rectElement.getAttribute("data-node-id")),
                                     pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
                             }
                         });
@@ -199,17 +463,8 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
                 processed = true;
                 break;
             } else if (type === "remove") {
-                const urlPath = pdf.appConfig.file.replace(location.origin, "").substr(1);
-                const config = getConfig(pdf);
                 const id = rectElement.getAttribute("data-node-id");
-                delete config[id];
-                element.querySelectorAll(`[data-node-id="${id}"]`).forEach(item => {
-                    item.remove();
-                });
-                fetchPost("/api/asset/setFileAnnotation", {
-                    path: urlPath + ".sya",
-                    data: JSON.stringify(config),
-                });
+                removeAnno(pdf, element, id);
                 hideToolbar(element);
                 event.preventDefault();
                 event.stopPropagation();
@@ -217,7 +472,8 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
                 break;
             } else if (type === "copy") {
                 hideToolbar(element);
-                copyAnno(`${pdf.appConfig.file.replace(location.origin, "").substr(1)}/${rectElement.getAttribute("data-node-id")}`,
+                copyAnno(appendPdfAnnotationId(pdf.appConfig.file.replace(location.origin, "").substr(1),
+                    rectElement.getAttribute("data-node-id")),
                     pdf.appConfig.file.replace(location.origin, "").substr(8).replace(/-\d{14}-\w{7}.pdf$/, ""), pdf);
                 event.preventDefault();
                 event.stopPropagation();
@@ -238,19 +494,10 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
                 } else {
                     annoItem.type = "border";
                 }
-                element.querySelectorAll(`.pdf__rect[data-node-id="${rectElement.getAttribute("data-node-id")}"]`).forEach(rectItem => {
-                    Array.from(rectItem.children).forEach((item: HTMLElement) => {
-                        if (annoItem.type === "text") {
-                            item.style.backgroundColor = item.style.border.replace("2px solid ", "");
-                        } else {
-                            item.style.backgroundColor = "";
-                        }
-                    });
+                getRectElementsByNodeId(element, rectElement.getAttribute("data-node-id")).forEach(rectItem => {
+                    rectItem.dataset.type = annoItem.type;
                 });
-                fetchPost("/api/asset/setFileAnnotation", {
-                    path: pdf.appConfig.file.replace(location.origin, "").substr(1) + ".sya",
-                    data: JSON.stringify(config),
-                });
+                saveConfig(pdf, config);
                 event.preventDefault();
                 event.stopPropagation();
                 processed = true;
@@ -264,21 +511,23 @@ export const initAnno = (element: HTMLElement, pdf: any) => {
             return;
         }
 
-        setTimeout(() => {
-            let isShow = false;
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                if (range.toString() !== "" &&
-                    hasClosestByClassName(range.commonAncestorContainer, "pdfViewer")) {
-                    showToolbar(element, range);
-                    isShow = true;
-                }
-            }
-            if (!isShow) {
-                hideToolbar(element);
-            }
-        });
+        scheduleSelectionToolbar(true);
+    };
+    pdfElement.addEventListener("click", pdfClick);
+    registerAnnoCleanup(element, () => {
+        isAnnoDestroyed = true;
+        if (typeof selectionToolbarTimer !== "undefined") {
+            window.clearTimeout(selectionToolbarTimer);
+            selectionToolbarTimer = undefined;
+        }
+        activePointerCancel?.();
+        rectAnnoElement.removeEventListener("click", rectToolbarClick);
+        pdfConfig.mainContainer.removeEventListener("pointerdown", rectCreatePointerDown);
+        pdfElement.removeEventListener("pointerdown", rectChangePointerDown, true);
+        pdfElement.removeEventListener("pointerup", pdfPointerSelectionEnd);
+        pdfElement.removeEventListener("pointercancel", pdfPointerSelectionEnd);
+        pdfElement.removeEventListener("click", pdfClick);
+        setRectCreationMode(false);
     });
     return pdf;
 };
@@ -289,14 +538,25 @@ const getRelationHTML = (ids: string[]) => {
     }
     let html = "";
     ids.forEach((id: string) => {
-        html += `<li data-id="${id}" class="popover__block b3-list-item b3-list-item--narrow b3-list-item--hide-action">
-    <span class="b3-list-item__text">${id}</span>
+        html += `<li data-id="${escapeAttr(id)}" class="popover__block b3-list-item b3-list-item--narrow b3-list-item--hide-action">
+    <span class="b3-list-item__text">${escapeHtml(id)}</span>
     <span data-type="clear" class="b3-tooltips b3-tooltips__w b3-list-item__action" aria-label="${window.siyuan.languages.delete}">
         <svg><use xlink:href="#iconTrashcan"></use></svg>
     </span>
 </li>`;
     });
     return html;
+};
+
+const getRectElementsByNodeId = (element: HTMLElement, id: string | null) => {
+    // 通过属性值比较而非 CSS 选择器插值，避免 .sya 中的 ID 破坏选择器 https://github.com/siyuan-note/siyuan/security/advisories/GHSA-fqpw-c3pj-w8g9
+    const results: HTMLElement[] = [];
+    element.querySelectorAll("[data-node-id]").forEach(item => {
+        if (item.getAttribute("data-node-id") === id) {
+            results.push(item as HTMLElement);
+        }
+    });
+    return results;
 };
 
 const setRelation = (pdf: any) => {
@@ -334,10 +594,7 @@ const setRelation = (pdf: any) => {
     };
 
     const updateRelation = (pdf: any, config: any) => {
-        fetchPost("/api/asset/setFileAnnotation", {
-            path: pdf.appConfig.file.replace(location.origin, "").substr(1) + ".sya",
-            data: JSON.stringify(config),
-        });
+        saveConfig(pdf, config);
     };
 
     const inputElement = dialog.element.querySelector(".b3-text-field") as HTMLInputElement;
@@ -371,11 +628,20 @@ const setRelation = (pdf: any) => {
 };
 
 const hideToolbar = (element: HTMLElement) => {
+    hideToolbarMenu(element);
+    hideRectResizeHandles(element);
+};
+
+const hideToolbarMenu = (element: HTMLElement) => {
     element.querySelector(".pdf__util").classList.add("fn__none");
 };
 
+const isRectAnnotationElement = (element: HTMLElement) =>
+    isPdfRectAnnotation(element.dataset.mode, element.childElementCount, element.dataset.content);
+
 let rectElement: HTMLElement;
 const showToolbar = (element: HTMLElement, range: Range, target?: HTMLElement) => {
+    hideRectResizeHandles(element);
     if (target) {
         // 阻止 popover
         target.setAttribute("prevent-popover", "true");
@@ -391,14 +657,35 @@ const showToolbar = (element: HTMLElement, range: Range, target?: HTMLElement) =
         utilElement.classList.add("pdf__util--hide");
         const rects = range.getClientRects();
         const rect = rects[rects.length - 1];
+        if (!rect) {
+            utilElement.classList.add("fn__none");
+            return false;
+        }
         setPosition(utilElement, rect.left, rect.bottom);
         rectElement = null;
-        return;
+        return true;
     }
     rectElement = target;
+    if (isRectAnnotationElement(target)) {
+        target.classList.add("pdf__rect--selected");
+        const annotationElement = target.firstElementChild as HTMLElement;
+        ["nw", "ne", "sw", "se"].forEach(corner => {
+            const handle = document.createElement("span");
+            handle.className = `pdf__rect-resize pdf__rect-resize--${corner}`;
+            annotationElement.append(handle);
+        });
+        const targetRect = annotationElement.getBoundingClientRect();
+        annotationElement.querySelectorAll(".pdf__rect-resize").forEach((item: HTMLElement) => {
+            const handleRect = item.getBoundingClientRect();
+            const vertical = handleRect.top + handleRect.height / 2 < targetRect.top + targetRect.height / 2 ? "n" : "s";
+            const horizontal = handleRect.left + handleRect.width / 2 < targetRect.left + targetRect.width / 2 ? "w" : "e";
+            item.dataset.direction = vertical + horizontal;
+        });
+    }
     utilElement.classList.remove("pdf__util--hide");
     const targetRect = target.firstElementChild.getBoundingClientRect();
-    setPosition(utilElement, targetRect.left, targetRect.top + targetRect.height + 4);
+    setPosition(utilElement, targetRect.left, targetRect.bottom + 4, targetRect.height + 8);
+    return true;
 };
 
 const getTextNode = (element: HTMLElement, isFirst: boolean) => {
@@ -432,25 +719,7 @@ const getHightlightCoordsByRange = (pdf: any, color: string) => {
         return;
     }
     const endIndex = parseInt(endPageElement.getAttribute("data-page-number")) - 1;
-    // https://github.com/siyuan-note/siyuan/issues/5213
-    const rangeContents = range.cloneContents();
-    Array.from(rangeContents.children).forEach(item => {
-        if (item.tagName === "BR" && item.previousElementSibling && item.nextElementSibling) {
-            const previousText = item.previousElementSibling.textContent;
-            const nextText = item.nextElementSibling.textContent;
-            if (/^[A-Za-z]$/.test(previousText.substring(previousText.length - 2, previousText.length - 1)) &&
-                /^[A-Za-z]$/.test(nextText.substring(0, 1))) {
-                if (previousText.endsWith("-")) {
-                    item.previousElementSibling.textContent = previousText.substring(0, previousText.length - 1);
-                } else {
-                    // 中文情况不能添加 https://github.com/siyuan-note/siyuan/issues/8152
-                    item.insertAdjacentText("afterend", " ");
-                }
-            }
-        }
-    });
-    // eslint-disable-next-line no-control-regex
-    const content = Lute.EscapeHTMLStr(rangeContents.textContent.replace(/[\x00]|\n/g, ""));
+    const content = escapeHtmlTextAndAttr(getPdfSelectionText(range));
     const startPage = pdf.pdfViewer.getPageView(startIndex);
     const startPageRect = startPage.canvas.getClientRects()[0];
     const startViewport = startPage.viewport;
@@ -460,35 +729,22 @@ const getHightlightCoordsByRange = (pdf: any, color: string) => {
         range.setEndAfter(getTextNode(startPage.textLayer.div, false));
     }
 
-    const startSelected: number[] = [];
-    mergeRects(range).forEach(function (r) {
-        startSelected.push(
-            startViewport.convertToPdfPoint(r.left - startPageRect.x,
-                r.top - startPageRect.y).concat(startViewport.convertToPdfPoint(r.right - startPageRect.x,
-                r.bottom - startPageRect.y)),
-        );
-    });
+    const startSelected = getTextAnnotationCoords(range, startViewport, startPageRect);
 
-    const endSelected: number[] = [];
+    let endSelected: number[][] = [];
     if (startIndex !== endIndex) {
         focusByRange(cloneRange);
         const endPage = pdf.pdfViewer.getPageView(endIndex);
         const endPageRect = endPage.canvas.getClientRects()[0];
         const endViewport = endPage.viewport;
         cloneRange.setStart(getTextNode(endPage.textLayer.div, true), 0);
-        mergeRects(cloneRange).forEach(function (r) {
-            endSelected.push(
-                endViewport.convertToPdfPoint(r.left - endPageRect.x,
-                    r.top - endPageRect.y).concat(endViewport.convertToPdfPoint(r.right - endPageRect.x,
-                    r.bottom - endPageRect.y)),
-            );
-        });
+        endSelected = getTextAnnotationCoords(cloneRange, endViewport, endPageRect);
     }
 
     const id = Lute.NewNodeID();
     const pages: {
         index: number
-        positions: number[]
+        positions: number[][]
     }[] = [];
     const results = [];
     if (startSelected.length > 0) {
@@ -547,7 +803,7 @@ const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: H
 
     const pages: {
         index: number
-        positions: number[]
+        positions: number[][]
     }[] = [
         {
             index: startPage.id - 1,
@@ -606,25 +862,18 @@ const getHightlightCoordsByRect = (pdf: any, color: string, rectResizeElement: H
     return result;
 };
 
-const mergeRects = (range: Range) => {
-    const rects = range.getClientRects();
-    const mergedRects: { left: number, top: number, right: number, bottom: number }[] = [];
-    let lastTop: number = undefined;
-    Array.from(rects).forEach(item => {
-        if (item.height === 0 || item.width === 0) {
-            return;
-        }
-        if (typeof lastTop === "undefined" || Math.abs(lastTop - item.top) > 4) {
-            mergedRects.push({left: item.left, top: item.top, right: item.right, bottom: item.bottom});
-            lastTop = item.top;
-        } else {
-            mergedRects[mergedRects.length - 1].right = item.right;
-        }
-    });
-    return mergedRects;
-};
+const getTextAnnotationCoords = (range: Range, viewport: any, pageRect: DOMRect) =>
+    mergePdfTextAnnotationRects(Array.from(range.getClientRects())
+        .filter(rect => rect.width > 0 && rect.height > 0)
+        .map(rect => viewport.convertToPdfPoint(rect.left - pageRect.x, rect.top - pageRect.y)
+            .concat(viewport.convertToPdfPoint(rect.right - pageRect.x, rect.bottom - pageRect.y))));
 
 export const getPdfInstance = (element: HTMLElement) => {
+    const registeredInstance = getRegisteredPdfInstance(element);
+    if (registeredInstance) {
+        return registeredInstance;
+    }
+
     let pdfInstance;
     getAllModels().asset.find(item => {
         if (item.pdfObject && element && item.element && typeof item.element.contains !== "undefined" && item.element.contains(element)) {
@@ -637,9 +886,11 @@ export const getPdfInstance = (element: HTMLElement) => {
 
 export const getHighlight = (element: HTMLElement) => {
     const pdfInstance: any = getPdfInstance(element);
-    if (!pdfInstance) {
+    // 未引用资源预览仍注册实例以支持键盘操作，但不访问批注文件。
+    if (!pdfInstance || pdfInstance.appConfig.previewOnly) {
         return;
     }
+    element.parentElement.querySelector(":scope > .pdf__rects")?.remove();
     const pageIndex = parseInt(
         element.parentElement.getAttribute("data-page-number")) - 1;
     const config = getConfig(pdfInstance);
@@ -675,38 +926,73 @@ const showHighlight = (selected: IPdfAnno, pdf: any, hl?: boolean) => {
     }
 
     const viewport = page.viewport.clone({rotation: 0}); // rotation https://github.com/siyuan-note/siyuan/issues/9831
-    let rectsElement = textLayerElement.querySelector(".pdf__rects");
+    const pageElement = textLayerElement.parentElement;
+    let rectsElement = pageElement.querySelector(":scope > .pdf__rects") as HTMLElement;
     if (!rectsElement) {
-        textLayerElement.insertAdjacentHTML("beforeend", "<div class='pdf__rects'></div>");
-        rectsElement = textLayerElement.querySelector(".pdf__rects");
+        rectsElement = document.createElement("div");
+        rectsElement.className = "pdf__rects";
+        pageElement.append(rectsElement);
     }
-    let html = `<div class="pdf__rect popover__block" data-node-id="${selected.id}" data-relations="${selected.ids || ""}" data-mode="${selected.mode}">`;
-    selected.coords.forEach((rect) => {
-        const bounds = viewport.convertToViewportRectangle(rect);
-        const width = Math.abs(bounds[0] - bounds[2]);
-        if (width <= 0) {
+    rectsElement.style.width = textLayerElement.style.width;
+    rectsElement.style.height = textLayerElement.style.height;
+    rectsElement.style.transform = textLayerElement.style.transform;
+    const mainRotation = textLayerElement.getAttribute("data-main-rotation");
+    if (mainRotation) {
+        rectsElement.setAttribute("data-main-rotation", mainRotation);
+    } else {
+        rectsElement.removeAttribute("data-main-rotation");
+    }
+    // 使用 setAttribute 构建元素，避免将 .sya 中的数据拼接到 HTML 中 https://github.com/siyuan-note/siyuan/security/advisories/GHSA-fqpw-c3pj-w8g9
+    const rectDiv = document.createElement("div");
+    const isRectAnnotation = isPdfRectAnnotation(selected.mode, selected.coords.length, selected.content);
+    rectDiv.className = "pdf__rect popover__block";
+    rectDiv.setAttribute("data-node-id", selected.id);
+    rectDiv.setAttribute("data-relations", selected.ids ? selected.ids.join(",") : "");
+    rectDiv.setAttribute("data-mode", isRectAnnotation ? "rect" : (selected.mode || "text"));
+    rectDiv.setAttribute("data-type", selected.type);
+    rectDiv.style.setProperty("--pdf-annotation-color", selected.color);
+    // 旧标注只在显示时合并矩形，保留文件中的原始坐标和矩形框选标注。
+    const coords = isRectAnnotation ? selected.coords : mergePdfTextAnnotationRects(selected.coords);
+    coords.forEach((rect) => {
+        const rectChild = document.createElement("div");
+        if (!setRectPosition(rectChild, page, rect, viewport)) {
             return;
         }
-        let style = `border: 2px solid ${selected.color};background-color: ${selected.color};`;
-        if (selected.type === "border") {
-            style = `border: 2px solid ${selected.color};`;
-        }
-        html += `<div style="${style}
-left:${Math.min(bounds[0], bounds[2])}px;
-top:${Math.min(bounds[1], bounds[3])}px;
-width:${width}px;
-height: ${Math.abs(bounds[1] - bounds[3])}px"></div>`;
+        rectDiv.append(rectChild);
     });
-    rectsElement.insertAdjacentHTML("beforeend", html + "</div>");
-    rectsElement.lastElementChild.setAttribute("data-content", selected.content);
+    rectDiv.setAttribute("data-content", selected.content);
+    if (isRectAnnotation) {
+        rectDiv.style.touchAction = "none";
+        Array.from(rectDiv.children).forEach((rectChild: HTMLElement) => {
+            ["n", "e", "s", "w"].forEach(direction => {
+                const edge = document.createElement("span");
+                edge.className = `pdf__rect-edge pdf__rect-edge--${direction}`;
+                rectChild.append(edge);
+            });
+        });
+    }
+    rectsElement.append(rectDiv);
     if (hl) {
         hlPDFRect(rectsElement, selected.id);
     }
-    return rectsElement.lastElementChild;
+    return rectDiv;
+};
+
+const setRectPosition = (element: HTMLElement, page: any, rect: number[], viewport = page.viewport.clone({rotation: 0})) => {
+    const bounds = pdfRectToViewport(viewport, rect);
+    const width = Math.abs(bounds[0] - bounds[2]);
+    if (width <= 0) {
+        return false;
+    }
+    element.style.left = `${Math.min(bounds[0], bounds[2])}px`;
+    element.style.top = `${Math.min(bounds[1], bounds[3])}px`;
+    element.style.width = `${width}px`;
+    element.style.height = `${Math.abs(bounds[1] - bounds[3])}px`;
+    return true;
 };
 
 export const hlPDFRect = (element: HTMLElement, id: string) => {
-    element.querySelectorAll(`.pdf__rect[data-node-id="${id}"]`).forEach(item => {
+    getRectElementsByNodeId(element, id).forEach(item => {
         if (item && item.firstElementChild) {
             const scrollElement = hasClosestByAttribute(item, "id", "viewerContainer");
             if (scrollElement) {
@@ -728,32 +1014,88 @@ export const hlPDFRect = (element: HTMLElement, id: string) => {
     });
 };
 
-const copyAnno = (idPath: string, fileName: string, pdf: any) => {
-    const mode = rectElement.getAttribute("data-mode");
-    const content = rectElement.getAttribute("data-content");
-    setTimeout(() => {
+const copyAnno = (idPath: string, fileName: string, pdf: any, annotationElement = rectElement, automatic = false) => {
+    const request = {};
+    rectCopyRequests.set(annotationElement, request);
+    const pdfDocument = pdf.pdfDocument;
+    // 复制过程跨越计时器和异步截图，关闭或替换阅读器后不再访问页面及写入剪贴板。
+    const isActive = () => !pdf._destroyed && pdf.pdfDocument === pdfDocument &&
+        annotationElement.isConnected && rectCopyRequests.get(annotationElement) === request;
+    const canCopy = async () => {
+        if (!isActive()) {
+            return false;
+        }
+        if (!automatic) {
+            return true;
+        }
+        try {
+            const text = await readText(true);
+            return isActive() &&
+                typeof text === "string" && text.startsWith(`<<${idPath} `);
+        } catch (error) {
+            return false;
+        }
+    };
+    const mode = annotationElement.getAttribute("data-mode");
+    const content = annotationElement.getAttribute("data-content");
+    const pageElement = hasClosestByClassName(annotationElement, "page");
+    const pageIndex = pageElement ? parseInt(pageElement.getAttribute("data-page-number")) - 1 : -1;
+    const annotation = getConfig(pdf)?.[annotationElement.getAttribute("data-node-id")] as IPdfAnno;
+    const positions = annotation?.pages?.find(item => item.index === pageIndex)?.positions;
+    const positionHash = positions ? md5(JSON.stringify(positions)).substring(0, 7) : "";
+    const position = positions?.[0];
+    const initialCopyCheck = canCopy();
+    setTimeout(async () => {
+        if (!await initialCopyCheck || !await canCopy()) {
+            return;
+        }
         if (mode === "rect" ||
-            (mode === "" && rectElement.childElementCount === 1 && content.startsWith(fileName)) // 兼容历史，以前没有 mode
+            (mode === "" && annotationElement.childElementCount === 1 && content.startsWith(fileName)) // 兼容历史，以前没有 mode
         ) {
-            getRectImgData(pdf).then((imageData) => {
-                fetch(imageData.url).then((response) => {
-                    return response.blob();
-                }).then((blob) => {
-                    let msg = "";
-                    if (Constants.SIZE_UPLOAD_TIP_SIZE <= blob.size) {
-                        msg = window.siyuan.languages.uploadFileTooLarge.replace("${x}", content + ".png").replace("${y}", filesize(blob.size, {standard: "iec"}));
+            if (!position || pageIndex < 0) {
+                return;
+            }
+            getRectImgData(pdf, pageIndex + 1, position).then(async (imageData) => {
+                if (!await canCopy()) {
+                    return;
+                }
+                let msg = "";
+                if (!automatic && Constants.SIZE_UPLOAD_TIP_SIZE <= imageData.blob.size) {
+                    msg = window.siyuan.languages.uploadFileTooLarge.replace("${x}", content + ".png")
+                        .replace("${y}", filesize(imageData.blob.size, {standard: "iec"}));
+                }
+                confirmDialog(msg ? window.siyuan.languages.upload : "", msg, async () => {
+                    if (!await canCopy()) {
+                        return;
                     }
-                    confirmDialog(msg ? window.siyuan.languages.upload : "", msg, () => {
-                        const formData = new FormData();
-                        const imageName = content.substring(0, content.length - 22) + (imageData.rotation ? `${imageData.rotation}-` : "") + content.substring(content.length - 22) + ".png";
-                        formData.append("file[]", blob, imageName);
-                        formData.append("skipIfDuplicated", "true");
-                        fetchPost(Constants.UPLOAD_ADDRESS, formData, (response) => {
+                    const imageName = getRectImageName(content, imageData.rotation, positionHash,
+                        PDF_RECT_CAPTURE_PROFILE);
+                    const assetsDirPath = getPdfAnnotationAssetsDirPath(pdf.appConfig.file, location.origin);
+                    if (assetsDirPath === null) {
+                        return;
+                    }
+                    void uploadStandaloneAssetFiles([
+                        new File([imageData.blob], imageName, {type: imageData.blob.type}),
+                    ], {
+                        source: "programmatic",
+                        target: "pdf-annotation",
+                        requiredFileCount: 1,
+                        extraData: {
+                            skipIfDuplicated: "true",
+                            ...(assetsDirPath ? {assetsDirPath} : {}),
+                        },
+                    }).then(async response => {
+                        const path = getAssetUploadSuccesses(response?.data)[0]?.path;
+                        if (path && await canCopy()) {
                             writeText(`<<${idPath} "${content}">>
-![](${response.data.succMap[imageName]})`);
-                        });
+![](${path}){: style="width: ${imageData.displayWidth}px;"}`);
+                        }
                     });
                 });
+            }).catch((error) => {
+                if (isActive()) {
+                    console.error(error);
+                }
             });
         } else {
             writeText(`<<${idPath} "${content}">>`);
@@ -761,92 +1103,130 @@ const copyAnno = (idPath: string, fileName: string, pdf: any) => {
     }, Constants.TIMEOUT_DBLCLICK);
 };
 
-async function getRectImgData(pdfObj: any) {
-    const pageElement = hasClosestByClassName(rectElement, "page");
-    if (!pageElement) {
-        return;
-    }
-
-    const pageNumber = parseInt(pageElement.getAttribute("data-page-number"));
+async function getRectImgData(pdfObj: any, pageNumber: number, position: number[]) {
     const pageView = pdfObj.pdfViewer.getPageView(pageNumber - 1);
     if (!pageView) {
-        return;
+        throw new Error(`PDF page view ${pageNumber} is unavailable`);
     }
-
-    // PDF 截图时的缩放倍数，用于提高截图清晰度
-    const CAPTURE_SCALE_RATIO = 1.5;
 
     const pdfPage = await pdfObj.pdfDocument.getPage(pageNumber);
-    const captureViewport = pdfPage.getViewport({
-        scale: pdfObj.pdfViewer.currentScale * window.pdfjsLib.PixelsPerInch.PDF_TO_CSS_UNITS * CAPTURE_SCALE_RATIO,
-        rotation: 0
+    const totalRotation = ((pageView.rotation + pageView.pdfPageRotate) % 360 + 360) % 360;
+    const targetViewport = pdfPage.getViewport({
+        scale: PDF_RECT_CAPTURE_SCALE,
+        rotation: totalRotation,
     });
-    const captureCanvas = document.createElement("canvas");
-    captureCanvas.width = Math.floor(captureViewport.width);
-    captureCanvas.height = Math.floor(captureViewport.height);
-
-    const captureCtx = captureCanvas.getContext("2d");
-    await pdfPage.render({
-        canvasContext: captureCtx,
-        viewport: captureViewport
-    }).promise;
-
-    const rectStyle = (rectElement.firstElementChild as HTMLElement).style;
-    const captureImageData = captureCtx.getImageData(
-        CAPTURE_SCALE_RATIO * parseFloat(rectStyle.left),
-        CAPTURE_SCALE_RATIO * parseFloat(rectStyle.top),
-        CAPTURE_SCALE_RATIO * parseFloat(rectStyle.width),
-        CAPTURE_SCALE_RATIO * parseFloat(rectStyle.height)
-    );
-
-    const resultCanvas = document.createElement("canvas");
-    resultCanvas.width = captureImageData.width;
-    resultCanvas.height = captureImageData.height;
-    // 页面实际旋转角度 = 用户旋转 + PDF 本身旋转
-    const totalRotation = (pageView.rotation + pageView.pdfPageRotate) % 360;
-    const resultCtx = resultCanvas.getContext("2d");
-    if (totalRotation === 0) {
-        resultCtx.putImageData(captureImageData, 0, 0);
-    } else {
-        // 交换宽高
-        if (totalRotation === 90 || totalRotation === 270) {
-            [resultCanvas.width, resultCanvas.height] = [resultCanvas.height, resultCanvas.width];
-        }
-        resultCtx.translate(resultCanvas.width / 2, resultCanvas.height / 2);
-        resultCtx.rotate((totalRotation * Math.PI) / 180);
-        // 在旋转后的画布坐标系上绘制图片
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = captureImageData.width;
-        tempCanvas.height = captureImageData.height;
-        const tempCtx = tempCanvas.getContext("2d");
-        tempCtx.putImageData(captureImageData, 0, 0);
-        resultCtx.drawImage(tempCanvas, -tempCanvas.width / 2, -tempCanvas.height / 2);
+    const targetRect = pdfRectToViewport(targetViewport, position);
+    const captureScale = getLimitedCaptureScale(targetRect);
+    if (captureScale <= 0) {
+        throw new Error("PDF rectangle annotation has invalid coordinates");
     }
 
-    return {url: resultCanvas.toDataURL(), rotation: totalRotation};
+    const viewport = pdfPage.getViewport({scale: captureScale, rotation: totalRotation});
+    const captureBounds = getCaptureCanvasBounds(pdfRectToViewport(viewport, position));
+    const captureViewport = pdfPage.getViewport({
+        scale: captureScale,
+        rotation: totalRotation,
+        offsetX: -captureBounds.left,
+        offsetY: -captureBounds.top,
+    });
+    const captureCanvas = document.createElement("canvas");
+    captureCanvas.width = captureBounds.width;
+    captureCanvas.height = captureBounds.height;
+
+    const captureCtx = captureCanvas.getContext("2d");
+    if (!captureCtx) {
+        throw new Error("Unable to create a canvas context for the PDF rectangle annotation");
+    }
+    await pdfPage.render({
+        canvasContext: captureCtx,
+        viewport: captureViewport,
+    }).promise;
+
+    const displayViewport = pdfPage.getViewport({scale: PDF_RECT_DISPLAY_SCALE, rotation: totalRotation});
+    const displayWidth = Math.min(
+        getCaptureDisplayWidth(pdfRectToViewport(displayViewport, position)),
+        captureBounds.width,
+    );
+    const blob = await new Promise<Blob>((resolve, reject) => {
+        captureCanvas.toBlob((result) => {
+            if (result) {
+                resolve(result);
+            } else {
+                reject(new Error("Unable to encode the PDF rectangle annotation"));
+            }
+        }, "image/png");
+    });
+    return {blob, rotation: totalRotation, displayWidth};
 }
+
+const removeAnno = (pdf: any, element: HTMLElement, id: string) => {
+    const file = pdf.appConfig.file;
+    const isCurrent = () => element.isConnected && getRegisteredPdfInstance(element) === pdf && pdf.appConfig.file === file;
+    const remove = () => {
+        if (!isCurrent()) {
+            return;
+        }
+        const config = getConfig(pdf);
+        if (!config?.[id]) {
+            return;
+        }
+        delete config[id];
+        getRectElementsByNodeId(element, id).forEach(item => {
+            item.remove();
+        });
+        saveConfig(pdf, config);
+    };
+    fetchPost("/api/block/getRefIDsByFileAnnotationID", {
+        id,
+        notebook: new URL(file, location.origin).searchParams.get("box") || "",
+    }, (response) => {
+        if (response.code !== 0 || !isCurrent()) {
+            return;
+        }
+        const count = response.data.refDefs.length;
+        if (count > 0) {
+            confirmDialog(window.siyuan.languages.deleteOpConfirm,
+                window.siyuan.languages.pdfAnnotationDeleteRefConfirm.replace("${x}", count.toString()), remove,
+                undefined, true);
+        } else {
+            remove();
+        }
+    });
+};
 
 const setConfig = (pdf: any, id: string, data: IPdfAnno) => {
     const config = getConfig(pdf);
     config[id] = data;
-    fetchPost("/api/asset/setFileAnnotation", {
-        path: pdf.appConfig.file.replace(location.origin, "").substr(1) + ".sya",
-        data: JSON.stringify(config),
-    });
+    saveConfig(pdf, config);
 };
 
 const getConfig = (pdf: any) => {
     if (pdf.appConfig.config) {
+        getAnnotationSaveQueue(pdf, pdf.appConfig.config);
         return pdf.appConfig.config;
     }
-    const urlPath = pdf.appConfig.file.replace(location.origin, "").substr(1) + ".sya";
+    const file = pdf.appConfig.file;
+    const urlPath = file.replace(location.origin, "").substr(1) + ".sya";
     fetchPost("/api/asset/getFileAnnotation", {
         path: urlPath,
     }, (response) => {
-        let config = {};
-        if (response.code !== 1) {
-            config = JSON.parse(response.data.data);
+        if (pdf.appConfig.file !== file || pdf.appConfig.config || (response.code !== 0 && response.code !== 1)) {
+            return;
+        }
+        let config: Record<string, IPdfAnno> = {};
+        if (response.code === 0) {
+            try {
+                config = JSON.parse(response.data.data);
+            } catch (e) {
+                showMessage(window.siyuan.languages.pdfAnnotationSaveFailed, 0, "error");
+                return;
+            }
+        }
+        if (!config || typeof config !== "object" || Array.isArray(config)) {
+            showMessage(window.siyuan.languages.pdfAnnotationSaveFailed, 0, "error");
+            return;
         }
         pdf.appConfig.config = config;
+        getAnnotationSaveQueue(pdf, config);
     });
 };

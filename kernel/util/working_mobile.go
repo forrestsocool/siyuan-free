@@ -1,40 +1,29 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package util
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/88250/gulu"
 	figure "github.com/common-nighthawk/go-figure"
-	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
 )
 
 func BootMobile(container, appDir, workspaceBaseDir, lang string) {
-	IncBootProgress(3, "Booting kernel...")
+	IncBootProgress(3, BootL10n(299, "Booting kernel..."))
 	initMime()
 	initHttpClient()
 	ServerPort = FixedPort
 	Container = container
-	filelock.Container = Container
 	UserAgent = UserAgent + " " + Container + "/" + runtime.GOOS
 	httpclient.SetUserAgent(UserAgent)
 	Lang = lang
@@ -61,51 +50,14 @@ func BootMobile(container, appDir, workspaceBaseDir, lang string) {
 
 	initPathDir()
 	bootBanner := figure.NewFigure("SiYuan", "", true)
-	logging.LogInfof("\n" + bootBanner.String())
+	logging.LogInfo("\n" + bootBanner.String())
 	logBootInfo()
 }
 
 func initWorkspaceDirMobile(workspaceBaseDir string) {
-	if gulu.File.IsDir(workspaceBaseDir) {
-		entries, err := os.ReadDir(workspaceBaseDir)
-		if err != nil {
-			logging.LogErrorf("read workspace dir [%s] failed: %s", workspaceBaseDir, err)
-		} else {
-			// 旧版 iOS 端会在 workspaceBaseDir 下直接创建工作空间，这里需要将数据迁移到 workspaceBaseDir/siyuan/ 文件夹下
-			var oldConf, oldData, oldTemp bool
-			for _, entry := range entries {
-				if entry.IsDir() && "conf" == entry.Name() {
-					oldConf = true
-					continue
-				}
-				if entry.IsDir() && "data" == entry.Name() {
-					oldData = true
-					continue
-				}
-				if entry.IsDir() && "temp" == entry.Name() {
-					oldTemp = true
-					continue
-				}
-			}
-			if oldConf && oldData && oldTemp {
-				for _, entry := range entries {
-					if "home" == entry.Name() || "siyuan" == entry.Name() {
-						continue
-					}
-
-					from := filepath.Join(workspaceBaseDir, entry.Name())
-					to := filepath.Join(workspaceBaseDir, "siyuan", entry.Name())
-					if err = os.Rename(from, to); err != nil {
-						logging.LogErrorf("move workspace dir [%s] failed: %s", workspaceBaseDir, err)
-					} else {
-						logging.LogInfof("moved workspace dir [fomr=%s, to=%s]", from, to)
-					}
-				}
-
-				os.RemoveAll(filepath.Join(workspaceBaseDir, "sync"))
-				os.RemoveAll(filepath.Join(workspaceBaseDir, "backup"))
-			}
-		}
+	migrated, err := migrateLegacyIOSWorkspace(workspaceBaseDir)
+	if err != nil {
+		logging.LogErrorf("migrate legacy iOS workspace [%s] failed: %s", workspaceBaseDir, err)
 	}
 
 	userHomeConfDir := filepath.Join(HomeDir, ".config", "siyuan")
@@ -123,6 +75,9 @@ func initWorkspaceDirMobile(workspaceBaseDir string) {
 		workspacePaths = append(workspacePaths, WorkspaceDir)
 	} else {
 		workspacePaths, _ = ReadWorkspacePaths()
+		if migrated {
+			workspacePaths = replaceLegacyIOSWorkspacePath(workspacePaths, workspaceBaseDir, defaultWorkspaceDir)
+		}
 
 		if 0 < len(workspacePaths) {
 			WorkspaceDir = workspacePaths[len(workspacePaths)-1]
@@ -148,6 +103,7 @@ func initWorkspaceDirMobile(workspaceBaseDir string) {
 	RepoDir = filepath.Join(WorkspaceDir, "repo")
 	HistoryDir = filepath.Join(WorkspaceDir, "history")
 	TempDir = filepath.Join(WorkspaceDir, "temp")
+	QueueDir = filepath.Join(TempDir, "queue")
 	osTmpDir := filepath.Join(TempDir, "os")
 	os.RemoveAll(osTmpDir)
 	if err := os.MkdirAll(osTmpDir, 0755); err != nil {
@@ -166,9 +122,95 @@ func initWorkspaceDirMobile(workspaceBaseDir string) {
 	ShortcutsPath = filepath.Join(userHomeConfDir, "shortcuts")
 
 	AppearancePath = filepath.Join(ConfDir, "appearance")
-	ThemesPath = filepath.Join(AppearancePath, "themes")
-	IconsPath = filepath.Join(AppearancePath, "icons")
+	ThemesPath = filepath.Join(DataDir, "themes")
+	IconsPath = filepath.Join(DataDir, "icons")
 
 	LogPath = filepath.Join(TempDir, "siyuan.log")
 	logging.SetLogPath(LogPath)
+}
+
+// 仅迁移工作空间规范定义的目录，保留基目录下的其他工作空间和用户文件。
+var legacyIOSWorkspaceEntries = []string{"conf", "data", "repo", "history", "corrupted", "temp", "sync", "backup"}
+
+type workspaceDirMove struct {
+	from string
+	to   string
+}
+
+func migrateLegacyIOSWorkspace(workspaceBaseDir string) (migrated bool, err error) {
+	if ContainerIOS != Container || !gulu.File.IsDir(workspaceBaseDir) {
+		return false, nil
+	}
+
+	for _, name := range []string{"conf", "data", "temp"} {
+		if !gulu.File.IsDir(filepath.Join(workspaceBaseDir, name)) {
+			return false, nil
+		}
+	}
+
+	defaultWorkspaceDir := filepath.Join(workspaceBaseDir, "siyuan")
+	destinationEntries, readErr := os.ReadDir(defaultWorkspaceDir)
+	if readErr != nil {
+		return false, fmt.Errorf("read destination [%s] failed: %w", defaultWorkspaceDir, readErr)
+	}
+	if 0 < len(destinationEntries) {
+		return false, fmt.Errorf("destination [%s] is not empty", defaultWorkspaceDir)
+	}
+
+	var moves []workspaceDirMove
+	for _, name := range legacyIOSWorkspaceEntries {
+		from := filepath.Join(workspaceBaseDir, name)
+		if _, statErr := os.Lstat(from); statErr != nil {
+			if errors.Is(statErr, fs.ErrNotExist) {
+				continue
+			}
+			return false, fmt.Errorf("stat source [%s] failed: %w", from, statErr)
+		}
+
+		to := filepath.Join(defaultWorkspaceDir, name)
+		if _, statErr := os.Lstat(to); statErr == nil {
+			return false, fmt.Errorf("destination [%s] already exists", to)
+		} else if !errors.Is(statErr, fs.ErrNotExist) {
+			return false, fmt.Errorf("stat destination [%s] failed: %w", to, statErr)
+		}
+		moves = append(moves, workspaceDirMove{from: from, to: to})
+	}
+
+	var completed []workspaceDirMove
+	for _, move := range moves {
+		if renameErr := os.Rename(move.from, move.to); renameErr != nil {
+			var rollbackErrors []error
+			for i := len(completed) - 1; 0 <= i; i-- {
+				completedMove := completed[i]
+				if rollbackErr := os.Rename(completedMove.to, completedMove.from); rollbackErr != nil {
+					rollbackErrors = append(rollbackErrors, fmt.Errorf("rollback [%s] to [%s] failed: %w",
+						completedMove.to, completedMove.from, rollbackErr))
+				}
+			}
+			return false, errors.Join(append([]error{fmt.Errorf("move [%s] to [%s] failed: %w", move.from, move.to, renameErr)}, rollbackErrors...)...)
+		}
+		completed = append(completed, move)
+	}
+
+	for _, move := range completed {
+		logging.LogInfof("moved legacy iOS workspace dir [from=%s, to=%s]", move.from, move.to)
+	}
+	return true, nil
+}
+
+func replaceLegacyIOSWorkspacePath(workspacePaths []string, workspaceBaseDir, defaultWorkspaceDir string) []string {
+	for i, workspacePath := range workspacePaths {
+		if filepath.Clean(workspacePath) == filepath.Clean(workspaceBaseDir) {
+			workspacePaths[i] = defaultWorkspaceDir
+		}
+	}
+	return DeduplicateWorkspacePaths(workspacePaths)
+}
+
+// IsMobileWorkspaceBaseDir 判断路径是否为移动端保留的工作空间基目录。
+func IsMobileWorkspaceBaseDir(path string) bool {
+	if !IsMobileContainer() || "" == path || "" == HomeDir {
+		return false
+	}
+	return filepath.Clean(path) == filepath.Clean(filepath.Dir(HomeDir))
 }

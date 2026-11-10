@@ -6,7 +6,7 @@
 		"id": "20200828105441-r76vmu5",
 		"title": "内核参数",
 		"type": "doc",
-		"updated": "20260302173621"
+		"updated": "20261016112115"
 	},
 	"Children": [
 		{
@@ -15,7 +15,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20201225172241-7rtm3t1",
-				"updated": "20210502162554"
+				"updated": "20261016112115"
 			},
 			"Children": [
 				{
@@ -40,30 +40,82 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20201225172241-yg7dr9h",
-				"updated": "20210502164212"
+				"updated": "20261016112115"
 			},
 			"Children": [
 				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "serve"
+				},
+				{
 					"Type": "NodeText",
-					"Data": "用于指定工作空间文件夹路径，不指定时的默认值是 ",
-					"Properties": {
-						"id": ""
-					}
+					"Data": " 通过 "
 				},
 				{
 					"Type": "NodeTextMark",
-					"Properties": {
-						"id": ""
-					},
 					"TextMarkType": "code",
-					"TextMarkTextContent": "~/SiYuan/"
+					"TextMarkTextContent": "--workspace"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "。",
-					"Properties": {
-						"id": ""
-					}
+					"Data": " 指定工作空间。未指定时依次使用环境变量 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "SIYUAN_WORKSPACE_PATH"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、最后一个已注册工作空间、系统默认目录：macOS 为 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "~/Library/Application Support/SiYuan"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，Windows 为 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "%USERPROFILE%\\SiYuan"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "，其他平台为 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "~/SiYuan"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "--home-dir"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 会改变配置与默认路径使用的用户主目录。普通单次 CLI 命令的选择规则不同，详见 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260612191136-feqbi1x",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "命令行接口"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。"
 				}
 			]
 		},
@@ -73,7 +125,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20201225172241-xmughi5",
-				"updated": "20201225172241"
+				"updated": "20261016112115"
 			},
 			"Children": [
 				{
@@ -98,15 +150,39 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20201225172241-hmpvq05",
-				"updated": "20201225172241"
+				"updated": "20261016112115"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "内核工作目录路径，不指定时按内核可执行文件入口自动获取。",
-					"Properties": {
-						"id": ""
-					}
+					"Data": "包含 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "appearance/"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 和 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "stage/"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 的程序资源目录，未指定时根据内核可执行文件自动查找。它与 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "--workspace"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 指定的数据目录不同。"
 				}
 			]
 		},
@@ -174,7 +250,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20210117224112-8i8ptea",
-				"updated": "20210728171326"
+				"updated": "20261016112115"
 			},
 			"Children": [
 				{
@@ -199,15 +275,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20210117224121-gtdkur4",
-				"updated": "20210117224121"
+				"updated": "20261016112115"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "用于指定浏览器访问",
-					"Properties": {
-						"id": ""
-					}
+					"Data": "用于设置浏览器"
 				},
 				{
 					"Type": "NodeTextMark",
@@ -217,14 +290,47 @@
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20210104090909-20f2hvi",
 					"TextMarkBlockRefSubtype": "s",
-					"TextMarkTextContent": "鉴权密码"
+					"TextMarkTextContent": "锁屏密码"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "，设置后会覆盖 conf.json 中的 authCode。",
-					"Properties": {
-						"id": ""
-					}
+					"Data": "。非空 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "--accessAuthCode"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 会覆盖 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "conf/conf.json"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 中的 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "accessAuthCode"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "；省略或传入空值时回退到 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "SIYUAN_ACCESS_AUTH_CODE"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "。最终值为空不会清除已保存的密码。"
 				}
 			]
 		},
@@ -292,7 +398,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220517143906-h2p1a5m",
-				"updated": "20260302173621"
+				"updated": "20260914011526"
 			},
 			"Children": [
 				{
@@ -317,7 +423,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220517143906-cd8h1g8",
-				"updated": "20260302173621"
+				"updated": "20260914011526"
 			},
 			"Children": [
 				{
@@ -327,16 +433,16 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "--lang=zh_CN"
+					"TextMarkTextContent": "--lang=zh-CN"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ 后将使用简体中文初始化外观语言，默认 "
+					"Data": "​ 后将使用简体中文初始化外观语言。未指定时使用已保存的语言；首次初始化时匹配系统语言，无法匹配则回退到 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "en_US"
+					"TextMarkTextContent": "en"
 				},
 				{
 					"Type": "NodeText",
@@ -345,7 +451,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "ar_SA"
+					"TextMarkTextContent": "ar"
 				},
 				{
 					"Type": "NodeText",
@@ -354,7 +460,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "de_DE"
+					"TextMarkTextContent": "de"
 				},
 				{
 					"Type": "NodeText",
@@ -363,7 +469,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "en_US"
+					"TextMarkTextContent": "en"
 				},
 				{
 					"Type": "NodeText",
@@ -372,7 +478,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "es_ES"
+					"TextMarkTextContent": "es"
 				},
 				{
 					"Type": "NodeText",
@@ -381,7 +487,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "fr_FR"
+					"TextMarkTextContent": "fr"
 				},
 				{
 					"Type": "NodeText",
@@ -390,7 +496,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "he_IL"
+					"TextMarkTextContent": "he"
 				},
 				{
 					"Type": "NodeText",
@@ -399,7 +505,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "it_IT"
+					"TextMarkTextContent": "hi"
 				},
 				{
 					"Type": "NodeText",
@@ -408,7 +514,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "ja_JP"
+					"TextMarkTextContent": "id"
 				},
 				{
 					"Type": "NodeText",
@@ -417,7 +523,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "ko_KR"
+					"TextMarkTextContent": "it"
 				},
 				{
 					"Type": "NodeText",
@@ -426,7 +532,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "pl_PL"
+					"TextMarkTextContent": "ja"
 				},
 				{
 					"Type": "NodeText",
@@ -435,7 +541,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "pt_BR"
+					"TextMarkTextContent": "ko"
 				},
 				{
 					"Type": "NodeText",
@@ -444,7 +550,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "ru_RU"
+					"TextMarkTextContent": "nl"
 				},
 				{
 					"Type": "NodeText",
@@ -453,7 +559,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "sk_SK"
+					"TextMarkTextContent": "pl"
 				},
 				{
 					"Type": "NodeText",
@@ -462,7 +568,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "tr_TR"
+					"TextMarkTextContent": "pt-BR"
 				},
 				{
 					"Type": "NodeText",
@@ -471,7 +577,61 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "zh_CHT"
+					"TextMarkTextContent": "ru"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "sk"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "sr"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "th"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "tr"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "uk"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "zh-CN"
 				},
 				{
 					"Type": "NodeText",
@@ -480,7 +640,7 @@
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "zh_CN"
+					"TextMarkTextContent": "zh-TW"
 				},
 				{
 					"Type": "NodeText",
@@ -494,7 +654,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20220601085956-e4x7vfb",
-				"updated": "20220601085956"
+				"updated": "20260917190844"
 			},
 			"Children": [
 				{
@@ -550,7 +710,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20220601090153-w4lmqvd",
-				"updated": "20220601091012"
+				"updated": "20260917190844"
 			},
 			"Children": [
 				{
@@ -573,7 +733,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "。"
+					"Data": "。这里的外观文件夹保存内置资源；第三方主题和图标包统一使用工作空间/data/themes/ 和工作空间/data/icons/，不随运行模式改变。"
 				}
 			]
 		},

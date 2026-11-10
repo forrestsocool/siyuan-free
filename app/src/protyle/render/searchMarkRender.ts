@@ -1,18 +1,80 @@
 import {Constants} from "../../constants";
 import {isInEmbedBlock} from "../util/hasClosest";
+import {restoreTableVirtualizationDOM} from "../util/tableVirtualizationDOM";
 
-export const searchMarkRender = (protyle: IProtyle, keys: string[], hlId?: string | number, cb?: () => void) => {
+export const getSearchMarkRanges = (rootElement: HTMLElement, keys: string[], excludeSelector?: string) => {
+    const textNodes: Node[] = [];
+    const textNodesSize: number[] = [];
+    const excludedTextNodeCounts: number[] = [];
+    let currentSize = 0;
+    let excludedTextNodeCount = 0;
+    const treeWalker = document.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT);
+    let currentNode = treeWalker.nextNode();
+    while (currentNode) {
+        textNodes.push(currentNode);
+        currentSize += currentNode.textContent.length;
+        textNodesSize.push(currentSize);
+        if (excludeSelector && currentNode.parentElement?.closest(excludeSelector)) {
+            excludedTextNodeCount++;
+        }
+        excludedTextNodeCounts.push(excludedTextNodeCount);
+        currentNode = treeWalker.nextNode();
+    }
+    const text = rootElement.textContent;
+    const matches: {range: Range, startIndex: number}[] = [];
+    keys.forEach(key => {
+        if (!key) {
+            return;
+        }
+        let startIndex = 0;
+        let currentNodeIndex = 0;
+        while ((startIndex = text.indexOf(key, startIndex)) !== -1) {
+            const endIndex = startIndex + key.length;
+            while (currentNodeIndex < textNodes.length && textNodesSize[currentNodeIndex] <= startIndex) {
+                currentNodeIndex++;
+            }
+            const startNodeIndex = currentNodeIndex;
+            while (currentNodeIndex < textNodes.length && textNodesSize[currentNodeIndex] < endIndex) {
+                currentNodeIndex++;
+            }
+            const excludedCountBefore = startNodeIndex ? excludedTextNodeCounts[startNodeIndex - 1] : 0;
+            if (excludedTextNodeCounts[currentNodeIndex] === excludedCountBefore) {
+                const range = document.createRange();
+                range.setStart(textNodes[startNodeIndex], startIndex -
+                    (startNodeIndex ? textNodesSize[startNodeIndex - 1] : 0));
+                range.setEnd(textNodes[currentNodeIndex], endIndex -
+                    (currentNodeIndex ? textNodesSize[currentNodeIndex - 1] : 0));
+                matches.push({range, startIndex});
+            }
+            startIndex = endIndex;
+        }
+    });
+    return matches;
+};
+
+export const searchMarkRender = (protyle: IProtyle, keys: string[], hlId?: string | number, cb?: () => void,
+                                 options?: {
+                                     rootElement?: HTMLElement,
+                                     currentElement?: Element,
+                                     excludeSelector?: string,
+                                     isValid?: () => boolean,
+                                     ranges?: Range[],
+                                 }) => {
     if (!isSupportCSSHL() || ((!keys || keys.length === 0) && !hlId)) {
         return;
     }
     setTimeout(() => {
+        if (options?.isValid && !options.isValid()) {
+            return;
+        }
+        restoreTableVirtualizationDOM(protyle.wysiwyg.element);
         protyle.highlight.markHL.clear();
         protyle.highlight.mark.clear();
         protyle.highlight.rangeIndex = 0;
         protyle.highlight.ranges = [];
         let isSetHL = false;
-        let hlBlockElement: Element;
-        if (typeof hlId === "string") {
+        let hlBlockElement = options?.currentElement;
+        if (!hlBlockElement && typeof hlId === "string") {
             Array.from(protyle.wysiwyg.element.querySelectorAll(`[data-node-id='${hlId}']`)).find(item => {
                 if (!isInEmbedBlock(item)) {
                     hlBlockElement = item;
@@ -25,73 +87,35 @@ export const searchMarkRender = (protyle: IProtyle, keys: string[], hlId?: strin
             hlBlockElement = protyle.title.element;
         }
 
-        // 准备一个数组来保存所有文本节点
-        const textNodes: Node[] = [];
-        const textNodesSize: number[] = [];
-        let currentSize = 0;
-
-        const treeWalker = document.createTreeWalker(protyle.contentElement, NodeFilter.SHOW_TEXT);
-        let currentNode = treeWalker.nextNode();
-        while (currentNode) {
-            textNodes.push(currentNode);
-            currentSize += currentNode.textContent.length;
-            textNodesSize.push(currentSize);
-            currentNode = treeWalker.nextNode();
-        }
-
-        const text = protyle.contentElement.textContent;
+        const rootElement = options?.rootElement || protyle.contentElement;
+        const text = rootElement.textContent;
         const rangeIndexes: { range: Range, startIndex: number, isCurrent: boolean }[] = [];
-        if (keys && keys.length > 0) {
-            keys.forEach(key => {
-                if (!key) {
+        if (options?.ranges) {
+            options.ranges.forEach(range => {
+                if (!rootElement.contains(range.commonAncestorContainer)) {
                     return;
                 }
-                let startIndex = 0;
-                let endIndex = 0;
-                let currentNodeIndex = 0;
-                while ((startIndex = text.indexOf(key, startIndex)) !== -1) {
-                    const range = new Range();
-                    endIndex = startIndex + key.length;
-                    try {
-                        while (currentNodeIndex < textNodes.length && textNodesSize[currentNodeIndex] <= startIndex) {
-                            currentNodeIndex++;
-                        }
-                        let currentTextNode = textNodes[currentNodeIndex];
-                        range.setStart(currentTextNode, startIndex - (currentNodeIndex ? textNodesSize[currentNodeIndex - 1] : 0));
-
-                        while (currentNodeIndex < textNodes.length && textNodesSize[currentNodeIndex] < endIndex) {
-                            currentNodeIndex++;
-                        }
-                        currentTextNode = textNodes[currentNodeIndex];
-                        range.setEnd(currentTextNode, endIndex - (currentNodeIndex ? textNodesSize[currentNodeIndex - 1] : 0));
-
-                        let isCurrent = false;
-                        if (!isSetHL && hlBlockElement && hlBlockElement.contains(currentTextNode)) {
-                            isSetHL = true;
-                            isCurrent = true;
-                        }
-
-                        rangeIndexes.push({range, startIndex, isCurrent});
-                    } catch (e) {
-                        console.error("searchMarkRender error:", e);
-                    }
-                    startIndex = endIndex;
-                }
+                const prefix = document.createRange();
+                prefix.selectNodeContents(rootElement);
+                prefix.setEnd(range.startContainer, range.startOffset);
+                const isCurrent = !isSetHL && !!hlBlockElement?.contains(range.startContainer);
+                isSetHL = isSetHL || isCurrent;
+                rangeIndexes.push({range, startIndex: prefix.toString().length, isCurrent});
+            });
+        } else if (keys && keys.length > 0) {
+            getSearchMarkRanges(rootElement, keys, options?.excludeSelector).forEach(match => {
+                const isCurrent = !isSetHL && !!hlBlockElement?.contains(match.range.endContainer);
+                isSetHL = isSetHL || isCurrent;
+                rangeIndexes.push({...match, isCurrent});
             });
         }
 
         // 没有匹配到关键字，但是有高亮块时，需将其添加进去
         if (!isSetHL && hlBlockElement) {
-            const startIndex = text.indexOf(hlBlockElement.textContent);
-            if (startIndex > -1) {
-                const range = new Range();
-                let currentNodeIndex = 0;
-                while (textNodes.length && textNodesSize[currentNodeIndex] <= startIndex) {
-                    currentNodeIndex++;
-                }
-                range.setStart(textNodes[currentNodeIndex], 0);
-                rangeIndexes.push({range, startIndex, isCurrent: true});
-            }
+            const range = new Range();
+            range.selectNodeContents(hlBlockElement);
+            range.collapse(true);
+            rangeIndexes.push({range, startIndex: text.indexOf(hlBlockElement.textContent), isCurrent: true});
         }
 
         rangeIndexes.sort((b, a) => {

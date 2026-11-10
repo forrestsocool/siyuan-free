@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package api
 
@@ -27,47 +15,53 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/88250/gulu"
 	"github.com/88250/lute"
 	"github.com/88250/lute/ast"
 	"github.com/88250/lute/parse"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
-	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/httpclient"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/apicontract"
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func extensionCopy(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(200, ret)
+var extensionIframePattern = regexp.MustCompile(`(?i)<iframe[^>]*>([\s\S]*?)<\/iframe>`)
 
-	form, _ := c.MultipartForm()
-	dom := form.Value["dom"][0]
+var extensionCopy = contractHandler(apicontract.ExtensionCopy, func(c *gin.Context, request apicontract.ExtensionCopyRequest) apicontract.Response[*apicontract.ExtensionCopyData] {
+	code := 0
+	dom := request.DOM
 	assets := filepath.Join(util.DataDir, "assets")
-	if notebookVal := form.Value["notebook"]; 0 < len(notebookVal) {
-		assets = filepath.Join(util.DataDir, notebookVal[0], "assets")
-		if !gulu.File.IsDir(assets) {
-			assets = filepath.Join(util.DataDir, "assets")
+	targetBoxID := ""
+	encryptedBoxID := ""
+	if request.Notebook != nil {
+		nb := *request.Notebook
+		if ast.IsNodeIDPattern(nb) {
+			targetBoxID = nb
+			assets = model.GetImportAssetsDir(targetBoxID, "")
+			if model.IsEncryptedBox(targetBoxID) {
+				encryptedBoxID = targetBoxID
+			}
 		}
+	}
+	if err := holdEncryptedBoxRequest(c, encryptedBoxID); err != nil {
+		return apicontract.Failure[*apicontract.ExtensionCopyData](-1, err.Error())
 	}
 
 	if err := os.MkdirAll(assets, 0755); err != nil {
 		logging.LogErrorf("create assets folder [%s] failed: %s", assets, err)
-		ret.Msg = err.Error()
-		return
+		return apicontract.SuccessWithMessage((*apicontract.ExtensionCopyData)(nil), err.Error())
 	}
 
 	clippingSym := false
 	symArticleHref := ""
-	hasHref := nil != form.Value["href"]
-	isPartClip := nil != form.Value["clipType"] && form.Value["clipType"][0] == "part"
+	hasHref := request.Href != nil
+	isPartClip := request.ClipType != nil && *request.ClipType == "part"
 	if hasHref && !isPartClip {
 		// 剪藏链滴帖子时直接使用 Markdown 接口的返回
 		// https://ld246.com/article/raw/1724850322251
-		symArticleHref = form.Value["href"][0]
+		symArticleHref = *request.Href
 
 		var baseURL, originalPrefix string
 		if strings.HasPrefix(symArticleHref, "https://ld246.com/article/") {
@@ -90,13 +84,15 @@ func extensionCopy(c *gin.Context) {
 	}
 
 	uploaded := map[string]string{}
-	for originalName, file := range form.File {
-		oName, err := url.PathUnescape(originalName)
-		unescaped := oName
-
-		if clippingSym && strings.Contains(oName, "img-loading.svg") {
+	for originalName, file := range request.Files {
+		// 链滴/流云整页剪藏走服务端原始 Markdown，扩展上传的 DOM 资源地址与原始 Markdown 中的地址必然不一致，
+		// 上传的文件无法被匹配引用；该路径下由内核按“下载资源”开关统一下载本地化，因此跳过扩展上传的文件
+		if clippingSym {
 			continue
 		}
+
+		oName, err := url.PathUnescape(originalName)
+		unescaped := oName
 
 		if err != nil {
 			if strings.Contains(originalName, "%u") {
@@ -131,15 +127,13 @@ func extensionCopy(c *gin.Context) {
 
 		f, err := file[0].Open()
 		if err != nil {
-			ret.Code = -1
-			ret.Msg = err.Error()
+			code = -1
 			break
 		}
 
 		data, err := io.ReadAll(f)
 		if err != nil {
-			ret.Code = -1
-			ret.Msg = err.Error()
+			code = -1
 			break
 		}
 
@@ -157,15 +151,18 @@ func extensionCopy(c *gin.Context) {
 			fName += ext
 		}
 
-		fName = util.AssetName(fName, ast.NewNodeID())
-		writePath := filepath.Join(assets, fName)
-		if err = filelock.WriteFile(writePath, data); err != nil {
-			ret.Code = -1
-			ret.Msg = err.Error()
+		// 统一通过 storeAssetForBox 写入，加密 box 自动脱敏 + 加密落盘 + 追加 ?box=
+		storedName, storeErr := model.StoreAssetForBox(targetBoxID, assets, fName, data)
+		if storeErr != nil {
+			code = -1
 			break
 		}
 
-		uploaded[unescaped] = "assets/" + fName
+		assetURL := "assets/" + storedName
+		if encryptedBoxID != "" {
+			assetURL += "?box=" + encryptedBoxID
+		}
+		uploaded[unescaped] = assetURL
 	}
 
 	luteEngine := util.NewLute()
@@ -180,14 +177,13 @@ func extensionCopy(c *gin.Context) {
 		} else {
 			bodyData, readErr := io.ReadAll(resp.Body)
 			if nil != readErr {
-				ret.Code = -1
-				ret.Msg = "read response body failed: " + readErr.Error()
-				return
+				return apicontract.Failure[*apicontract.ExtensionCopyData](-1, "read response body failed: "+readErr.Error())
 			}
 
 			md = string(bodyData)
 			luteEngine.SetIndentCodeBlock(true) // 链滴支持缩进代码块，因此需要开启
 			tree := parse.Parse("", []byte(md), luteEngine.ParseOptions)
+			tree.Box = targetBoxID
 			ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 				if ast.NodeInlineMath == n.Type {
 					withMath = true
@@ -212,6 +208,12 @@ func extensionCopy(c *gin.Context) {
 				return ast.WalkContinue
 			})
 
+			// 链滴/流云整页剪藏时扩展上传的 DOM 资源地址与服务端原始 Markdown 中的地址不一致，
+			// 扩展上传的文件无法匹配；当用户开启“下载资源”时由内核直接下载原始 Markdown 中的网络资源到本地
+			if assetsOn := request.Assets != nil && *request.Assets == "true"; assetsOn {
+				model.DownloadNetAssets2LocalAssets(tree, false, symArticleHref, assets)
+			}
+
 			md, _ = lute.FormatNodeSync(tree.Root, luteEngine.ParseOptions, luteEngine.RenderOptions)
 		}
 	}
@@ -219,14 +221,13 @@ func extensionCopy(c *gin.Context) {
 	var tree *parse.Tree
 	if "" == md {
 		// 通过正则将 <iframe>.*</iframe> 标签中间包含的换行去掉
-		regx, _ := regexp.Compile(`(?i)<iframe[^>]*>([\s\S]*?)<\/iframe>`)
-		dom = regx.ReplaceAllStringFunc(dom, func(s string) string {
+		dom = extensionIframePattern.ReplaceAllStringFunc(dom, func(s string) string {
 			s = strings.ReplaceAll(s, "\n", "")
 			s = strings.ReplaceAll(s, "\r", "")
 			return s
 		})
 
-		tree, withMath = model.HTML2Tree(dom, luteEngine)
+		tree, withMath = model.HTML2Tree(dom, luteEngine, targetBoxID)
 	} else {
 		tree = parse.Parse("", []byte(md), luteEngine.ParseOptions)
 	}
@@ -238,7 +239,6 @@ func extensionCopy(c *gin.Context) {
 		}
 
 		if ast.NodeText == n.Type {
-			// 剔除行首空白
 			if ast.NodeParagraph == n.Parent.Type && n.Parent.FirstChild == n {
 				n.Tokens = bytes.TrimLeft(n.Tokens, " \t\n")
 			}
@@ -283,9 +283,10 @@ func extensionCopy(c *gin.Context) {
 	parse.NestedInlines2FlattedSpansHybrid(tree, false)
 
 	md, _ = lute.FormatNodeSync(tree.Root, luteEngine.ParseOptions, luteEngine.RenderOptions)
-	ret.Data = map[string]any{
-		"md":       md,
-		"withMath": withMath,
+	data := &apicontract.ExtensionCopyData{Markdown: md, WithMath: withMath}
+	message := model.Conf.Language(72)
+	if code != 0 {
+		return apicontract.ExtensionCopy.FailureWithData(code, message, data)
 	}
-	ret.Msg = model.Conf.Language(72)
-}
+	return apicontract.SuccessWithMessage(data, message)
+})

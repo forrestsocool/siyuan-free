@@ -5,8 +5,7 @@ const INITIAL_CACHED_RESOURCES = [
     "/favicon.ico",
     "/stage/icon-large.png",
     "/stage/icon.png",
-    "/stage/loading-pure.svg",
-    "/stage/build/fonts/JetBrainsMono-Regular.woff2",
+    "/appearance/fonts/JetBrainsMono-2.304/JetBrainsMono-Regular.woff2",
     "/stage/protyle/js/lute/lute.min.js",
     "/stage/protyle/js/protyle-html.js"
 ];
@@ -15,7 +14,14 @@ self.addEventListener("install", event => {
     self.skipWaiting();
     event.waitUntil((async () => {
         const cache = await caches.open(CACHE_NAME);
-        cache.addAll(INITIAL_CACHED_RESOURCES);
+        // 分别缓存启动资源，单个请求失败时保留其他资源，并记录失败地址。
+        await Promise.all(INITIAL_CACHED_RESOURCES.map(async resource => {
+            try {
+                await cache.add(resource);
+            } catch (error) {
+                console.warn("预缓存资源失败：", resource, error);
+            }
+        }));
     })());
 });
 
@@ -50,9 +56,19 @@ self.addEventListener("fetch", event => {
         return;
     }
 
+    // 启动页外观的选择和资源由内核校验，始终请求当前版本，避免切换或更新后命中旧缓存。
+    if (url.origin === location.origin &&
+        (url.pathname === "/api/system/getBootAppearance" ||
+            url.pathname.startsWith("/boot-appearance-assets/"))
+    ) {
+        event.respondWith(fetch(event.request, {cache: "no-store"}));
+        return;
+    }
+
     // Don't care about other requests.
     if (!url.pathname.startsWith("/stage/") &&
         !url.pathname.startsWith("/appearance/boot/") &&
+        !url.pathname.startsWith("/appearance/fonts/") &&
         !url.pathname.startsWith("/appearance/emojis/") &&
         !url.pathname.startsWith("/appearance/langs/") &&
         !url.href.startsWith("https://assets.b3logfile.com/") &&
@@ -61,15 +77,20 @@ self.addEventListener("fetch", event => {
         return;
     }
 
+    if (url.origin === location.origin && url.pathname.startsWith("/appearance/langs/")) {
+        event.respondWith(fetch(event.request, {cache: "no-store"}));
+        return;
+    }
+
     // On fetch, go to the cache first, and then network.
     event.respondWith((async () => {
         const cache = await caches.open(CACHE_NAME);
-        const cachedResponse = await cache.match(url.pathname);
+        const cachedResponse = await cache.match(event.request);
         if (cachedResponse && cachedResponse.type !== 'opaque') {
             return cachedResponse;
         } else {
             const fetchResponse = await fetch(event.request);
-            cache.put(url.pathname, fetchResponse.clone());
+            cache.put(event.request, fetchResponse.clone());
             return fetchResponse;
         }
     })());

@@ -52,7 +52,9 @@ export const hasClosestByAttribute = (element: Node, attr: string, value: string
     }
     let e = element as HTMLElement;
     let isClosest = false;
-    while (e && !isClosest && (top ? e.tagName !== "BODY" : !e.classList.contains("protyle-wysiwyg"))) {
+    while (e && !isClosest && (top ? e.tagName !== "BODY" : (
+        !e.classList.contains("protyle-wysiwyg") &&!e.classList.contains("b3-typography")
+    ))) {
         if (typeof value === "string" && e.getAttribute(attr)?.split(" ").includes(value)) {
             isClosest = true;
         } else if (typeof value !== "string" && e.hasAttribute(attr)) {
@@ -102,16 +104,28 @@ export const hasClosestByClassName = (element: Node, className: string, top = fa
     return isClosest && e;
 };
 
-export const hasClosestBlock = (element: Node) => {
+export const hasClosestBlock = (element: Node, resolveTable = false) => {
     const nodeElement = hasClosestByAttribute(element, "data-node-id", null);
-    if (nodeElement && nodeElement.tagName !== "BUTTON" && nodeElement.getAttribute("data-type")?.startsWith("Node")) {
+    if (nodeElement && isBlockElement(nodeElement)) {
+        // 文档级命令使用表格块身份，单元格片段内部的编辑操作保留自身节点。
+        if (resolveTable) {
+            const table = nodeElement.closest(".table__cell-editor")?.closest<HTMLElement>('[data-type="NodeTable"]');
+            if (table) {
+                return table;
+            }
+        }
         return nodeElement;
     }
     return false;
 };
 
-export const isInEmbedBlock = (element: Element) => {
-    const embedElement = hasTopClosestByAttribute(element, "data-type", "NodeBlockQueryEmbed");
+export const isBlockElement = (nodeElement: Element) => {
+    return nodeElement && nodeElement.tagName !== "BUTTON" && nodeElement.getAttribute("data-type")?.startsWith("Node");
+};
+
+export const isInEmbedBlock = (element: Element, top = true) => {
+    const embedElement = top ? hasTopClosestByAttribute(element, "data-type", "NodeBlockQueryEmbed") :
+        hasClosestByAttribute(element, "data-type", "NodeBlockQueryEmbed");
     if (embedElement) {
         if (embedElement === element) {
             return false;

@@ -1,14 +1,81 @@
-const fsPromises = require("fs").promises;
+const fs = require("fs");
+const fsPromises = fs.promises;
 const path = require("path");
+const {Arch} = require("electron-builder");
+const unzipper = require("unzipper");
+const { trimChangelogs } = require("./trimChangelogs");
 
 module.exports = async function afterPack(context) {
-  const { appOutDir, electronPlatformName, packager } = context;
+  const {appOutDir, arch, electronPlatformName, packager} = context;
+  await extractPackagedPandoc(appOutDir, packager, electronPlatformName, arch);
   await removeLanguagePacks(appOutDir, packager, electronPlatformName);
+  await trimPackagedChangelogs(appOutDir, packager, electronPlatformName);
 };
+
+async function extractPackagedPandoc(appOutDir, packager, platform, arch) {
+  const resourcePath = getPackagedResourcePath(appOutDir, packager, platform);
+  const archivePath = path.join(resourcePath, "pandoc.zip");
+  try {
+    await fsPromises.access(archivePath);
+  } catch (error) {
+    if (error.code === "ENOENT" && platform === "win32" && arch === Arch.arm64) {
+      return;
+    }
+    if (error.code === "ENOENT") {
+      throw new Error(`Packaged Pandoc archive not found: ${archivePath}`, {cause: error});
+    }
+    throw error;
+  }
+
+  const pandocDir = path.join(resourcePath, "pandoc");
+  const pandocBin = path.join(pandocDir, "bin", platform === "win32" ? "pandoc.exe" : "pandoc");
+  try {
+    await fsPromises.rm(pandocDir, {force: true, recursive: true});
+    await fsPromises.mkdir(pandocDir, {recursive: true});
+    await fs.createReadStream(archivePath).pipe(unzipper.Extract({path: pandocDir})).promise();
+
+    const stat = await fsPromises.stat(pandocBin);
+    if (!stat.isFile() || stat.size === 0) {
+      throw new Error(`invalid Pandoc executable: ${pandocBin}`);
+    }
+    if (platform !== "win32") {
+      await fsPromises.chmod(pandocBin, 0o755);
+    }
+    await fsPromises.rm(archivePath);
+    console.log(`Extracted packaged Pandoc: ${pandocBin}`);
+  } catch (error) {
+    throw new Error(`Failed to extract packaged Pandoc: ${error.message}`, {cause: error});
+  }
+}
+
+function getPackagedResourcePath(appOutDir, packager, platform) {
+  if (platform === "darwin") {
+    return path.join(appOutDir, `${packager.appInfo.productFilename}.app`, "Contents", "Resources");
+  }
+  return path.join(appOutDir, "resources");
+}
+
+// 打包时裁剪 changelog，只保留当前版本 changelogs/v{version}/，详见 trimChangelogs.js。
+async function trimPackagedChangelogs(appOutDir, packager, platform) {
+  const changelogsDir = path.join(getPackagedResourcePath(appOutDir, packager, platform), "changelogs");
+
+  try {
+    const result = await trimChangelogs(changelogsDir, packager.appInfo.version);
+    if (!result.ok) {
+      console.error(`trimChangelogs: ${result.reason}`);
+      return;
+    }
+    if (result.path) {
+      console.log(`trimChangelogs: ${result.path}`);
+    }
+  } catch (error) {
+    console.error("Failed to trim changelogs:", error.message);
+  }
+}
 
 async function removeLanguagePacks(appOutDir, packager, platform) {
   // 支持的语言都要保留，否则影响开发者工具字体显示
-  const wantedLanguages = ["ar_SA", "de_DE", "en_US", "es_ES", "fr_FR", "he_IL", "it_IT", "ja_JP", "ko_KR", "pl_PL", "pt_BR", "ru_RU", "sk_SK", "tr_TR", "zh_CHT", "zh_CN"];
+  const wantedLanguages = ["ar", "de", "en", "es", "fr", "he", "hi", "id", "it", "ja", "ko", "nl", "pl", "pt-BR", "ru", "sk", "sr", "th", "tr", "uk", "zh-TW", "zh-CN"];
   const keepPrefixes = new Set(wantedLanguages.map(lang => lang.substring(0, 2)));
 
   let resourcePath;
@@ -119,3 +186,4 @@ function formatBytes(bytes) {
   return `${formattedSize} ${sizes[i]}`;
 }
 
+module.exports.extractPackagedPandoc = extractPackagedPandoc;

@@ -1,3 +1,4 @@
+import {isTableLikeView} from "./viewType";
 import {Menu} from "../../../plugin/Menu";
 import {transaction} from "../../wysiwyg/transaction";
 import {hasClosestBlock, hasClosestByClassName} from "../../util/hasClosest";
@@ -5,19 +6,34 @@ import {confirmDialog} from "../../../dialog/confirmDialog";
 import {upDownHint} from "../../../util/upDownHint";
 import {bindEditEvent, getColId, getEditHTML} from "./col";
 import {updateAttrViewCellAnimation} from "./action";
-import {genAVValueHTML, isCustomAttr} from "./blockAttr";
+import {isCustomAttr} from "./blockAttr";
 import {escapeAriaLabel, escapeAttr, escapeHtml} from "../../../util/escape";
-import {genCellValueByElement, getTypeByCellElement} from "./cell";
-import * as dayjs from "dayjs";
+import {genCellValueByElement, getTypeByCellElement, updateAttrViewCellInOtherElements} from "./cell";
+import dayjs from "dayjs";
 import {getFieldsByData} from "./view";
 import {getFieldIdByCellElement} from "./row";
 import {Constants} from "../../../constants";
+import {setSelectMenuPosition} from "./selectPosition";
+import {getAVBatchEditMode, getAVBatchSourceValue} from "./batchValue";
+import {
+    AV_MANAGE_CUSTOM_COLORS_TYPE,
+    applyAVColorPalette,
+    getAVColorGridHTML,
+    getAVColorOrder,
+    getAVColorStyle,
+    getAVCustomColors,
+    getAVResolvedColor,
+    getNextAVOptionColor,
+} from "./color";
+import {openAVCustomColorDialog} from "./colorDialog";
+import {isMobile} from "../../../util/functions";
 
 let cellValues: IAVCellValue[];
 
 const filterSelectHTML = (key: string, options: {
     name: string,
     color: string,
+    resolvedColor?: IAVColor,
     desc?: string
 }[], selected: string[] = []) => {
     let html = "";
@@ -34,10 +50,10 @@ const filterSelectHTML = (key: string, options: {
                 (key.toLowerCase().indexOf(item.name.toLowerCase()) > -1 ||
                     item.name.toLowerCase().indexOf(key.toLowerCase()) > -1)) {
                 const airaLabel = item.desc ? `${escapeAriaLabel(item.name)}<div class='ft__on-surface'>${escapeAriaLabel(item.desc || "")}</div>` : "";
-                html += `<button data-type="addColOptionOrCell" class="b3-menu__item${currentName === item.name ? " b3-menu__item--current" : ""}" data-name="${escapeAttr(item.name)}" data-desc="${escapeAttr(item.desc || "")}" draggable="true" data-color="${item.color}">
-    <svg class="b3-menu__icon fn__grab"><use xlink:href="#iconDrag"></use></svg>
+                html += `<button data-type="addColOptionOrCell" class="b3-menu__item${currentName === item.name ? " b3-menu__item--current" : ""}" data-name="${escapeAttr(item.name)}" data-desc="${escapeAttr(item.desc || "")}" data-option-row="true" data-color="${escapeAttr(item.color)}">
+    <span draggable="true" class="b3-menu__icon b3-menu__icon--custom fn__grab"><svg><use xlink:href="#iconDrag"></use></svg></span>
     <div class="fn__flex-1 ariaLabel" data-position="parentW" aria-label="${airaLabel}">
-        <span class="b3-chip" style="background-color:var(--b3-font-background${item.color});color:var(--b3-font-color${item.color})">
+        <span class="b3-chip" style="${getAVColorStyle(item)}">
             <span class="fn__ellipsis">${escapeHtml(item.name)}</span>
         </span>
     </div>
@@ -52,11 +68,11 @@ const filterSelectHTML = (key: string, options: {
     }
     if (!hasMatch && key) {
         html = html.replace('class="b3-menu__item b3-menu__item--current"', 'class="b3-menu__item"');
-        const colorIndex = (options?.length || 0) % 14 + 1;
+        const colorIndex = getNextAVOptionColor(options?.length || 0);
         html = `<button data-type="addColOptionOrCell" class="b3-menu__item b3-menu__item--current" data-name="${key}" data-color="${colorIndex}">
 <svg class="b3-menu__icon"><use xlink:href="#iconAdd"></use></svg>
 <div class="fn__flex-1">
-    <span class="b3-chip" style="background-color:var(--b3-font-background${colorIndex});color:var(--b3-font-color${colorIndex})">
+    <span class="b3-chip" style="${getAVColorStyle(colorIndex)}">
         <span class="fn__ellipsis">${escapeHtml(key)}</span>
     </span>
 </div>
@@ -78,22 +94,27 @@ export const removeCellOption = (protyle: IProtyle, cellElements: HTMLElement[],
     const undoOperations: IOperation[] = [];
     let mSelectValue: IAVCellSelectValue[];
     const avID = blockElement.getAttribute("data-av-id");
+    const batchMode = getAVBatchEditMode(cellElements[0]);
     cellElements.forEach((item, elementIndex) => {
         const rowID = getFieldIdByCellElement(item, viewType);
         if (!rowID) {
             return;
         }
         if (!blockElement.contains(item)) {
-            if (viewType === "table") {
+            if (isTableLikeView(viewType)) {
                 item = cellElements[elementIndex] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${item.dataset.colId}"]`) ||
                     blockElement.querySelector(`.fn__flex-1[data-col-id="${item.dataset.colId}"]`)) as HTMLElement;
             } else {
                 item = cellElements[elementIndex] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${item.dataset.fieldId}"]`)) as HTMLElement;
             }
         }
-        const cellValue: IAVCellValue = cellValues[elementIndex];
+        const cellValue: IAVCellValue = batchMode === "replace" ?
+            cellValues[elementIndex] :
+            getAVBatchSourceValue(item, cellValues[elementIndex]);
         const oldValue = JSON.parse(JSON.stringify(cellValue));
-        if (elementIndex === 0) {
+        if (batchMode !== "replace") {
+            cellValue.mSelect = cellValue.mSelect?.filter(option => option.content !== target.dataset.content) || [];
+        } else if (elementIndex === 0) {
             cellValue.mSelect?.find((item, index) => {
                 if (item.content === target.dataset.content) {
                     cellValue.mSelect.splice(index, 1);
@@ -104,6 +125,7 @@ export const removeCellOption = (protyle: IProtyle, cellElements: HTMLElement[],
         } else {
             cellValue.mSelect = mSelectValue;
         }
+        cellValues[elementIndex] = cellValue;
         doOperations.push({
             action: "updateAttrViewCell",
             id: cellValue.id,
@@ -120,11 +142,10 @@ export const removeCellOption = (protyle: IProtyle, cellElements: HTMLElement[],
             avID,
             data: oldValue
         });
-        if (item.classList.contains("custom-attr__avvalue")) {
-            item.innerHTML = genAVValueHTML(cellValue);
-        } else {
+        if (!item.classList.contains("custom-attr__avvalue")) {
             updateAttrViewCellAnimation(item, cellValue);
         }
+        updateAttrViewCellInOtherElements(protyle, avID, rowID, colId, cellValue, item);
     });
     doOperations.push({
         action: "doUpdateUpdated",
@@ -138,20 +159,27 @@ export const removeCellOption = (protyle: IProtyle, cellElements: HTMLElement[],
             return true;
         }
     });
+    // chips 减少导致菜单高度变化后重新定位（锁底部，顶部自适应），需在移除 target 前获取 menuElement
+    const menuElement = hasClosestByClassName(target, "b3-menu");
     target.remove();
+    if (menuElement) {
+        setSelectMenuPosition(menuElement, cellElements[cellElements.length - 1]);
+    }
 };
 
-export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, blockElement: Element, isCustomAttr: boolean, cellElements?: HTMLElement[]) => {
+export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, blockElement: Element, isCustomAttr: boolean,
+                             cellElements?: HTMLElement[], keepMenuOpen = false) => {
     const menuElement = hasClosestByClassName(target, "b3-menu");
-    if (!menuElement) {
+    const optionElement = target.closest("[data-name]") as HTMLElement;
+    if (!menuElement || !optionElement) {
         return;
     }
     const blockID = blockElement.getAttribute("data-node-id");
     const viewType = blockElement.getAttribute("data-av-type") as TAVView;
     const colId = (cellElements && cellElements[0]) ? getColId(cellElements[0], viewType) : menuElement.querySelector(".b3-menu__item").getAttribute("data-col-id");
-    let name = target.parentElement.dataset.name;
-    let desc = target.parentElement.dataset.desc;
-    let color = target.parentElement.dataset.color;
+    let name = optionElement.dataset.name;
+    let desc = optionElement.dataset.desc;
+    let color = optionElement.dataset.color;
     const fields = getFieldsByData(data);
     const menu = new Menu(Constants.MENU_AV_COL_OPTION, () => {
         if ((name === inputElement.value && desc === descElement.value) || !inputElement.value) {
@@ -162,6 +190,7 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
             action: "updateAttrViewColOption",
             id: colId,
             avID: data.id,
+            blockID,
             data: {
                 newColor: color,
                 oldName: name,
@@ -176,6 +205,7 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
             action: "updateAttrViewColOption",
             id: colId,
             avID: data.id,
+            blockID,
             data: {
                 newColor: color,
                 oldName: inputElement.value,
@@ -212,11 +242,13 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
         } else {
             cellElements.forEach((cellElement: HTMLElement, index) => {
                 const rowID = getFieldIdByCellElement(cellElement, viewType);
-                if (viewType === "table" || isCustomAttr) {
-                    cellElement = cellElements[index] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${cellElement.dataset.colId}"]`) ||
-                        blockElement.querySelector(`.fn__flex-1[data-col-id="${cellElement.dataset.colId}"]`)) as HTMLElement;
-                } else {
-                    cellElement = cellElements[index] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${cellElement.dataset.fieldId}"]`)) as HTMLElement;
+                if (!blockElement.contains(cellElement)) {
+                    if (isTableLikeView(viewType) || isCustomAttr) {
+                        cellElement = cellElements[index] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${cellElement.dataset.colId}"]`) ||
+                            blockElement.querySelector(`.fn__flex-1[data-col-id="${cellElement.dataset.colId}"]`)) as HTMLElement;
+                    } else {
+                        cellElement = cellElements[index] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${cellElement.dataset.fieldId}"]`)) as HTMLElement;
+                    }
                 }
 
                 cellValues[index].mSelect.find((item) => {
@@ -225,22 +257,24 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                         return true;
                     }
                 });
-                if (cellElement.classList.contains("custom-attr__avvalue")) {
-                    cellElement.innerHTML = genAVValueHTML(cellValues[index]);
-                } else {
+                if (!cellElement.classList.contains("custom-attr__avvalue")) {
                     updateAttrViewCellAnimation(cellElement, cellValues[index]);
                 }
+                updateAttrViewCellInOtherElements(protyle, data.id, rowID, colId, cellValues[index], cellElement);
             });
             menuElement.innerHTML = getSelectHTML(fields, cellElements, false, blockElement);
             bindSelectEvent(protyle, data, menuElement, cellElements, blockElement);
         }
         if (selectedElement) {
             menuElement.querySelector(".b3-menu__items").scrollTop = oldScroll + (menuElement.querySelector(".b3-chips").clientHeight - oldChipsHeight);
+            // chips 增减导致菜单高度变化后重新定位（锁底部，顶部自适应，避免底部溢出视口）
+            setSelectMenuPosition(menuElement, cellElements[cellElements.length - 1]);
         }
-    });
+    }, keepMenuOpen);
     if (menu.isOpen) {
         return;
     }
+    applyAVColorPalette(menu.element, getAVCustomColors());
     menu.addItem({
         iconHTML: "",
         type: "empty",
@@ -251,11 +285,12 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
 </div>
 <div class="fn__none">
     <div class="fn__hr"></div>
-    <textarea rows="1" placeholder="${window.siyuan.languages.addDesc}" class="b3-text-field fn__block" type="text" data-value="${escapeAttr(desc)}">${desc}</textarea>
+    <textarea rows="1" placeholder="${window.siyuan.languages.addDesc}" class="b3-text-field fn__block" type="text" data-value="${escapeAttr(desc)}">${escapeHtml(desc)}</textarea>
 </div>
-<div class="fn__hr--small"></div>`,
+${isMobile() ? "" : '<div class="fn__hr--small"></div>'}`,
         bind(element) {
             const inputElement = element.querySelector("input");
+            element.classList.add("b3-menu__custom", "av__option-custom");
             inputElement.addEventListener("keydown", (event: KeyboardEvent) => {
                 if (event.isComposing) {
                     return;
@@ -286,6 +321,9 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
             });
         }
     });
+    if (isMobile()) {
+        menu.addSeparator();
+    }
     menu.addItem({
         id: "delete",
         label: window.siyuan.languages.delete,
@@ -304,6 +342,7 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                     action: "removeAttrViewColOption",
                     id: colId,
                     avID: data.id,
+                    blockID,
                     data: newName,
                 }, {
                     action: "doUpdateUpdated",
@@ -313,7 +352,8 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                     action: "updateAttrViewColOptions",
                     id: colId,
                     avID: data.id,
-                    data: colOptions
+                    blockID,
+                    data: colOptions.map(option => ({...option}))
                 }]);
                 colOptions.find((item, index) => {
                     if (item.name === newName) {
@@ -330,11 +370,13 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                 } else {
                     cellElements.forEach((cellElement: HTMLElement, index) => {
                         const rowID = getFieldIdByCellElement(cellElement, viewType);
-                        if (viewType === "table" || isCustomAttr) {
-                            cellElement = cellElements[index] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${cellElement.dataset.colId}"]`) ||
-                                blockElement.querySelector(`.fn__flex-1[data-col-id="${cellElement.dataset.colId}"]`)) as HTMLElement;
-                        } else {
-                            cellElement = cellElements[index] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${cellElement.dataset.fieldId}"]`)) as HTMLElement;
+                        if (!blockElement.contains(cellElement)) {
+                            if (isTableLikeView(viewType) || isCustomAttr) {
+                                cellElement = cellElements[index] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${cellElement.dataset.colId}"]`) ||
+                                    blockElement.querySelector(`.fn__flex-1[data-col-id="${cellElement.dataset.colId}"]`)) as HTMLElement;
+                            } else {
+                                cellElement = cellElements[index] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${cellElement.dataset.fieldId}"]`)) as HTMLElement;
+                            }
                         }
                         cellValues[index].mSelect.find((item, selectIndex) => {
                             if (item.content === newName) {
@@ -342,34 +384,45 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                                 return true;
                             }
                         });
-                        if (cellElement.classList.contains("custom-attr__avvalue")) {
-                            cellElement.innerHTML = genAVValueHTML(cellValues[index]);
-                        } else {
+                        if (!cellElement.classList.contains("custom-attr__avvalue")) {
                             updateAttrViewCellAnimation(cellElement, cellValues[index]);
                         }
+                        updateAttrViewCellInOtherElements(protyle, data.id, rowID, colId,
+                            cellValues[index], cellElement);
                     });
                     menuElement.innerHTML = getSelectHTML(fields, cellElements, false, blockElement);
                     bindSelectEvent(protyle, data, menuElement, cellElements, blockElement);
                 }
                 if (selectedElement) {
                     menuElement.querySelector(".b3-menu__items").scrollTop = oldScroll + (menuElement.querySelector(".b3-chips").clientHeight - oldChipsHeight);
+                    // chips 增减导致菜单高度变化后重新定位（锁底部，顶部自适应，避免底部溢出视口）
+                    setSelectMenuPosition(menuElement, cellElements[cellElements.length - 1]);
                 }
             }, undefined, true);
         }
     });
     menu.addSeparator();
-    let html = "<div class=\"fn__flex fn__flex-wrap\" style=\"width: 238px\">";
-    Array.from(Array(14).keys()).forEach(index => {
-        html += `<button data-color="${index + 1}" class="color__square${parseInt(color) === index + 1 ? " color__square--current" : ""}" style="color: var(--b3-font-color${index + 1});background-color: var(--b3-font-background${index + 1});">A</button>`;
-    });
+    const html = `<div class="fn__flex fn__flex-wrap av__option-colors">${getAVColorGridHTML(
+        getAVCustomColors(), color, window.siyuan.languages.manageColors, getAVColorOrder())}</div>`;
     menu.addItem({
         type: "empty",
         iconHTML: "",
-        label: html + "</div>",
+        label: html,
         bind(element) {
+            element.classList.add("b3-menu__custom", "av__option-custom");
             element.addEventListener("click", (event) => {
-                const colorTarget = event.target as HTMLElement;
-                if (colorTarget.classList.contains("color__square") && !colorTarget.classList.contains("color__square--current")) {
+                const colorTarget = (event.target as HTMLElement).closest<HTMLElement>("button");
+                if (colorTarget?.dataset.type === AV_MANAGE_CUSTOM_COLORS_TYPE) {
+                    menu.close();
+                    document.querySelector(".av__panel")?.remove();
+                    openAVCustomColorDialog({
+                        protyle,
+                        data,
+                        blockElement: blockElement as HTMLElement,
+                    });
+                    return;
+                }
+                if (colorTarget?.classList.contains("color__square") && !colorTarget.classList.contains("color__square--current")) {
                     element.querySelector(".color__square--current")?.classList.remove("color__square--current");
                     colorTarget.classList.add("color__square--current");
                     const newColor = colorTarget.getAttribute("data-color");
@@ -377,6 +430,7 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                         action: "updateAttrViewColOption",
                         id: colId,
                         avID: data.id,
+                        blockID,
                         data: {
                             oldName: name,
                             newName: inputElement.value,
@@ -392,6 +446,7 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                         action: "updateAttrViewColOption",
                         id: colId,
                         avID: data.id,
+                        blockID,
                         data: {
                             oldName: inputElement.value,
                             newName: name,
@@ -407,6 +462,7 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                                 if (item.name === name) {
                                     item.name = inputElement.value;
                                     item.color = newColor;
+                                    item.resolvedColor = getAVResolvedColor(newColor);
                                     return true;
                                 }
                             });
@@ -420,29 +476,34 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
                     } else {
                         cellElements.forEach((cellElement: HTMLElement, cellIndex) => {
                             const rowID = getFieldIdByCellElement(cellElement, viewType);
-                            if (viewType === "table") {
-                                cellElement = cellElements[cellIndex] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${cellElement.dataset.colId}"]`) ||
-                                    blockElement.querySelector(`.fn__flex-1[data-col-id="${cellElement.dataset.colId}"]`)) as HTMLElement;
-                            } else {
-                                cellElement = cellElements[cellIndex] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${cellElement.dataset.fieldId}"]`)) as HTMLElement;
+                            if (!blockElement.contains(cellElement)) {
+                                if (isTableLikeView(viewType) || isCustomAttr) {
+                                    cellElement = cellElements[cellIndex] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${cellElement.dataset.colId}"]`) ||
+                                        blockElement.querySelector(`.fn__flex-1[data-col-id="${cellElement.dataset.colId}"]`)) as HTMLElement;
+                                } else {
+                                    cellElement = cellElements[cellIndex] = (blockElement.querySelector(`.av__gallery-item[data-id="${rowID}"] .av__cell[data-field-id="${cellElement.dataset.fieldId}"]`)) as HTMLElement;
+                                }
                             }
                             cellValues[cellIndex].mSelect.find((item) => {
                                 if (item.content === name) {
                                     item.content = inputElement.value;
                                     item.color = newColor;
+                                    item.resolvedColor = getAVResolvedColor(newColor);
                                     return true;
                                 }
                             });
-                            if (cellElement.classList.contains("custom-attr__avvalue")) {
-                                cellElement.innerHTML = genAVValueHTML(cellValues[cellIndex]);
-                            } else {
+                            if (!cellElement.classList.contains("custom-attr__avvalue")) {
                                 updateAttrViewCellAnimation(cellElement, cellValues[cellIndex]);
                             }
+                            updateAttrViewCellInOtherElements(protyle, data.id, rowID, colId,
+                                cellValues[cellIndex], cellElement);
                         });
                         menuElement.innerHTML = getSelectHTML(fields, cellElements, false, blockElement);
                         bindSelectEvent(protyle, data, menuElement, cellElements, blockElement);
                     }
                     menuElement.querySelector(".b3-menu__items").scrollTop = oldScroll;
+                    // chips 增减导致菜单高度变化后重新定位（锁底部，顶部自适应，避免底部溢出视口）
+                    setSelectMenuPosition(menuElement, cellElements[cellElements.length - 1]);
                     name = inputElement.value;
                     desc = descElement.value;
                     color = newColor;
@@ -457,13 +518,20 @@ export const setColOption = (protyle: IProtyle, data: IAV, target: HTMLElement, 
         w: rect.width,
         h: rect.height,
     });
-    const inputElement = window.siyuan.menus.menu.element.querySelector("input");
-    inputElement.select();
-    const descElement = window.siyuan.menus.menu.element.querySelector("textarea");
+    const inputElement = menu.element.querySelector("input");
+    // 移动端由用户点击输入框进入编辑，避免与菜单打开时的键盘收起流程冲突。
+    if (!isMobile()) {
+        inputElement.select();
+    }
+    const descElement = menu.element.querySelector("textarea");
 };
 
 export const bindSelectEvent = (protyle: IProtyle, data: IAV, menuElement: HTMLElement, cellElements: HTMLElement[], blockElement: Element) => {
     const inputElement = menuElement.querySelector("input");
+    // 在选项按钮获得焦点前记录搜索状态，重建多选面板时仅恢复用户主动进入的输入。
+    menuElement.onpointerdown = () => {
+        menuElement.dataset.restoreSearchFocus = String(document.activeElement === inputElement);
+    };
     const colId = getColId(cellElements[0], blockElement.getAttribute("data-av-type") as TAVView);
     let colData: IAVColumn;
     getFieldsByData(data).find((item: IAVColumn) => {
@@ -506,6 +574,9 @@ export const bindSelectEvent = (protyle: IProtyle, data: IAV, menuElement: HTMLE
 };
 
 export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: HTMLElement[], currentElement: HTMLElement, menuElement: HTMLElement, blockElement: Element) => {
+    const inputElement = menuElement.querySelector("input");
+    const restoreSearchFocus = !isMobile() || document.activeElement === inputElement ||
+        menuElement.dataset.restoreSearchFocus === "true";
     let hasSelected = false;
     Array.from(menuElement.querySelectorAll(".b3-chips .b3-chip")).find((item: HTMLElement) => {
         if (item.dataset.content === currentElement.dataset.name) {
@@ -514,7 +585,9 @@ export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: H
         }
     });
     if (hasSelected) {
-        menuElement.querySelector("input").focus();
+        if (restoreSearchFocus) {
+            inputElement.focus();
+        }
         return;
     }
 
@@ -522,7 +595,7 @@ export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: H
     if (!nodeElement) {
         cellElements.forEach((item, index) => {
             const rowID = getFieldIdByCellElement(item, data.viewType);
-            if (data.viewType === "table" || isCustomAttr(item)) {
+            if (isTableLikeView(data.viewType) || isCustomAttr(item)) {
                 cellElements[index] = (blockElement.querySelector(`.av__row[data-id="${rowID}"] .av__cell[data-col-id="${item.dataset.colId}"]`) ||
                     blockElement.querySelector(`.fn__flex-1[data-col-id="${item.dataset.colId}"]`)) as HTMLElement;
             } else {
@@ -545,15 +618,34 @@ export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: H
 
     const cellDoOperations: IOperation[] = [];
     const cellUndoOperations: IOperation[] = [];
+    const resolvedColor = colData.options.find(option => option.name === currentElement.dataset.name)?.resolvedColor ||
+        getAVResolvedColor(currentElement.dataset.color);
     let mSelectValue: IAVCellSelectValue[];
+    const batchMode = getAVBatchEditMode(cellElements[0]);
     cellElements.forEach((item, index) => {
         const rowID = getFieldIdByCellElement(item, data.viewType);
         if (!rowID) {
             return;
         }
-        const cellValue: IAVCellValue = cellValues[index];
+        const cellValue: IAVCellValue = batchMode === "replace" ?
+            cellValues[index] :
+            getAVBatchSourceValue(item, cellValues[index]);
         const oldValue = JSON.parse(JSON.stringify(cellValue));
-        if (index === 0) {
+        if (batchMode === "remove") {
+            cellValue.mSelect = cellValue.mSelect?.filter(option =>
+                option.content !== currentElement.dataset.name) || [];
+        } else if (batchMode === "add") {
+            if (!cellValue.mSelect?.some(option => option.content === currentElement.dataset.name)) {
+                if (!cellValue.mSelect) {
+                    cellValue.mSelect = [];
+                }
+                cellValue.mSelect.push({
+                    color: currentElement.dataset.color,
+                    content: currentElement.dataset.name,
+                    resolvedColor,
+                });
+            }
+        } else if (index === 0) {
             if (colData.type === "mSelect") {
                 let hasOption = false;
                 cellValue.mSelect.find((item) => {
@@ -565,19 +657,22 @@ export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: H
                 if (!hasOption) {
                     cellValue.mSelect.push({
                         color: currentElement.dataset.color,
-                        content: currentElement.dataset.name
+                        content: currentElement.dataset.name,
+                        resolvedColor,
                     });
                 }
             } else {
                 cellValue.mSelect = [{
                     color: currentElement.dataset.color,
-                    content: currentElement.dataset.name
+                    content: currentElement.dataset.name,
+                    resolvedColor,
                 }];
             }
             mSelectValue = cellValue.mSelect;
         } else {
             cellValue.mSelect = mSelectValue;
         }
+        cellValues[index] = cellValue;
         cellDoOperations.push({
             action: "updateAttrViewCell",
             id: cellValue.id,
@@ -594,11 +689,10 @@ export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: H
             avID: data.id,
             data: oldValue
         });
-        if (item.classList.contains("custom-attr__avvalue")) {
-            item.innerHTML = genAVValueHTML(cellValue);
-        } else {
+        if (!item.classList.contains("custom-attr__avvalue")) {
             updateAttrViewCellAnimation(item, cellValue);
         }
+        updateAttrViewCellInOtherElements(protyle, data.id, rowID, colId, cellValue, item);
     });
 
     if (currentElement.querySelector(".b3-menu__accelerator")) {
@@ -632,15 +726,21 @@ export const addColOptionOrCell = (protyle: IProtyle, data: IAV, cellElements: H
         transaction(protyle, cellDoOperations, cellUndoOperations);
     }
     if (colData.type === "select") {
-        blockElement.setAttribute("data-rendering", "true");
+        if (blockElement.classList.contains("av")) {
+            blockElement.setAttribute("data-rendering", "true");
+        }
         menuElement.parentElement.dispatchEvent(new CustomEvent("click", {detail: "close"}));
     } else {
         const oldScroll = menuElement.querySelector(".b3-menu__items").scrollTop;
         const oldChipsHeight = menuElement.querySelector(".b3-chips").clientHeight;
         menuElement.innerHTML = getSelectHTML(fields, cellElements, false, blockElement);
         bindSelectEvent(protyle, data, menuElement, cellElements, blockElement);
-        menuElement.querySelector("input").focus();
+        if (restoreSearchFocus) {
+            menuElement.querySelector("input").focus();
+        }
         menuElement.querySelector(".b3-menu__items").scrollTop = oldScroll + (menuElement.querySelector(".b3-chips").clientHeight - oldChipsHeight);
+        // chips 增减导致菜单高度变化后重新定位（锁底部，顶部自适应，避免底部溢出视口）
+        setSelectMenuPosition(menuElement, cellElements[cellElements.length - 1]);
     }
 };
 
@@ -659,19 +759,31 @@ export const getSelectHTML = (fields: IAVColumn[], cellElements: HTMLElement[], 
             return item;
         }
     });
+    cellValues.forEach(value => {
+        value.mSelect?.forEach(item => {
+            item.resolvedColor = colData.options?.find(option => option.name === item.content)?.resolvedColor;
+        });
+    });
     let selectedHTML = "";
     const selected: string[] = [];
-    cellValues[0].mSelect?.forEach((item) => {
+    const batchMode = getAVBatchEditMode(cellElements[0]);
+    const visibleValues = batchMode === "replace" ? cellValues[0].mSelect : [];
+    const canSort = colData.type === "mSelect" && visibleValues?.length > 1;
+    visibleValues?.forEach((item) => {
+        const option = colData.options?.find((colOption) => colOption.name === item.content);
         selected.push(item.content);
-        selectedHTML += `<div class="b3-chip b3-chip--middle" data-content="${escapeAttr(item.content)}" style="white-space: nowrap;max-width:100%;background-color:var(--b3-font-background${item.color});color:var(--b3-font-color${item.color})"><span class="fn__ellipsis">${escapeHtml(item.content)}</span><svg class="b3-chip__close" data-type="removeCellOption"><use xlink:href="#iconCloseRound"></use></svg></div>`;
+        selectedHTML += `<div class="b3-chip b3-chip--middle${canSort ? " fn__grab" : " b3-chip--pointer"}" data-content="${escapeAttr(item.content)}" data-name="${escapeAttr(item.content)}" data-desc="${escapeAttr(option?.desc || "")}" data-color="${escapeAttr(option ? option.color : item.color)}" data-value-color="${escapeAttr(item.color)}" style="white-space: nowrap;max-width:100%;${getAVColorStyle({
+            color: option ? option.color : item.color,
+            resolvedColor: option ? option.resolvedColor : item.resolvedColor,
+        })}"><span class="fn__ellipsis">${escapeHtml(item.content)}</span><svg class="b3-chip__close" data-type="removeCellOption"><use xlink:href="#iconClose"></use></svg></div>`;
     });
 
     return `<div class="b3-menu__items" style="display: flex;flex-direction: column;flex: 1;">
 <div class="b3-chips" style="max-width: 50vw">
     ${selectedHTML}
-    <input>
+    <input spellcheck="false" placeholder="${escapeAttr(window.siyuan.languages.search)} / ${escapeAttr(window.siyuan.languages.addAttr)}" aria-label="${escapeAttr(window.siyuan.languages.search)} / ${escapeAttr(window.siyuan.languages.addAttr)}">
 </div>
-<div style="flex: 1;overflow: auto;">${filterSelectHTML("", colData.options, selected)}</div>
+<div class="av__select-list" style="flex: 1;overflow: auto;">${filterSelectHTML("", colData.options, selected)}</div>
 </div>`;
 };
 
@@ -682,17 +794,15 @@ export const mergeAddOption = (column: IAVColumn, cellValue: IAVCellValue, avID:
         if (!column.options) {
             column.options = [];
         }
-        const needAdd = column.options.find((option: {
-            name: string,
-            color: string,
-        }) => {
+        const needAdd = column.options.find((option) => {
             if (option.name === item.content) {
                 item.color = option.color;
+                item.resolvedColor = option.resolvedColor;
                 return true;
             }
         });
         if (!needAdd) {
-            const newColor = ((column.options?.length || 0) % 14 + 1).toString();
+            const newColor = getNextAVOptionColor(column.options?.length || 0);
             column.options.push({
                 name: item.content,
                 color: newColor

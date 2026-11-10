@@ -1,8 +1,10 @@
+import {toggleMenu} from "../menus/menuToggle";
 import {Constants} from "../constants";
 import {fetchPost} from "../util/fetch";
 import {setStorageVal} from "../protyle/util/compatibility";
-import {getArticle, getAttr} from "./util";
-import {escapeAriaLabel, escapeGreat} from "../util/escape";
+import {getArticle} from "./util";
+import {getAttr} from "./attrs";
+import {escapeHtmlTextAndAttr, escapeLessThans} from "../util/escape";
 import {getIconByType} from "../editor/getIcon";
 import {unicode2Emoji} from "../emoji";
 import {getDisplayName, getNotebookName} from "../util/pathName";
@@ -17,7 +19,9 @@ export const openSearchUnRef = (element: HTMLElement, editor: Protyle) => {
     if (element.querySelector("#searchUnRefResult").innerHTML) {
         return;
     }
-    element.parentElement.querySelector(".fn__loading--top").classList.remove("fn__none");
+    const loadingElement =  element.parentElement.querySelector(".fn__loading") as HTMLElement;
+    loadingElement.classList.remove("fn__none");
+    loadingElement.style.top = "42px";
     if (element.querySelector("#searchUnRefList").innerHTML !== "") {
         return;
     }
@@ -95,7 +99,7 @@ export const getUnRefList = (element: Element, edit: Protyle, page = 1) => {
     fetchPost("/api/search/listInvalidBlockRefs", {
         page,
     }, (response) => {
-        element.parentElement.querySelector(".fn__loading--top").classList.add("fn__none");
+        element.parentElement.querySelector(".fn__loading").classList.add("fn__none");
         const nextElement = element.querySelector('[data-type="unRefNext"]');
         if (page < response.data.pageCount) {
             nextElement.removeAttribute("disabled");
@@ -104,13 +108,16 @@ export const getUnRefList = (element: Element, edit: Protyle, page = 1) => {
         }
         let resultHTML = "";
         response.data.blocks.forEach((item: IBlock, index: number) => {
-            const title = getNotebookName(item.box) + getDisplayName(item.hPath, false);
+            const notebookName = getNotebookName(item.box);
+            const hPath = getDisplayName(item.hPath, false);
+            const title = notebookName + hPath;
+            const tooltip = escapeHtmlTextAndAttr(notebookName) + hPath;
             resultHTML += `<div data-type="search-item" class="b3-list-item${index === 0 ? " b3-list-item--focus" : ""}" data-node-id="${item.id}" data-root-id="${item.rootID}">
 <svg class="b3-list-item__graphic"><use xlink:href="#${getIconByType(item.type)}"></use></svg>
 ${unicode2Emoji(item.ial.icon, "b3-list-item__graphic", true)}
 <span class="b3-list-item__text">${item.content}</span>
 ${getAttr(item)}
-<span class="b3-list-item__meta b3-list-item__meta--ellipsis ariaLabel" aria-label="${escapeAriaLabel(title)}">${escapeGreat(title)}</span>
+<span class="b3-list-item__meta b3-list-item__meta--ellipsis ariaLabel" data-tooltip-encoding="none" aria-label="${escapeHtmlTextAndAttr(tooltip)}">${escapeLessThans(title)}</span>
 </div>`;
         });
         if (response.data.blocks.length > 0) {
@@ -133,65 +140,73 @@ ${getAttr(item)}
 };
 
 export const unRefMoreMenu = (target: Element, element: Element, edit: Protyle) => {
-    const menu = new Menu(Constants.MENU_SEARCH_UNREF_MORE);
-    if (menu.isOpen) {
-        return;
-    }
-    const localData = window.siyuan.storage[Constants.LOCAL_SEARCHUNREF];
-    /// #if !MOBILE
-    menu.addItem({
-        icon: "iconLayout",
-        label: window.siyuan.languages.layout,
-        type: "submenu",
-        submenu: [{
-            iconHTML: "",
-            label: window.siyuan.languages.topBottomLayout,
-            current: localData.layout === 0,
-            click() {
-                element.querySelector(".search__layout").classList.remove("search__layout--row");
-                edit.protyle.element.style.width = "";
-                if (localData.row) {
-                    edit.protyle.element.style.height = localData.row;
-                    edit.protyle.element.classList.remove("fn__flex-1");
-                } else {
-                    edit.protyle.element.classList.add("fn__flex-1");
-                }
-                resize(edit.protyle);
-                localData.layout = 0;
-                setStorageVal(Constants.LOCAL_SEARCHUNREF, window.siyuan.storage[Constants.LOCAL_SEARCHUNREF]);
+    toggleMenu({
+        target: target,
+        build: (_menu, session) => {
+            const menu = new Menu(Constants.MENU_SEARCH_UNREF_MORE);
+            if (menu.isOpen) {
+                return;
             }
-        }, {
-            iconHTML: "",
-            label: window.siyuan.languages.leftRightLayout,
-            current: localData.layout === 1,
-            click() {
-                element.querySelector(".search__layout").classList.add("search__layout--row");
-                edit.protyle.element.style.height = "";
-                if (localData.col) {
-                    edit.protyle.element.style.width = localData.col;
-                    edit.protyle.element.classList.remove("fn__flex-1");
-                } else {
-                    edit.protyle.element.classList.add("fn__flex-1");
-                }
-                resize(edit.protyle);
-                localData.layout = 1;
-                setStorageVal(Constants.LOCAL_SEARCHUNREF, window.siyuan.storage[Constants.LOCAL_SEARCHUNREF]);
-            }
-        }]
-    });
-    /// #endif
-    menu.addItem({
-        icon: "iconRefresh",
-        label: window.siyuan.languages.refresh,
-        click() {
-            element.parentElement.querySelector(".fn__loading--top").classList.remove("fn__none");
-            getUnRefList(element, edit);
+            const localData = window.siyuan.storage[Constants.LOCAL_SEARCHUNREF];
+            /// #if !MOBILE
+            menu.addItem({
+                icon: "iconLayout",
+                label: window.siyuan.languages.layout,
+                type: "submenu",
+                submenu: [{
+                    iconHTML: "",
+                    label: window.siyuan.languages.topBottomLayout,
+                    current: localData.layout === 0,
+                    click() {
+                        element.querySelector(".search__layout").classList.remove("search__layout--row");
+                        edit.protyle.element.style.width = "";
+                        if (localData.row) {
+                            edit.protyle.element.style.height = localData.row;
+                            edit.protyle.element.classList.remove("fn__flex-1");
+                        } else {
+                            edit.protyle.element.classList.add("fn__flex-1");
+                        }
+                        resize(edit.protyle);
+                        localData.layout = 0;
+                        setStorageVal(Constants.LOCAL_SEARCHUNREF, window.siyuan.storage[Constants.LOCAL_SEARCHUNREF]);
+                    }
+                }, {
+                    iconHTML: "",
+                    label: window.siyuan.languages.leftRightLayout,
+                    current: localData.layout === 1,
+                    click() {
+                        element.querySelector(".search__layout").classList.add("search__layout--row");
+                        edit.protyle.element.style.height = "";
+                        if (localData.col) {
+                            edit.protyle.element.style.width = localData.col;
+                            edit.protyle.element.classList.remove("fn__flex-1");
+                        } else {
+                            edit.protyle.element.classList.add("fn__flex-1");
+                        }
+                        resize(edit.protyle);
+                        localData.layout = 1;
+                        setStorageVal(Constants.LOCAL_SEARCHUNREF, window.siyuan.storage[Constants.LOCAL_SEARCHUNREF]);
+                    }
+                }]
+            });
+            /// #endif
+            menu.addItem({
+                icon: "iconRefresh",
+                label: window.siyuan.languages.refresh,
+                click() {
+                    const loadingElement = element.parentElement.querySelector(".fn__loading") as HTMLElement;
+                    loadingElement.classList.remove("fn__none");
+                    loadingElement.style.top = "42px";
+                    getUnRefList(element, edit);
+                },
+            });
+            /// #if MOBILE
+            session.show(() => menu.fullscreen());
+            /// #else
+            const rect = target.getBoundingClientRect();
+            session.show(() => menu.open({x: rect.right, y: rect.bottom, h: rect.height, isLeft: true}));
+            /// #endif
+
         },
     });
-    /// #if MOBILE
-    menu.fullscreen();
-    /// #else
-    const rect = target.getBoundingClientRect();
-    menu.open({x: rect.right, y: rect.bottom, isLeft: true});
-    /// #endif
 };

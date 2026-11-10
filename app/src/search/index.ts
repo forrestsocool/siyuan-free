@@ -3,8 +3,10 @@ import {Tab} from "../layout/Tab";
 import {Protyle} from "../protyle";
 import {genSearch} from "./util";
 import {setPanelFocus} from "../layout/util";
-import {App} from "../index";
+import type {App} from "../index";
 import {clearOBG} from "../layout/dock/util";
+import {cancelSearchRequest} from "./request";
+import {isPhablet} from "../protyle/util/compatibility";
 
 export class Search extends Model {
     public element: HTMLElement;
@@ -14,7 +16,6 @@ export class Search extends Model {
     constructor(options: { tab: Tab, config: Config.IUILayoutTabSearchConfig, app: App }) {
         super({
             app: options.app,
-            id: options.tab.id,
         });
         if (window.siyuan.config.fileTree.openFilesUseCurrentTab) {
             options.tab.headElement?.classList.add("item--unupdate");
@@ -46,7 +47,15 @@ export class Search extends Model {
             }
         }
         inputElement.value = text;
-        inputElement.select();
+        if (!isPhablet()) {
+            inputElement.select();
+        }
         inputElement.dispatchEvent(new CustomEvent("input"));
+    }
+
+    public destroy() {
+        cancelSearchRequest(this.element);
+        this.editors.edit.destroy();
+        this.editors.unRefEdit.destroy();
     }
 }

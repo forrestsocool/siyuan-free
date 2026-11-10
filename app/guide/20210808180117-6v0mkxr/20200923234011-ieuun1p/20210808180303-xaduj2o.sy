@@ -7,7 +7,7 @@
 		"id": "20210808180303-xaduj2o",
 		"title": "General Operations",
 		"type": "doc",
-		"updated": "20240612234729"
+		"updated": "20261016191102"
 	},
 	"Children": [
 		{
@@ -75,6 +75,23 @@
 					"TextMarkBlockRefID": "20200924100906-0u4zfq3",
 					"TextMarkBlockRefSubtype": "d",
 					"TextMarkTextContent": "Window and Tab"
+				}
+			]
+		},
+		{
+			"ID": "20260614115137-e4l62jg",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260614115137-e4l62jg",
+				"updated": "20260614115137"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260613212028-gozdm4e",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "Content Statistics"
 				}
 			]
 		},
@@ -236,7 +253,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20240508004508-qssxra9",
-				"updated": "20240508004509"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -244,7 +261,7 @@
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20210331201142-4g923es",
 					"TextMarkBlockRefSubtype": "d",
-					"TextMarkTextContent": "Hyperlink"
+					"TextMarkTextContent": "Block hyperlink"
 				}
 			]
 		},
@@ -334,6 +351,23 @@
 			]
 		},
 		{
+			"ID": "20260903150000-wowa4te",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260903150000-wowa4te",
+				"updated": "20260903150000"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260903150000-s4hctea",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "Connect to a Remote Kernel"
+				}
+			]
+		},
+		{
 			"ID": "20240508004528-jzh49m5",
 			"Type": "NodeParagraph",
 			"Properties": {
@@ -389,7 +423,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20240508004537-14enffy",
-				"updated": "20240508004537"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -397,7 +431,7 @@
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20230104152135-1iei0xa",
 					"TextMarkBlockRefSubtype": "d",
-					"TextMarkTextContent": "Share document"
+					"TextMarkTextContent": "Share a document to the community"
 				}
 			]
 		},
@@ -415,6 +449,91 @@
 					"TextMarkBlockRefID": "20240517031132-jmr5ihm",
 					"TextMarkBlockRefSubtype": "d",
 					"TextMarkTextContent": "Publish service"
+				}
+			]
+		},
+		{
+			"ID": "20260614115143-k9n53ur",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260614115143-k9n53ur",
+				"updated": "20260614115144"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260612192252-sgw2paw",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "Command Line Interface"
+				}
+			]
+		},
+		{
+			"ID": "20260614115147-5yguoku",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260614115147-5yguoku",
+				"updated": "20260614115148"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260614104204-staofnm",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "Network Proxy"
+				}
+			]
+		},
+		{
+			"ID": "20261016191102-t4inbxw",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261016191102-t4inbxw",
+				"updated": "20261016191102"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260804190002-oidcen1",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "OIDC login"
+				}
+			]
+		},
+		{
+			"ID": "20261016191102-lbkdl4e",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261016191102-lbkdl4e",
+				"updated": "20261016191102"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260804185002-secvr03",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "Secrets and Variables"
+				}
+			]
+		},
+		{
+			"ID": "20261016191102-t6o363b",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261016191102-t6o363b",
+				"updated": "20261016191102"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260907120000-cryen01",
+					"TextMarkBlockRefSubtype": "d",
+					"TextMarkTextContent": "Encrypted Notebook"
 				}
 			]
 		}

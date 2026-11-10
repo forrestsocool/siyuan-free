@@ -1,16 +1,30 @@
 import {getIconByType} from "../editor/getIcon";
 import {isMobile} from "./functions";
 import {mathRender} from "../protyle/render/mathRender";
-import {unicode2Emoji} from "../emoji";
-import {Constants} from "../constants";
-import {escapeAriaLabel} from "./escape";
+import {getFileTreeIconHTML} from "../emoji/fileTreeIcon";
+import {escapeHtmlTextAndAttr, escapeTooltipTextAttr, escapeAttr, escapeHtml} from "./escape";
 import {hasClosestByTag} from "../protyle/util/hasClosest";
+import {headingNumberNeedsLeadingTrim, headingNumberNeedsSpacing} from "../protyle/util/headingNumberCore";
+import {getTreeItemTailHTML} from "./treeItemTail";
+
+const genOutlineNumberHTML = (number?: string) => {
+    if (!number) {
+        return "";
+    }
+    const spacingClass = headingNumberNeedsSpacing(number) ? "" : " b3-list-item__number--no-spacing";
+    const trimStartClass = headingNumberNeedsLeadingTrim(number) ? " b3-list-item__number--trim-start" : "";
+    return `<span class="b3-list-item__number${spacingClass}${trimStartClass}">${escapeHtml(number)}</span>`;
+};
 
 export class Tree {
     public element: HTMLElement;
     private data: IBlockTree[];
     private blockExtHTML: string;
     private topExtHTML: string;
+    private titleTooltipPosition: string;
+    private blockDraggable: boolean;
+    private dragStart: (element: HTMLElement, event: DragEvent) => boolean;
+    private dragEnd: (element: HTMLElement, event: DragEvent) => boolean;
 
     public click: (element: Element, event?: MouseEvent) => void;
     private ctrlClick: (element: HTMLElement, event: MouseEvent) => void;
@@ -24,12 +38,16 @@ export class Tree {
         data: IBlockTree[],
         blockExtHTML?: string,
         topExtHTML?: string,
+        titleTooltipPosition?: string,
+        blockDraggable?: boolean,
         click?(element: HTMLElement, event: MouseEvent): void
         ctrlClick?(element: HTMLElement, event: MouseEvent): void
         altClick?(element: HTMLElement, event: MouseEvent): void
         shiftClick?(element: HTMLElement): void
         toggleClick?(element: HTMLElement): void
         rightClick?(element: HTMLElement, event: MouseEvent): void
+        dragStart?(element: HTMLElement, event: DragEvent): boolean
+        dragEnd?(element: HTMLElement, event: DragEvent): boolean
     }) {
         this.click = options.click;
         this.ctrlClick = options.ctrlClick;
@@ -40,6 +58,10 @@ export class Tree {
         this.element = options.element;
         this.blockExtHTML = options.blockExtHTML;
         this.topExtHTML = options.topExtHTML;
+        this.titleTooltipPosition = options.titleTooltipPosition || "parentE";
+        this.blockDraggable = options.blockDraggable;
+        this.dragStart = options.dragStart;
+        this.dragEnd = options.dragEnd;
         this.updateData(options.data);
         this.bindEvent();
     }
@@ -54,7 +76,16 @@ export class Tree {
         }
     }
 
+    public createTopLevelItem(data: IBlockTree) {
+        const template = document.createElement("template");
+        template.innerHTML = this.genHTML([data]);
+        const element = template.content.querySelector(".b3-list > .b3-list-item") as HTMLLIElement;
+        mathRender(element);
+        return element;
+    }
+
     private genHTML(data: (IBlockTree & { folded?: boolean })[]) {
+        const isM = isMobile();
         let html = `<ul${data[0].depth === 0 ? " class='b3-list b3-list--background'" : ""}>`;
         data.forEach((item) => {
             let titleTip = "";
@@ -62,44 +93,45 @@ export class Tree {
             if (item.type === "bookmark") {
                 iconHTML = '<svg class="b3-list-item__graphic"><use xlink:href="#iconBookmark"></use></svg>';
             } else if (item.type === "tag") {
-                iconHTML = '<svg class="b3-list-item__graphic"><use xlink:href="#iconTags"></use></svg>';
+                iconHTML = '<svg class="b3-list-item__graphic"><use xlink:href="#iconTag"></use></svg>';
             } else if (item.type === "backlink") {
-                titleTip = ` aria-label="${escapeAriaLabel(item.hPath)}"`;
+                titleTip = ` data-tooltip-encoding="none" aria-label="${escapeHtmlTextAndAttr(item.hPath || "")}"`;
                 iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.nodeType, item.subType)}"></use></svg>`;
             } else if (item.type === "outline") {
-                titleTip = ` aria-label="${escapeAriaLabel(Lute.BlockDOM2Content(item.name))}"`;
-                iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}" style="height: 22px;width: 10px;"><use xlink:href="#${getIconByType(item.nodeType, item.subType)}"></use></svg>`;
+                titleTip = ` data-tooltip-encoding="none" aria-label="${escapeTooltipTextAttr(Lute.BlockDOM2Content(item.name))}"`;
+                iconHTML = `<svg class="b3-list-item__graphic popover__block" data-id="${item.id}" style="height: ${isM ? 16 : 22}px;width: 16px;"><use xlink:href="#${getIconByType(item.nodeType, item.subType)}"></use></svg>`;
             }
             let countHTML = "";
             if (item.count) {
                 countHTML = `<span class="counter">${item.count}</span>`;
             }
+            const numberHTML = item.type === "outline" ? genOutlineNumberHTML(item.number) : "";
             const hasChild = (item.children && item.children.length > 0) || (item.blocks && item.blocks.length > 0);
             let style = "";
-            if (isMobile()) {
+            if (isM) {
                 if (item.depth > 0) {
                     style = `padding-left: ${(item.depth - 1) * 20 + 24}px`;
                 }
             } else {
                 style = `padding-left: ${(item.depth * 18) || 4}px;margin-right: 2px`;
             }
-            const showArrow = hasChild || (item.type === "backlink" && !isMobile());
+            const showArrow = hasChild || item.type === "backlink";
             // data-id 需要添加 item.id，否则大纲更新时 name 不一致导致 https://github.com/siyuan-note/siyuan/issues/11843
-            html += `<li class="b3-list-item${isMobile() ? "" : " b3-list-item--hide-action"}" 
+            html += `<li class="b3-list-item${isM ? "" : " b3-list-item--hide-action"}" 
 ${item.id ? 'data-node-id="' + item.id + '"' : ""} 
 ${item.box ? 'data-notebook-id="' + item.box + '"' : ""} 
 style="--file-toggle-width:${item.depth === 0 ? 22 : ((item.depth + 1) * 18)}px" 
 data-treetype="${item.type}" 
 data-type="${item.nodeType || ""}" 
 data-subtype="${item.subType || ""}" 
-${item.label !== undefined && item.label !== null ? `data-label='${item.label}'` : ""}>
+${item.label !== undefined && item.label !== null ? `data-label='${escapeAttr(item.label)}'` : ""}>
     <span style="${style}" class="b3-list-item__toggle${showArrow ? " b3-list-item__toggle--hl" : ""}${showArrow ? "" : " fn__hidden"}">
         <svg data-id="${item.id || encodeURIComponent(item.name + item.depth)}" class="b3-list-item__arrow${(item.type === "outline" ? !item.folded : hasChild) ? " b3-list-item__arrow--open" : ""}"><use xlink:href="#iconRight"></use></svg>
     </span>
     ${iconHTML}
-    <span class="b3-list-item__text ariaLabel" data-position="parentE"${titleTip}>${item.name}</span>
-    ${this.topExtHTML || ""}
-    ${countHTML}
+    ${numberHTML}
+    <span class="b3-list-item__text ariaLabel" data-position="${this.titleTooltipPosition}"${titleTip}>${item.nameIsHTML ? item.name : escapeHtml(item.name)}</span>
+    ${getTreeItemTailHTML(countHTML, this.topExtHTML || "", isM)}
 </li>`;
             if (item.children && item.children.length > 0) {
                 html += this.genHTML(item.children) + "</ul>";
@@ -112,6 +144,7 @@ ${item.label !== undefined && item.label !== null ? `data-label='${item.label}'`
     }
 
     private genBlockHTML(data: IBlock[], show = false, type: string) {
+        const isM = isMobile();
         let html = `<ul class="${!show ? "fn__none" : ""}">`;
         data.forEach((item: IBlock & {
             subType: string;
@@ -125,25 +158,26 @@ ${item.label !== undefined && item.label !== null ? `data-label='${item.label}'`
             if (item.count) {
                 countHTML = `<span class="counter">${item.count}</span>`;
             }
+            const numberHTML = type === "outline" ? genOutlineNumberHTML(item.number) : "";
             let iconHTML;
             if (type === "outline") {
-                iconHTML = `<svg data-showref="true" class="b3-list-item__graphic popover__block" data-id="${item.id}" style="height: 22px;width: 10px;"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>`;
+                iconHTML = `<svg data-showref="true" class="b3-list-item__graphic popover__block" data-id="${item.id}" style="height: ${isM ? 16 : 22}px;width: 16px;"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>`;
             } else {
                 if (item.type === "NodeDocument") {
-                    iconHTML = `<span data-showref="true" class="b3-list-item__graphic popover__block" data-id="${item.id}">${unicode2Emoji(item.ial.icon || window.siyuan.storage[Constants.LOCAL_IMAGES].file)}</span>`;
+                    iconHTML = `<span data-showref="true" class="b3-list-item__graphic popover__block" data-id="${item.id}">${getFileTreeIconHTML(item.ial.icon, "file")}</span>`;
                 } else {
                     iconHTML = `<svg data-showref="true" class="b3-list-item__graphic popover__block" data-id="${item.id}"><use xlink:href="#${getIconByType(item.type, item.subType)}"></use></svg>`;
                 }
             }
             let style = "";
-            if (isMobile()) {
+            if (isM) {
                 if (item.depth > 0) {
                     style = `padding-left: ${(item.depth - 1) * 20 + 24}px`;
                 }
             } else {
                 style = `padding-left: ${item.depth * 18 || 4}px;margin-right: 2px`;
             }
-            html += `<li class="b3-list-item${isMobile() ? "" : " b3-list-item--hide-action"}"  
+            html += `<li class="b3-list-item${isM ? "" : " b3-list-item--hide-action"}" ${this.blockDraggable ? 'draggable="true"' : ""}
 style="--file-toggle-width:${item.depth === 0 ? 22 : ((item.depth + 1) * 18)}px" 
 data-node-id="${item.id}" 
 data-ref-text="${encodeURIComponent(item.refText)}" 
@@ -156,9 +190,9 @@ data-def-path="${item.defPath}">
         <svg data-id="${item.id}" class="b3-list-item__arrow${(type === "outline" ? !item.folded : show) ? " b3-list-item__arrow--open" : ""}"><use xlink:href="#iconRight"></use></svg>
     </span>
     ${iconHTML}
-    <span class="b3-list-item__text ariaLabel" data-position="parentE" ${type === "outline" ? ' aria-label="' + escapeAriaLabel(Lute.BlockDOM2Content(item.content)) + '"' : ""}>${item.content}</span>
-    ${countHTML}
-    ${this.blockExtHTML || ""}
+    ${numberHTML}
+    <span class="b3-list-item__text ariaLabel" data-position="${this.titleTooltipPosition}" ${type === "outline" ? ' data-tooltip-encoding="none" aria-label="' + escapeTooltipTextAttr(Lute.BlockDOM2Content(item.content)) + '"' : ""}>${item.content}</span>
+    ${getTreeItemTailHTML(countHTML, this.blockExtHTML || "", isM)}
 </li>`;
             if (item.children && item.children.length > 0) {
                 html += this.genBlockHTML(item.children, type === "outline" ? !item.folded : false, type) + "</ul>";
@@ -258,6 +292,9 @@ data-def-path="${item.defPath}">
         this.element.addEventListener("dragstart", (event: DragEvent & { target: HTMLElement }) => {
             const liElement = hasClosestByTag(event.target, "LI");
             if (liElement) {
+                if (this.dragStart?.(liElement, event)) {
+                    return;
+                }
                 event.dataTransfer.setData("text/html", liElement.outerHTML);
                 // 设置了的话 drop 就无法监听 alt event.dataTransfer.dropEffect = "move";
                 liElement.style.opacity = "0.38";
@@ -267,6 +304,9 @@ data-def-path="${item.defPath}">
         this.element.addEventListener("dragend", (event: DragEvent & { target: HTMLElement }) => {
             const liElement = hasClosestByTag(event.target, "LI");
             if (liElement) {
+                if (this.dragEnd?.(liElement, event)) {
+                    return;
+                }
                 liElement.style.opacity = "1";
             }
             window.siyuan.dragElement = undefined;

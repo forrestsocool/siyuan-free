@@ -1,39 +1,193 @@
 import {showMessage} from "../dialog/message";
-import {getAllModels} from "../layout/getAll";
-import {hasClosestByClassName, hasTopClosestByTag} from "../protyle/util/hasClosest";
-import {getDockByType} from "../layout/tabUtil";
+import {hasClosestBlock, hasTopClosestByTag} from "../protyle/util/hasClosest";
 /// #if !MOBILE
 import {Files} from "../layout/dock/Files";
+import {Editor} from "../editor";
 import {openFileById} from "../editor/util";
+import {getActiveTab, getDockByType} from "../layout/tabUtil";
 /// #endif
-import {fetchPost} from "./fetch";
-import {getDisplayName, getOpenNotebookCount, pathPosix} from "./pathName";
+import {fetchPost, fetchSyncPost} from "./fetch";
+import {getOpenNotebookCount, isMoveTargetAllowed, movePathTo} from "./pathName";
 import {Constants} from "../constants";
-import {replaceFileName, validateName} from "../editor/rename";
+import {normalizeDocumentTitle, validateName} from "../editor/rename";
 import {hideElements} from "../protyle/ui/hideElements";
 import {openMobileFileById} from "../mobile/editor";
-import {App} from "../index";
+import type {App} from "../index";
+import {selectAll} from "../protyle/util/selection";
+import {focusByRange} from "../protyle/util/selectionOffsets";
+import {
+    createNewFileSelectionContext,
+    isNewFileSelectionValid,
+    isRangeInEditor,
+    isSameBlockRange,
+    isSameRange,
+    NewFileSelectionContext
+} from "./newFileSelection";
+import {getContenteditableElement} from "../protyle/wysiwyg/getBlock";
+import {createdDocumentID, documentCreateRequest, documentParentID} from "./documentCreate";
+import {createConfiguredDocument, previewConfiguredDocument} from "./configuredDocument";
 
-export const getNewFilePath = (useSavePath: boolean) => {
+export const getBlockRefAnchorText = (title: string) => {
+    const trimmed = (title || "").trim();
+    if (!trimmed) {
+        return window.siyuan.languages._kernel[16];
+    }
+    return trimmed.substring(0, window.siyuan.config.editor.blockRefDynamicAnchorTextMaxLen);
+};
+
+type NewDocRequest = {
+    app: App;
+    notebookId: string;
+    currentPath: string;
+    /** 是否有来自编辑器或文件树选中项的焦点目标 */
+    hasFocusTarget: boolean;
+    name?: string;
+    sortTargetID?: string;
+    sortPosition?: "before" | "after";
+    listDocTree?: boolean;
+    onCreated?: (id: string, title: string) => void;
+};
+
+/** 按配置路径创建文档；从聚焦编辑器或文件树推断上下文；可选 name 指定文档名 */
+export const newFile = (app: App, name?: string) => {
+    if (getOpenNotebookCount() === 0) {
+        showMessage(window.siyuan.languages.newFileTip);
+        return;
+    }
+    const {notebookId, currentPath, hasFocusTarget} = getNewFilePath();
+    if (name === undefined) {
+        runNewDoc({
+            app,
+            notebookId,
+            currentPath,
+            hasFocusTarget,
+        });
+    } else {
+        runNewDoc({
+            app,
+            notebookId,
+            currentPath,
+            hasFocusTarget,
+            name: normalizeDocumentTitle(name.trim()),
+            onCreated: () => hideElements(["dialog"]),
+        });
+    }
+};
+
+export const newFileInProtyle = (protyle: IProtyle, onCreated: (id: string, title: string) => void) => {
+    runNewDoc({
+        app: protyle.app,
+        notebookId: protyle.notebookId,
+        currentPath: protyle.path,
+        hasFocusTarget: true,
+        onCreated,
+    });
+};
+
+export const newFileInTree = (app: App, notebookId: string, currentPath: string, sortPlacement?: {
+    targetID: string;
+    position: "before" | "after";
+}) => {
+    runNewDocInTree({
+        app,
+        notebookId,
+        currentPath,
+        hasFocusTarget: true,
+        sortTargetID: sortPlacement?.targetID,
+        sortPosition: sortPlacement?.position,
+        listDocTree: true,
+    });
+};
+
+const insertNewFileRef = (protyle: IProtyle, context: NewFileSelectionContext, id: string, refText: string,
+                          refSubtype: "d" | "s") => {
+    if (!isNewFileSelectionValid(protyle, context)) {
+        return;
+    }
+    const selection = document.getSelection();
+    const currentRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : undefined;
+    const selectionMoved = currentRange && !isSameRange(currentRange, context.range);
+    protyle.toolbar.range = context.range;
+    const anchorText = refSubtype === "s" ? getBlockRefAnchorText(context.text) : refText;
+    const refElements = protyle.toolbar.setInlineMark(protyle, "block-ref", "range", {
+        type: "id",
+        color: `${id}${Constants.ZWSP}${refSubtype}${Constants.ZWSP}${anchorText}`
+    }, false, context.undoContext);
+    if (!refElements?.[0]) {
+        return;
+    }
+    const refRange = protyle.toolbar.range;
+    refRange.selectNodeContents(refElements[0]);
+    if (selectionMoved) {
+        if (isRangeInEditor(protyle.wysiwyg.element, currentRange)) {
+            protyle.toolbar.range = currentRange;
+            focusByRange(currentRange);
+        }
+    } else {
+        focusByRange(refRange);
+    }
+};
+
+export const newFileBySelect = (protyle: IProtyle, newFileName: string, context: NewFileSelectionContext,
+                                placement: "child" | "configured", refSubtype: "d" | "s" = "d") => {
+    if (!isNewFileSelectionValid(protyle, context)) {
+        return;
+    }
+    void createConfiguredDocument({
+        notebook: context.notebookId, contextID: context.rootID, purpose: "reference",
+        title: newFileName, placement, reuse: true,
+    }, {
+        isValid: () => !!isNewFileSelectionValid(protyle, context),
+        onCreated: id => insertNewFileRef(protyle, context, id, getBlockRefAnchorText(newFileName), refSubtype),
+    });
+};
+
+export const newFileBySelectRange = (protyle: IProtyle, range: Range, target: "subDoc" | "configured",
+                                     refSubtype: "d" | "s" = "d", name?: string,
+                                     undoContext?: Record<string, string>) => {
+    if (!isSameBlockRange(range)) {
+        return;
+    }
+    const nodeElement = hasClosestBlock(range.startContainer);
+    if (!nodeElement) {
+        return;
+    }
+    const selectText = range.toString();
+    if (!selectText.trim() && (nodeElement.querySelector("tr") || nodeElement.querySelector("span"))) {
+        // 没选中时，都是纯文本就创建子文档 https://ld246.com/article/1663073488381/comment/1664804353295#comments
+        return;
+    }
+    if (!selectText.trim() &&
+        getContenteditableElement(nodeElement).textContent // https://github.com/siyuan-note/siyuan/issues/8099
+    ) {
+        selectAll(protyle, nodeElement, range);
+    }
+    const selectionContext = createNewFileSelectionContext(protyle, range, undoContext);
+    if (!selectionContext) {
+        return;
+    }
+    const fileName = name === undefined ? (selectText.trim() ||
+        protyle.lute.BlockDOM2Content(nodeElement.outerHTML).replace(/\n/g, "").trim()) : name.trim();
+    const newFileName = normalizeDocumentTitle(fileName);
+    newFileBySelect(protyle, newFileName, selectionContext, target === "subDoc" ? "child" : "configured", refSubtype);
+    hideElements(["toolbar"], protyle);
+};
+
+
+
+function getNewFilePath(): Pick<NewDocRequest, "notebookId" | "currentPath" | "hasFocusTarget"> {
     let notebookId = "";
     let currentPath = "";
+    let hasFocusTarget = false;
     /// #if !MOBILE
-    getAllModels().editor.find((item) => {
-        const currentElement = item.parent.headElement;
-        if (currentElement.classList.contains("item--focus")) {
-            notebookId = item.editor.protyle.notebookId;
-            if (useSavePath) {
-                currentPath = item.editor.protyle.path;
-            } else {
-                currentPath = pathPosix().dirname(item.editor.protyle.path);
-            }
-            if (hasClosestByClassName(currentElement, "layout__wnd--active")) {
-                return true;
-            }
-        }
-    });
+    const tab = getActiveTab(false);
+    if (tab?.model instanceof Editor) {
+        notebookId = tab.model.editor.protyle.notebookId;
+        currentPath = tab.model.editor.protyle.path;
+        hasFocusTarget = true;
+    }
     if (!notebookId) {
-        const fileModel = getDockByType("file").data.file;
+        const fileModel = getDockByType("file")?.data.file;
         if (fileModel instanceof Files) {
             const currentElement = fileModel.element.querySelector(".b3-list-item--focus");
             if (currentElement) {
@@ -41,237 +195,187 @@ export const getNewFilePath = (useSavePath: boolean) => {
                 if (topElement) {
                     notebookId = topElement.getAttribute("data-url");
                 }
-                const selectPath = currentElement.getAttribute("data-path");
-                if (useSavePath) {
-                    currentPath = selectPath;
-                } else {
-                    currentPath = pathPosix().dirname(selectPath);
-                }
+                currentPath = currentElement.getAttribute("data-path");
+                hasFocusTarget = true;
             }
         }
     }
     /// #else
     if (window.siyuan.mobile.editor && document.getElementById("empty").classList.contains("fn__none")) {
         notebookId = window.siyuan.mobile.editor.protyle.notebookId;
-        if (useSavePath) {
-            currentPath = window.siyuan.mobile.editor.protyle.path;
-        } else {
-            currentPath = pathPosix().dirname(window.siyuan.mobile.editor.protyle.path);
-        }
+        currentPath = window.siyuan.mobile.editor.protyle.path;
+        hasFocusTarget = true;
     }
     /// #endif
     if (!notebookId) {
-        window.siyuan.notebooks.find(item => {
-            if (!item.closed) {
-                notebookId = item.id;
-                currentPath = "/";
-                return true;
-            }
-        });
+        const openNotebook = window.siyuan.notebooks.find(item => !item.closed);
+        if (openNotebook) {
+            notebookId = openNotebook.id;
+            currentPath = "/";
+        }
     }
-    return {notebookId, currentPath};
+    return {notebookId, currentPath, hasFocusTarget};
+}
+
+function runNewDoc(request: NewDocRequest, placement: "configured" | "child" = "configured") {
+    void createConfiguredDocument({
+        notebook: request.notebookId,
+        contextID: request.hasFocusTarget ? documentParentID(request.currentPath || "/") : null,
+        purpose: "document", title: request.name, placement,
+    }, {
+        sortTargetID: request.sortTargetID, sortPosition: request.sortPosition, listDocTree: request.listDocTree,
+        onCreated: (id, title) => openCreatedDoc(request.app, id, request.onCreated, title),
+    });
+}
+
+/** 判断配置的新建位置是否与在当前文档下直接创建子文档等价 */
+export const isConfiguredCreateTargetCurrentSubDoc = async (protyle: IProtyle, type: "doc" | "ref") => {
+    if (!protyle.notebookId || !protyle.path) {
+        return false;
+    }
+    const response = await previewConfiguredDocument(protyle.notebookId, protyle.path,
+        type === "doc" ? "document" : "reference", type === "ref" ? "__siyuan_ref_target__" : undefined);
+    if (response.code !== 0 || !response.data || response.data.steps.length !== 1) {
+        return false;
+    }
+    const step = response.data.steps[0];
+    return step.notebook === protyle.notebookId && step.parentID === documentParentID(protyle.path) &&
+        (type === "ref" || step.title.text === "");
 };
 
-export const newFile = (optios: {
-    app: App,
-    notebookId?: string,
-    currentPath?: string,
-    paths?: string[],
-    useSavePath: boolean,
-    name?: string,
-    afterCB?: (id: string, title: string) => void
-    listDocTree?: boolean
-}) => {
-    if (getOpenNotebookCount() === 0) {
-        showMessage(window.siyuan.languages.newFileTip);
+function runNewDocInTree(request: NewDocRequest) {
+    runNewDoc(request, "child");
+}
+
+export const getDocCreateTemplatePath = (notebookId: string, callback: (templatePath: string) => void) => {
+    fetchPost("/api/filetree/getDocCreateTarget", {notebook: notebookId, purpose: "document"}, (response) => {
+        callback(response.data.docCreateTemplatePath);
+    });
+};
+
+function openCreatedDoc(app: App, id: string, onCreated?: (id: string, title: string) => void, title?: string) {
+    if (onCreated) {
+        onCreated(id, title || "");
+    }
+    /// #if !MOBILE
+    openFileById({
+        app,
+        id,
+        action: [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]
+    });
+    /// #else
+    openMobileFileById(app, id, [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]);
+    /// #endif
+}
+
+/**
+ * 块引新建文档。
+ * 
+ * 与 `newFile` 入口路径解析规则对齐；创建后仅回调插入引用，不打开新文档页签。
+ * 独立于 `runNewDoc` 编排，避免给通用入口引入块引专用参数。
+ */
+export const newFileByRefHint = (
+    protyle: IProtyle,
+    name: string,
+    onCreated?: (id: string, title: string) => void,
+    presetId?: string,
+) => {
+    void createConfiguredDocument({
+        notebook: protyle.notebookId, contextID: documentParentID(protyle.path), purpose: "reference",
+        title: normalizeDocumentTitle(name.trim()), id: presetId,
+    }, {onCreated: (id, title) => onCreated?.(id, title)});
+};
+
+/** 选择本次块引新建位置，创建前后均校验原文档和选区 */
+export const newFileByRefHintAtPath = (
+    protyle: IProtyle,
+    name: string,
+    range: Range,
+    onCreated: (id: string, range: Range) => void,
+) => {
+    const context = createNewFileSelectionContext(protyle, range);
+    if (!context) {
         return;
     }
-    if (!optios.notebookId) {
-        const resultData = getNewFilePath(optios.useSavePath);
-        optios.notebookId = resultData.notebookId;
-        optios.currentPath = resultData.currentPath;
+    newFileAtPath({
+        notebookId: context.notebookId,
+        name,
+        isValid: () => !!isNewFileSelectionValid(protyle, context),
+        restoreFocus: () => focusByRange(context.range),
+        onCreated: (id) => onCreated(id, context.range),
+    });
+};
+
+/** 在选定位置新建文档，仅在调用方上下文仍有效时创建和回调 */
+export const newFileAtPath = (options: {
+    notebookId: string;
+    name: string;
+    isValid: () => boolean;
+    restoreFocus?: () => void;
+    onCreated: (id: string, title: string) => void;
+}) => {
+    const title = normalizeDocumentTitle(options.name.trim());
+    if (!options.isValid() || (title && !validateName(title, undefined, true))) {
+        return;
     }
-    fetchPost("/api/filetree/getDocCreateSavePath", {notebook: optios.notebookId}, (data) => {
-        if (!optios.useSavePath) {
-            data.data.box = optios.notebookId;
-        }
-        if ((data.data.path.indexOf("/") > -1 && optios.useSavePath) || optios.name) {
-            if (data.data.path.startsWith("/") || optios.currentPath === "/") {
-                const createPath = pathPosix().join(data.data.path, optios.name || (data.data.path.endsWith("/") ? window.siyuan.languages.untitled : ""));
-                fetchPost("/api/filetree/createDocWithMd", {
-                    notebook: data.data.box,
-                    path: createPath,
-                    // 根目录时无法确定 parentID
-                    markdown: "",
-                    listDocTree: optios.listDocTree
-                }, response => {
-                    if (optios.afterCB) {
-                        optios.afterCB(response.data, pathPosix().basename(createPath));
-                    }
-                    /// #if !MOBILE
-                    openFileById({
-                        app: optios.app,
-                        id: response.data,
-                        action: [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]
-                    });
-                    /// #else
-                    openMobileFileById(optios.app, response.data, [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]);
-                    /// #endif
-                });
-            } else {
-                fetchPost("/api/filetree/getHPathByPath", {
-                    notebook: data.data.box,
-                    path: optios.notebookId === data.data.box ? (optios.currentPath.endsWith(".sy") ? optios.currentPath : optios.currentPath + ".sy") : (data.data.path || "/")
-                }, (responseHPath) => {
-                    const createPath = pathPosix().join(responseHPath.data, data.data.path, optios.name || (data.data.path.endsWith("/") ? window.siyuan.languages.untitled : ""));
-                    fetchPost("/api/filetree/createDocWithMd", {
-                        notebook: data.data.box,
-                        path: createPath,
-                        parentID: getDisplayName(optios.currentPath, true, true),
-                        markdown: "",
-                        listDocTree: optios.listDocTree
-                    }, response => {
-                        if (optios.afterCB) {
-                            optios.afterCB(response.data, pathPosix().basename(createPath));
-                        }
-                        /// #if !MOBILE
-                        openFileById({
-                            app: optios.app,
-                            id: response.data,
-                            action: [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]
-                        });
-                        /// #else
-                        openMobileFileById(optios.app, response.data, [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]);
-                        /// #endif
-                    });
-                });
+    let submitted = false;
+    movePathTo({
+        title: window.siyuan.languages.newFileAtPath,
+        flashcard: false,
+        sourceNotebookIds: [options.notebookId],
+        restoreFocus() {
+            if (options.isValid()) {
+                options.restoreFocus?.();
             }
-        } else {
-            const title = pathPosix().basename(data.data.path || window.siyuan.languages.untitled);
-            if (!validateName(title)) {
+        },
+        cb(paths, notebooks) {
+            if (submitted || !paths[0] || !notebooks[0] || !options.isValid() ||
+                !isMoveTargetAllowed([options.notebookId], notebooks[0])) {
                 return;
             }
-            if (optios.notebookId !== data.data.box) {
-                const createPath = pathPosix().join(data.data.path || "/", optios.name || (data.data.path.endsWith("/") ? window.siyuan.languages.untitled : ""));
-                fetchPost("/api/filetree/createDocWithMd", {
-                    notebook: data.data.box,
-                    path: createPath,
-                    markdown: "",
-                    listDocTree: optios.listDocTree
-                }, response => {
-                    if (optios.afterCB) {
-                        optios.afterCB(response.data, pathPosix().basename(createPath));
-                    }
-                    /// #if !MOBILE
-                    openFileById({
-                        app: optios.app,
-                        id: response.data,
-                        action: [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]
-                    });
-                    /// #else
-                    openMobileFileById(optios.app, response.data, [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]);
-                    /// #endif
-                });
-                return;
-            }
-
-            const id = Lute.NewNodeID();
-            const newPath = (pathPosix().join(getDisplayName(optios.currentPath, false, true), id + ".sy"));
-            if (optios.paths) {
-                optios.paths[optios.paths.indexOf(undefined)] = newPath;
-            }
-            fetchPost("/api/filetree/createDoc", {
-                notebook: data.data.box,
-                path: newPath,
+            submitted = true;
+            createRefDocAsSubDoc({
+                kind: "subDoc",
+                targetNotebookId: notebooks[0],
+                parentPath: paths[0],
                 title,
-                md: "",
-                sorts: optios.paths,
-                listDocTree: optios.listDocTree
-            }, () => {
-                if (optios.afterCB) {
-                    optios.afterCB(id, title);
-                }
-                /// #if !MOBILE
-                openFileById({app: optios.app, id, action: [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]});
-                /// #else
-                openMobileFileById(optios.app, id, [Constants.CB_GET_CONTEXT, Constants.CB_GET_OPENNEW]);
-                /// #endif
-            });
-        }
-    });
-};
-
-export const getSavePath = (pathString: string, notebookId: string, cb: (p: string, notebookId: string) => void) => {
-    fetchPost("/api/filetree/getRefCreateSavePath", {
-        notebook: notebookId
-    }, (data) => {
-        let targetPath = pathString;
-        if (notebookId !== data.data.box) {
-            targetPath = data.data.path || "/";
-        }
-        if (data.data.path) {
-            if (data.data.path.startsWith("/")) {
-                cb(getDisplayName(data.data.path, false, true), data.data.box);
-            } else {
-                fetchPost("/api/filetree/getHPathByPath", {
-                    notebook: data.data.box,
-                    path: targetPath
-                }, (response) => {
-                    cb(getDisplayName(pathPosix().join(response.data, data.data.path), false, true), data.data.box);
-                });
-            }
-        } else {
-            fetchPost("/api/filetree/getHPathByPath", {
-                notebook: data.data.box,
-                path: targetPath
-            }, (response) => {
-                cb(getDisplayName(response.data, false, true), data.data.box);
-            });
-        }
-    });
-};
-
-export const newFileByName = (app: App, value: string) => {
-    hideElements(["dialog"]);
-    newFile({
-        app,
-        useSavePath: true,
-        name: replaceFileName(value.trim()) || window.siyuan.languages.untitled
-    });
-};
-
-export const newFileBySelect = (protyle: IProtyle, selectText: string, nodeElement: HTMLElement, pathDir: string, targetNotebookId: string) => {
-    const newFileName = replaceFileName(selectText.trim() ? selectText.trim() : protyle.lute.BlockDOM2Content(nodeElement.outerHTML).replace(/\n/g, "").trim()) || window.siyuan.languages.untitled;
-    const hPath = pathPosix().join(pathDir, newFileName);
-    fetchPost("/api/filetree/getIDsByHPath", {
-        path: hPath,
-        notebook: targetNotebookId
-    }, (idResponse) => {
-        const refText = newFileName.substring(0, window.siyuan.config.editor.blockRefDynamicAnchorTextMaxLen);
-        if (idResponse.data && idResponse.data.length > 0) {
-            const refElement = protyle.toolbar.setInlineMark(protyle, "block-ref", "range", {
-                type: "id",
-                color: `${idResponse.data[0]}${Constants.ZWSP}d${Constants.ZWSP}${refText}`
-            });
-            if (refElement[0]) {
-                protyle.toolbar.range.selectNodeContents(refElement[0]);
-            }
-        } else {
-            fetchPost("/api/filetree/createDocWithMd", {
-                notebook: targetNotebookId,
-                path: hPath,
-                parentID: protyle.notebookId === targetNotebookId ? protyle.block.rootID : "",
-                markdown: ""
-            }, response => {
-                const refElement = protyle.toolbar.setInlineMark(protyle, "block-ref", "range", {
-                    type: "id",
-                    color: `${response.data}${Constants.ZWSP}d${Constants.ZWSP}${refText}`
-                });
-                if (refElement[0]) {
-                    protyle.toolbar.range.selectNodeContents(refElement[0]);
+            }, (id) => {
+                if (options.isValid()) {
+                    options.onCreated(id, title);
                 }
             });
-        }
-        hideElements(["toolbar"], protyle);
+        },
     });
 };
+
+/** 在当前文档下新建子文档，创建后仅回调插入引用或绑定数据库条目 */
+export const newSubDocByRefHint = (
+    protyle: IProtyle,
+    name: string,
+    onCreated?: (id: string, title: string) => void,
+    presetId?: string,
+) => {
+    createRefDocAsSubDoc({
+        kind: "subDoc", targetNotebookId: protyle.notebookId, parentPath: protyle.path,
+        title: normalizeDocumentTitle(name.trim()),
+    }, onCreated, presetId);
+};
+
+
+
+function createRefDocAsSubDoc(
+    target: {kind: "subDoc"; targetNotebookId: string; parentPath: string; title: string},
+    onCreated?: (id: string, title: string) => void,
+    presetId?: string,
+) {
+    const id = presetId || Lute.NewNodeID();
+    void fetchSyncPost("/api/filetree/createDocByParent",
+        documentCreateRequest(target.targetNotebookId, target.parentPath, id, target.title)).then(response => {
+        const createdID = createdDocumentID(response.data);
+        if (createdID) {
+            onCreated?.(createdID, target.title || "");
+        }
+    }).catch(error => {
+        showMessage(error.message);
+    });
+}

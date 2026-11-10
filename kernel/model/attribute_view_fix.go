@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
@@ -25,20 +13,24 @@ import (
 	"github.com/88250/lute/ast"
 	"github.com/siyuan-note/siyuan/kernel/av"
 	"github.com/siyuan-note/siyuan/kernel/filesys"
+	"github.com/siyuan-note/siyuan/kernel/sql"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func checkAttrView(attrView *av.AttributeView, view *av.View) {
+func checkAttrView(attrView *av.AttributeView, view *av.View) (changed bool) {
 	// 字段删除以后需要删除设置的过滤和排序
-	tmpFilters := []*av.ViewFilter{}
-	for _, f := range view.Filters {
-		if k, _ := attrView.GetKey(f.Column); nil != k {
-			tmpFilters = append(tmpFilters, f)
-		}
+	validColumns := map[string]bool{}
+	for _, kv := range attrView.KeyValues {
+		validColumns[kv.Key.ID] = true
 	}
-	changed := len(tmpFilters) != len(view.Filters)
-	view.Filters = tmpFilters
+	newFilters, filterChanged := av.PruneInvalidColumnFilters(view.Filters, validColumns)
+	if 0 == len(newFilters) {
+		// 保持 spec 5 根组不变量：根组被裁空后补一个空 AND 根组
+		newFilters = []*av.ViewFilter{{Combination: av.FilterCombinationAnd}}
+	}
+	view.Filters = newFilters
+	changed = filterChanged
 
 	tmpSorts := []*av.ViewSort{}
 	for _, s := range view.Sorts {
@@ -77,6 +69,10 @@ func checkAttrView(attrView *av.AttributeView, view *av.View) {
 	// 订正字段类型
 	for _, kv := range attrView.KeyValues {
 		for _, v := range kv.Values {
+			if v.KeyID != kv.Key.ID {
+				v.KeyID = kv.Key.ID
+				changed = true
+			}
 			if v.Type != kv.Key.Type {
 				v.Type = kv.Key.Type
 				if av.KeyTypeBlock == v.Type && nil == v.Block {
@@ -108,21 +104,45 @@ func checkAttrView(attrView *av.AttributeView, view *av.View) {
 		changed = true
 	}
 
-	if changed {
-		av.SaveAttributeView(attrView)
-	}
+	return
 }
 
-func upgradeAttributeViewSpec(attrView *av.AttributeView) {
+func normalizeAttributeViewBlockRefSubtypes(attrView *av.AttributeView) (changed bool) {
+	blockValues := attrView.GetBlockKeyValues()
+	if nil == blockValues {
+		return
+	}
+
+	var blockIDs []string
+	addedBlockIDs := map[string]bool{}
+	for _, value := range blockValues.Values {
+		if nil == value || nil == value.Block || value.IsDetached || "" == value.Block.ID || value.Block.RefSubtype.IsValid() {
+			continue
+		}
+		if !addedBlockIDs[value.Block.ID] {
+			blockIDs = append(blockIDs, value.Block.ID)
+			addedBlockIDs[value.Block.ID] = true
+		}
+	}
+	attrs := sql.BatchGetBlockAttrs(blockIDs)
+	for _, value := range blockValues.Values {
+		if nil == value || nil == value.Block {
+			continue
+		}
+		if value.NormalizeBlockRefSubtype(attrView.ID, attrs[value.Block.ID]) {
+			changed = true
+		}
+	}
+	return
+}
+
+func upgradeAttributeViewSpec(attrView *av.AttributeView) (changed bool) {
 	currentSpec := attrView.Spec
 
 	upgradeAttributeViewSpec1(attrView)
 	av.UpgradeSpec(attrView)
 
-	newSpec := attrView.Spec
-	if currentSpec != newSpec {
-		av.SaveAttributeView(attrView)
-	}
+	return currentSpec != attrView.Spec
 }
 
 func upgradeAttributeViewSpec1(attrView *av.AttributeView) {

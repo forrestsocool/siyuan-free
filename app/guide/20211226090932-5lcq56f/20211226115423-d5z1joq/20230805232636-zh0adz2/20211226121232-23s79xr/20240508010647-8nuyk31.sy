@@ -6,7 +6,7 @@
 		"id": "20240508010647-8nuyk31",
 		"title": "收集箱",
 		"type": "doc",
-		"updated": "20240508011412"
+		"updated": "20261016202635"
 	},
 	"Children": [
 		{
@@ -44,7 +44,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20240508010825-n1qh9ep",
-				"updated": "20240508010825"
+				"updated": "20261016202635"
 			},
 			"Children": [
 				{
@@ -73,7 +73,7 @@
 			"HeadingLevel": 3,
 			"Properties": {
 				"id": "20240508010825-saua2mg",
-				"updated": "20240508010826"
+				"updated": "20261016202635"
 			},
 			"Children": [
 				{
@@ -90,7 +90,7 @@
 			},
 			"Properties": {
 				"id": "20240508010825-zwyfsd0",
-				"updated": "20240508011210"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -123,7 +123,7 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "a",
 									"TextMarkAHref": "https://ld246.com/settings/account",
-									"TextMarkTextContent": "鏈滴 - 設置 - 賬號"
+									"TextMarkTextContent": "鏈滴 - 設定 - 賬號"
 								},
 								{
 									"Type": "NodeText",
@@ -290,7 +290,7 @@
 					},
 					"Properties": {
 						"id": "20240508010825-o51n5ay",
-						"updated": "20240508010825"
+						"updated": "20260809232000"
 					},
 					"Children": [
 						{
@@ -298,12 +298,30 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20240508010825-eqcdlnq",
-								"updated": "20240508010825"
+								"updated": "20260809232000"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "在思源中打開收集箱面板（Alt+6）"
+									"Data": "在思源中打開收集箱面板（"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "Alt"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "+"
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "6"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "）"
 								}
 							]
 						}
@@ -424,7 +442,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20240508010825-6jxdqrf",
-				"updated": "20240508010826"
+				"updated": "20261016202635"
 			},
 			"Children": [
 				{
@@ -450,6 +468,34 @@
 								{
 									"Type": "NodeText",
 									"Data": "僅限訂閱會員使用，未訂閱或者訂閱過期後聯系人關系會被刪除"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260827144113-iohdnfa",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260827144113-iohdnfa",
+						"updated": "20261016202635"
+					},
+					"Children": [
+						{
+							"ID": "20260827144113-e42vc7g",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260827144113-e42vc7g",
+								"updated": "20261016202635"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "網頁剪藏限制：每位使用者每分鐘最多接收 7 個剪藏請求，每 24 小時最多接收 128 個；每位使用者最多保留 7 個未完成請求，其中 1 個正在處理，其餘依序排隊。超過限制的請求不會進入雲端收集箱，請稍後重試"
 								}
 							]
 						}
@@ -619,7 +665,7 @@
 									"Type": "NodeTextMark",
 									"TextMarkType": "a",
 									"TextMarkAHref": "https://ld246.com/settings/account",
-									"TextMarkTextContent": "鏈滴 - 設置 - 賬號"
+									"TextMarkTextContent": "鏈滴 - 設定 - 賬號"
 								},
 								{
 									"Type": "NodeText",

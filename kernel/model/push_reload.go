@@ -1,25 +1,18 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
 import (
+	"errors"
+	"maps"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/88250/go-humanize"
@@ -39,11 +32,30 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+var backgroundRefreshWaitGroup sync.WaitGroup
+
+// runBackgroundRefresh 跟踪延迟刷新任务，便于工作区释放前等待任务结束。
+func runBackgroundRefresh(delay time.Duration, refresh func()) {
+	backgroundRefreshWaitGroup.Go(func() {
+		time.Sleep(delay)
+		// 与编辑事务串行刷新，避免异步分组写回覆盖撤销、重做后的数据。
+		flushLock.Lock()
+		defer flushLock.Unlock()
+		refresh()
+	})
+}
+
 func PushReloadSnippet(snippet *conf.Snpt) {
 	util.BroadcastByType("main", "setSnippet", 0, "", snippet)
 }
 
-func PushReloadPlugin(uninstallPluginNameSet, unloadPluginNameSet, reloadPluginSet, dataChangePluginSet *hashset.Set, excludeApp string) {
+const (
+	DataChangeReasonSync      = "sync"
+	DataChangeReasonOverwrite = "overwrite"
+)
+
+func PushReloadPlugin(uninstallPluginNameSet, unloadPluginNameSet, reloadPluginSet, dataChangePluginSet *hashset.Set,
+	excludeApp, dataChangeReason string) {
 	// 按优先级从高到低排列，同一插件只保留在优先级最高的集合中
 	orderedSets := []*hashset.Set{uninstallPluginNameSet, unloadPluginNameSet, reloadPluginSet, dataChangePluginSet}
 	slices := make([][]string, len(orderedSets))
@@ -76,10 +88,14 @@ func PushReloadPlugin(uninstallPluginNameSet, unloadPluginNameSet, reloadPluginS
 
 	logging.LogInfof("reload plugins, uninstalls=%v, unloads=%v, reloads=%v, dataChanges=%v", slices[0], slices[1], slices[2], slices[3])
 	payload := map[string]any{
-		"uninstallPlugins":  slices[0], // 插件卸载
-		"unloadPlugins":     slices[1], // 插件禁用
-		"reloadPlugins":     slices[2], // 插件启用，或插件代码变更
-		"dataChangePlugins": slices[3], // 插件存储数据变更
+		"uninstallPlugins":  slices[0],        // 插件卸载
+		"unloadPlugins":     slices[1],        // 插件禁用
+		"reloadPlugins":     slices[2],        // 插件启用，或插件代码变更
+		"dataChangePlugins": slices[3],        // 插件存储数据变更
+		"dataChangeReason":  dataChangeReason, // 插件存储数据变更来源
+	}
+	if 0 < len(slices[0])+len(slices[1])+len(slices[2]) {
+		util.ReloadPublishServiceSessions()
 	}
 
 	if "" == excludeApp {
@@ -87,6 +103,75 @@ func PushReloadPlugin(uninstallPluginNameSet, unloadPluginNameSet, reloadPluginS
 		return
 	}
 	util.BroadcastByTypeAndExcludeApp(excludeApp, "main", "reloadPlugin", 0, "", payload)
+}
+
+// PushPluginStorageDataChanged 通知其他前端实例插件存储数据已变更。
+func PushPluginStorageDataChanged(absPath, excludeApp string) {
+	pluginName, ok := pluginStorageName(absPath)
+	if !ok {
+		return
+	}
+	PushReloadPlugin(nil, nil, nil, hashset.New(pluginName), excludeApp, DataChangeReasonOverwrite)
+}
+
+func pluginStorageName(absPath string) (pluginName string, ok bool) {
+	relPath, err := filepath.Rel(util.DataDir, absPath)
+	if nil != err {
+		return "", false
+	}
+	parts := strings.Split(filepath.ToSlash(relPath), "/")
+	if 3 > len(parts) || "storage" != parts[0] || "petal" != parts[1] || "" == parts[2] ||
+		"petals.json" == parts[2] {
+		return "", false
+	}
+	return parts[2], true
+}
+
+// PushReloadAllEnabledPlugins 向前端推送已启用插件的全局状态，并返回相同的权威状态供请求方应用。
+func PushReloadAllEnabledPlugins(enabled, petalDisabled bool, revision uint64, changed bool) map[string]any {
+	payload := PluginReloadPayload(enabled, petalDisabled, revision, changed)
+	if changed {
+		if len(payload["unloadPlugins"].([]string))+len(payload["reloadPlugins"].([]string)) > 0 {
+			util.ReloadPublishServiceSessions()
+		}
+		util.BroadcastByType("main", "reloadPlugin", 0, "", payload)
+	}
+	return payload
+}
+
+// PluginReloadPayload 构造插件生命周期结果，响应与广播复用同一形态。
+func PluginReloadPayload(enabled, petalDisabled bool, revision uint64, changed bool) map[string]any {
+	pluginNames := []string{}
+	for _, petal := range getPetals() {
+		if petal.Enabled {
+			pluginNames = append(pluginNames, petal.Name)
+		}
+	}
+	sort.Strings(pluginNames)
+
+	unloadPlugins, reloadPlugins := []string{}, []string{}
+	if changed {
+		if enabled {
+			reloadPlugins = pluginNames
+		} else {
+			unloadPlugins = pluginNames
+		}
+	}
+	payload := map[string]any{
+		"uninstallPlugins":    []string{},
+		"unloadPlugins":       unloadPlugins,
+		"reloadPlugins":       reloadPlugins,
+		"dataChangePlugins":   []string{},
+		"globalPetalEnabled":  enabled,
+		"globalPetalDisabled": petalDisabled,
+		"globalPetalRevision": revision,
+		"globalPetalChanged":  changed,
+	}
+	if changed {
+		logging.LogInfof("reload plugins for global state, unloads=%v, reloads=%v, revision=%d",
+			unloadPlugins, reloadPlugins, revision)
+	}
+	return payload
 }
 
 func refreshDocInfo(tree *parse.Tree) {
@@ -97,20 +182,27 @@ func refreshDocInfo(tree *parse.Tree) {
 	refreshDocInfoWithSize(tree, filesys.TreeSize(tree))
 }
 
+func refreshDocInfoWithoutParent(tree *parse.Tree) {
+	if nil == tree {
+		return
+	}
+
+	refreshDocInfo0(tree, filesys.TreeSize(tree))
+}
+
 func refreshDocInfoWithSize(tree *parse.Tree, size uint64) {
 	if nil == tree {
 		return
 	}
 
 	refreshDocInfo0(tree, size)
-	go func() {
-		time.Sleep(128 * time.Millisecond)
+	runBackgroundRefresh(128*time.Millisecond, func() {
 		refreshParentDocInfo(tree)
-	}()
+	})
 }
 
 func refreshParentDocInfo(tree *parse.Tree) {
-	if nil == tree {
+	if nil == tree || nil == Conf {
 		return
 	}
 
@@ -125,7 +217,37 @@ func refreshParentDocInfo(tree *parse.Tree) {
 	refreshDocInfo0(parentTree, uint64(len(data)))
 }
 
+func refreshBoxDocInfo(tree *parse.Tree) {
+	if nil == tree || path.Dir(tree.Path) != "/" || IsBoxDoc(tree.Box, tree.ID) {
+		return
+	}
+	refreshBoxDocInfoByBoxID(tree.Box)
+}
+
+func refreshBoxDocInfoByBoxID(boxID string) {
+	if !IsBoxDocEnabled() {
+		return
+	}
+	box := Conf.Box(boxID)
+	if nil == box {
+		return
+	}
+	util.BroadcastByType("filetree", "reloadNotebookInfo", 0, "", boxID)
+}
+
+func pushNotebookIconChanged(boxID, icon string) {
+	util.BroadcastByType("filetree", "notebookIconChanged", 0, "", map[string]any{
+		"boxID": boxID,
+		"icon":  icon,
+	})
+}
+
 func refreshDocInfo0(tree *parse.Tree, size uint64) {
+	// 异步刷新可能在测试或退出流程中晚于配置释放，此时放弃刷新而不是解引用空配置
+	if nil == tree || nil == tree.Root || nil == Conf {
+		return
+	}
+
 	cTime, _ := time.ParseInLocation("20060102150405", tree.ID[:14], time.Local)
 	mTime := cTime
 	if updated := tree.Root.IALAttr("updated"); "" != updated {
@@ -134,42 +256,49 @@ func refreshDocInfo0(tree *parse.Tree, size uint64) {
 		}
 	}
 
-	subFileCount := 0
-	if "true" != tree.Root.IALAttr(DocHiddenAttr) {
-		subDir := filepath.Join(util.DataDir, tree.Box, strings.TrimSuffix(tree.Path, ".sy"))
-		subFiles, err := os.ReadDir(subDir)
-		if err == nil {
-			for _, subFile := range subFiles {
-				if !strings.HasSuffix(subFile.Name(), ".sy") {
-					continue
-				}
+	docInfo := map[string]any{
+		"box":      tree.Box,
+		"rootID":   tree.ID,
+		"name":     treenode.ReadDocumentTitle(tree.Root).Text,
+		"alias":    tree.Root.IALAttr("alias"),
+		"name1":    tree.Root.IALAttr("name"),
+		"memo":     tree.Root.IALAttr("memo"),
+		"bookmark": tree.Root.IALAttr("bookmark"),
+		"size":     size,
+		"hSize":    humanize.BytesCustomCeil(size, 2),
+		"mtime":    mTime.Unix(),
+		"ctime":    cTime.Unix(),
+		"hMtime":   mTime.Format("2006-01-02 15:04:05") + ", " + util.HumanizeTime(mTime, Conf.Lang),
+		"hCtime":   cTime.Format("2006-01-02 15:04:05") + ", " + util.HumanizeTime(cTime, Conf.Lang),
+	}
 
-				subDocIAL := filesys.DocIAL(filepath.Join(subDir, subFile.Name()))
-				if "true" == subDocIAL[DocHiddenAttr] {
-					continue
+	boxID, rootID, treePath := tree.Box, tree.ID, tree.Path
+	hidden := "true" == tree.Root.IALAttr(DocHiddenAttr)
+	task.AppendAsyncTaskWithDelay(task.ReloadProtyle, 500*time.Millisecond, func(docInfo map[string]any) {
+		// 发送时统计子文档，避免转换标题等操作期间的中间状态导致文档树图标闪烁。
+		subFileCount := 0
+		if IsBoxDoc(boxID, rootID) {
+			subFileCount = BoxDocSubFileCount(boxID)
+		} else if !hidden {
+			subDir := filepath.Join(util.DataDir, boxID, strings.TrimSuffix(treePath, ".sy"))
+			subFiles, err := os.ReadDir(subDir)
+			if err == nil {
+				for _, subFile := range subFiles {
+					if !strings.HasSuffix(subFile.Name(), ".sy") {
+						continue
+					}
+
+					subDocIAL, _ := filesys.DocIAL(filepath.Join(subDir, subFile.Name()))
+					if "true" == subDocIAL[DocHiddenAttr] {
+						continue
+					}
+					subFileCount++
 				}
-				subFileCount++
 			}
 		}
-	}
-
-	docInfo := map[string]any{
-		"rootID":       tree.ID,
-		"name":         tree.Root.IALAttr("title"),
-		"alias":        tree.Root.IALAttr("alias"),
-		"name1":        tree.Root.IALAttr("name"),
-		"memo":         tree.Root.IALAttr("memo"),
-		"bookmark":     tree.Root.IALAttr("bookmark"),
-		"size":         size,
-		"hSize":        humanize.BytesCustomCeil(size, 2),
-		"mtime":        mTime.Unix(),
-		"ctime":        cTime.Unix(),
-		"hMtime":       mTime.Format("2006-01-02 15:04:05") + ", " + util.HumanizeTime(mTime, Conf.Lang),
-		"hCtime":       cTime.Format("2006-01-02 15:04:05") + ", " + util.HumanizeTime(cTime, Conf.Lang),
-		"subFileCount": subFileCount,
-	}
-
-	task.AppendAsyncTaskWithDelay(task.ReloadProtyle, 500*time.Millisecond, util.PushReloadDocInfo, docInfo)
+		docInfo["subFileCount"] = subFileCount
+		util.PushReloadDocInfo(docInfo)
+	}, docInfo)
 }
 
 func ReloadFiletree() {
@@ -230,17 +359,17 @@ func refreshRefCount(blockID string) {
 	isDoc := bt.ID == bt.RootID
 	var rootRefIDs []string
 	var refCount, rootRefCount int
-	refIDs := sql.QueryRefIDsByDefID(bt.ID, isDoc)
+	refIDs := sql.QueryRefIDsByDefIDInBox(bt.ID, isDoc, bt.BoxID)
 	if isDoc {
 		rootRefIDs = refIDs
 	} else {
-		rootRefIDs = sql.QueryRefIDsByDefID(bt.RootID, true)
+		rootRefIDs = sql.QueryRefIDsByDefIDInBox(bt.RootID, true, bt.BoxID)
 	}
 	refCount = len(refIDs)
 	rootRefCount = len(rootRefIDs)
 	var defIDs []string
 	if isDoc {
-		defIDs = sql.QueryChildDefIDsByRootDefID(bt.ID)
+		defIDs = sql.QueryChildDefIDsByRootDefIDInBox(bt.ID, bt.BoxID)
 	} else {
 		defIDs = append(defIDs, bt.ID)
 	}
@@ -259,12 +388,19 @@ func refreshDynamicRefText(updatedDefNode *ast.Node, updatedTree *parse.Tree) {
 // refreshDynamicRefTexts 用于批量刷新块引用的动态锚文本。
 // 该实现依赖了数据库缓存，导致外部调用时可能需要阻塞等待数据库写入后才能获取到 refs
 func refreshDynamicRefTexts(updatedDefNodes map[string]*ast.Node, updatedTrees map[string]*parse.Tree) (changedRootIDs []string) {
+	changedRootIDs, _ = refreshDynamicRefTextsWithWriter(updatedDefNodes, updatedTrees, writeTreeUpsertQueue)
+	return
+}
+
+func refreshDynamicRefTextsWithWriter(updatedDefNodes map[string]*ast.Node, updatedTrees map[string]*parse.Tree,
+	writeTree func(*parse.Tree) error) (changedRootIDs []string, failed bool) {
 	for t := range updatedTrees {
 		changedRootIDs = append(changedRootIDs, t)
 	}
 
-	for i := 0; i < 7; i++ {
-		updatedRefNodes, updatedRefTrees := refreshDynamicRefTexts0(updatedDefNodes, updatedTrees)
+	for range 7 {
+		updatedRefNodes, updatedRefTrees, writeFailed := refreshDynamicRefTexts0(updatedDefNodes, updatedTrees, writeTree)
+		failed = failed || writeFailed
 		if 1 > len(updatedRefNodes) {
 			break
 		}
@@ -279,7 +415,8 @@ func refreshDynamicRefTexts(updatedDefNodes map[string]*ast.Node, updatedTrees m
 	return
 }
 
-func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees map[string]*parse.Tree) (updatedRefNodes map[string]*ast.Node, updatedRefTrees map[string]*parse.Tree) {
+func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees map[string]*parse.Tree,
+	writeTree func(*parse.Tree) error) (updatedRefNodes map[string]*ast.Node, updatedRefTrees map[string]*parse.Tree, failed bool) {
 	updatedRefNodes = map[string]*ast.Node{}
 	updatedRefTrees = map[string]*parse.Tree{}
 
@@ -287,9 +424,15 @@ func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees 
 	treeRefNodeIDs := map[string]*hashset.Set{}
 	var changedNodes []*ast.Node
 	var refs []*sql.Ref
+	var attributeViewRefs []*sql.Ref
 	for _, updateNode := range updatedDefNodes {
-		refs, changedNodes = getRefsCacheByDefNode(updateNode)
+		boxID := updatedNodeBoxID(updateNode, updatedTrees)
+		refs, changedNodes = getRefsCacheByDefNode(updateNode, boxID)
 		for _, ref := range refs {
+			if sql.AttributeViewRefType == ref.Type {
+				attributeViewRefs = append(attributeViewRefs, ref)
+				continue
+			}
 			if refIDs, ok := treeRefNodeIDs[ref.RootID]; !ok {
 				refIDs = hashset.New()
 				refIDs.Add(ref.BlockID)
@@ -302,8 +445,7 @@ func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees 
 	for _, n := range changedNodes {
 		updatedDefNodes[n.ID] = n
 	}
-
-	changedRefTree := map[string]*parse.Tree{}
+	refreshAttributeViewDynamicRefTexts(updatedDefNodes, attributeViewRefs)
 
 	for refTreeID, refNodeIDs := range treeRefNodeIDs {
 		refTree, ok := updatedTrees[refTreeID]
@@ -311,11 +453,24 @@ func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees 
 			var err error
 			refTree, err = LoadTreeByBlockID(refTreeID)
 			if err != nil {
+				if !errors.Is(err, ErrTreeNotFound) {
+					failed = true
+					queueDynamicRefTextRetries(updatedDefNodes, updatedTrees, err)
+				}
 				continue
 			}
 		}
 
-		var refTreeChanged bool
+		// 引用文本先在副本中更新，写入失败时保留已提交的树和索引。
+		cloned := *refTree
+		cloned.Root = cloneRenderNode(refTree.Root)
+		refTree = &cloned
+		changedRefNodes := map[string]*ast.Node{}
+		type refTextUpdate struct {
+			blockID string
+			defNode *changedDefNode
+		}
+		var updates []refTextUpdate
 		ast.Walk(refTree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 			if !entering {
 				return ast.WalkContinue
@@ -323,17 +478,15 @@ func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees 
 
 			if n.IsBlock() && refNodeIDs.Contains(n.ID) {
 				changed, changedDefNodes := updateRefText(n, updatedDefNodes)
-				if !refTreeChanged && changed {
-					refTreeChanged = true
-					updatedRefNodes[n.ID] = n
-					updatedRefTrees[refTreeID] = refTree
+				if changed {
+					changedRefNodes[n.ID] = n
 				}
 
-				// 推送动态锚文本节点刷新
+				// 保存成功后再推送动态锚文本节点刷新。
 				for _, defNode := range changedDefNodes {
 					switch defNode.refType {
 					case "ref-d":
-						task.AppendAsyncTaskWithDelay(task.SetRefDynamicText, 200*time.Millisecond, util.PushSetRefDynamicText, refTreeID, n.ID, defNode.id, defNode.refText)
+						updates = append(updates, refTextUpdate{n.ID, defNode})
 					}
 				}
 				return ast.WalkContinue
@@ -341,72 +494,122 @@ func refreshDynamicRefTexts0(updatedDefNodes map[string]*ast.Node, updatedTrees 
 			return ast.WalkContinue
 		})
 
-		if refTreeChanged {
-			changedRefTree[refTreeID] = refTree
-			sql.UpdateRefsTreeQueue(refTree)
+		if len(changedRefNodes) == 0 {
+			continue
+		}
+		if err := writeTree(refTree); err != nil {
+			failed = true
+			queueDynamicRefTextRetries(updatedDefNodes, updatedTrees, err)
+			continue
+		}
+		treenode.UpsertBlockTree(refTree)
+		sql.UpdateRefsTreeQueue(refTree)
+		updatedRefTrees[refTreeID] = refTree
+		if ok {
+			updatedTrees[refTreeID] = refTree
+		}
+		maps.Copy(updatedRefNodes, changedRefNodes)
+		for _, update := range updates {
+			appendSetRefDynamicTextTask(refTreeID, update.blockID, update.defNode.id, update.defNode.refText, refTree.Box)
 		}
 	}
 
 	// 2. 更新属性视图主键内容
 	updateAttributeViewBlockText(updatedDefNodes)
 
-	// 3. 保存变更
-	for _, tree := range changedRefTree {
-		indexWriteTreeUpsertQueue(tree)
-	}
 	return
+}
+
+func updatedNodeBoxID(updateNode *ast.Node, updatedTrees map[string]*parse.Tree) string {
+	rootID := treenode.TreeRoot(updateNode).ID
+	if updatedTree := updatedTrees[rootID]; nil != updatedTree {
+		return updatedTree.Box
+	}
+	return updateNode.Box
+}
+
+var (
+	setRefDynamicTextTaskLock     sync.Mutex
+	setRefDynamicTextTaskSequence uint64
+	setRefDynamicTextLatestTasks  = map[string]uint64{}
+)
+
+func appendSetRefDynamicTextTask(rootID, blockID, defBlockID, refText, boxID string) {
+	key := rootID + "\x00" + blockID + "\x00" + defBlockID
+	setRefDynamicTextTaskLock.Lock()
+	setRefDynamicTextTaskSequence++
+	sequence := setRefDynamicTextTaskSequence
+	setRefDynamicTextLatestTasks[key] = sequence
+	setRefDynamicTextTaskLock.Unlock()
+
+	task.AppendAsyncTaskWithDelay(task.SetRefDynamicText, 200*time.Millisecond, pushLatestRefDynamicText,
+		key, sequence, rootID, blockID, defBlockID, refText, boxID)
+}
+
+func pushLatestRefDynamicText(key string, sequence uint64, rootID, blockID, defBlockID, refText, boxID string) {
+	setRefDynamicTextTaskLock.Lock()
+	latest := setRefDynamicTextLatestTasks[key] == sequence
+	if latest {
+		delete(setRefDynamicTextLatestTasks, key)
+	}
+	setRefDynamicTextTaskLock.Unlock()
+	if latest {
+		util.PushSetRefDynamicText(rootID, blockID, defBlockID, refText, boxID)
+	}
 }
 
 func updateAttributeViewBlockText(updatedDefNodes map[string]*ast.Node) {
 	var parents []*ast.Node
-	for _, updatedDefNode := range updatedDefNodes {
-		for parent := updatedDefNode.Parent; nil != parent && ast.NodeDocument != parent.Type; parent = parent.Parent {
+	for _, node := range updatedDefNodes {
+		for parent := node.Parent; parent != nil && parent.Type != ast.NodeDocument; parent = parent.Parent {
 			parents = append(parents, parent)
 		}
 	}
 	for _, parent := range parents {
 		updatedDefNodes[parent.ID] = parent
 	}
-
-	for _, updatedDefNode := range updatedDefNodes {
-		avs := updatedDefNode.IALAttr(av.NodeAttrNameAvs)
-		if "" == avs {
+	// 按数据库汇总主键刷新，同批块更新只解析和保存每个数据库一次。
+	byView := map[string]map[string]*ast.Node{}
+	for _, node := range updatedDefNodes {
+		for id := range strings.SplitSeq(node.IALAttr(av.NodeAttrNameAvs), ",") {
+			if id == "" {
+				continue
+			}
+			if byView[id] == nil {
+				byView[id] = map[string]*ast.Node{}
+			}
+			byView[id][node.ID] = node
+		}
+	}
+	for _, id := range sortedAttributeViewFieldKeys(byView) {
+		view, err := av.ParseAttributeView(id)
+		if err != nil {
 			continue
 		}
-
-		avIDs := strings.Split(avs, ",")
-		for _, avID := range avIDs {
-			attrView, parseErr := av.ParseAttributeView(avID)
-			if nil != parseErr {
+		primary := view.GetBlockKeyValues()
+		if primary == nil {
+			continue
+		}
+		changed := false
+		for _, value := range primary.Values {
+			node := byView[id][value.Block.ID]
+			if node == nil {
 				continue
 			}
-
-			changedAv := false
-			blockValues := attrView.GetBlockKeyValues()
-			if nil == blockValues {
+			icon, content := getNodeAvBlockText(node, id)
+			content = util.UnescapeHTML(content)
+			subtype := getNodeAvBlockRefSubtype(node, id)
+			if icon != value.Block.Icon || content != value.Block.Content || subtype != value.Block.RefSubtype {
+				value.Block.Icon, value.Block.Content, value.Block.RefSubtype = icon, content, subtype
+				changed = true
+			}
+		}
+		if changed {
+			if err = av.SaveAttributeView(view); err != nil {
 				continue
 			}
-
-			for _, blockValue := range blockValues.Values {
-				if blockValue.Block.ID == updatedDefNode.ID {
-					newIcon, newContent := getNodeAvBlockText(updatedDefNode, avID)
-					if newIcon != blockValue.Block.Icon {
-						blockValue.Block.Icon = newIcon
-						changedAv = true
-					}
-					if newContent != blockValue.Block.Content {
-						blockValue.Block.Content = util.UnescapeHTML(newContent)
-						changedAv = true
-					}
-					break
-				}
-			}
-			if changedAv {
-				av.SaveAttributeView(attrView)
-				ReloadAttrView(avID)
-
-				refreshRelatedSrcAvs(avID, nil)
-			}
+			ReloadAttrView(id)
+			refreshRelatedSrcAvs(id, nil)
 		}
 	}
 }
@@ -418,4 +621,26 @@ func ReloadAttrView(avID string) {
 
 func pushReloadAttrView(avID string) {
 	util.BroadcastByType("protyle", "refreshAttributeView", 0, "", map[string]any{"id": avID})
+}
+
+func PushCreate(box *Box, p string, arg map[string]any) {
+	evt := util.NewCmdResult("create", 0, util.PushModeBroadcast)
+	listDocTree := false
+	if nil == arg {
+		arg = map[string]any{
+			"listDocTree": true,
+		}
+	}
+
+	listDocTreeArg := arg["listDocTree"]
+	if nil != listDocTreeArg {
+		listDocTree = listDocTreeArg.(bool)
+	}
+
+	evt.Data = map[string]any{
+		"box":         box,
+		"path":        p,
+		"listDocTree": listDocTree,
+	}
+	util.PushEvent(evt)
 }

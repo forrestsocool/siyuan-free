@@ -7,7 +7,7 @@
 		"id": "20230405155631-leo4vc6",
 		"title": "性能优化",
 		"type": "doc",
-		"updated": "20250825114628"
+		"updated": "20261024163429"
 	},
 	"Children": [
 		{
@@ -16,7 +16,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20230405155631-0xw341e",
-				"updated": "20230405163058"
+				"updated": "20261024161440"
 			},
 			"Children": [
 				{
@@ -30,22 +30,22 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20230405155721-ljxfaat",
-				"updated": "20230405165112"
+				"updated": "20261024161440"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "不同硬件配置、不同操作系统平台上性能表现是不一样的。另外，随着数据增多，性能下降无法避免。所以我们可能需要改变使用方式并调整一些配置项来提升性能，以获得更流畅的使用体验。"
+					"Data": "性能取决于硬件、系统负载、数据规模和内容结构。遇到卡顿时，先确定是启动、搜索、编辑还是网络访问较慢，再按下面对应的项目调整。"
 				}
 			]
 		},
 		{
 			"ID": "20230405171357-3f1dyix",
 			"Type": "NodeHeading",
-			"HeadingLevel": 3,
+			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20230405171357-3f1dyix",
-				"updated": "20230405171401"
+				"updated": "20261024163429"
 			},
 			"Children": [
 				{
@@ -60,7 +60,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230405161606-12co6vz",
-				"updated": "20230405165154"
+				"updated": "20261024161440"
 			},
 			"Children": [
 				{
@@ -72,7 +72,7 @@
 					},
 					"Properties": {
 						"id": "20230405165154-mwfival",
-						"updated": "20230405165154"
+						"updated": "20261024161440"
 					},
 					"Children": [
 						{
@@ -80,12 +80,12 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230405165154-d502q9w",
-								"updated": "20230405165259"
+								"updated": "20261024161440"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "内容块数量：内容块数量对性能影响范围较大，比如展开文档树、搜索、数据写入等。但也不必太过担心，通常情况下内容块数量在百万这个量级下不会产生太大影响，除非每个块的大小较大"
+									"Data": "内容块数量与大小：会影响文档展开、搜索和数据写入等操作，实际影响还取决于硬件和内容结构，不宜仅凭块数量判断"
 								}
 							]
 						}
@@ -176,7 +176,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230405164011-8ne0vie",
-				"updated": "20230405172057"
+				"updated": "20261024163429"
 			},
 			"Children": [
 				{
@@ -348,7 +348,8 @@
 						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20230405170559-t1q23kt"
+						"id": "20230405170559-t1q23kt",
+						"updated": "20261024163429"
 					},
 					"Children": [
 						{
@@ -356,12 +357,12 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230405170559-azo1ee4",
-								"updated": "20230405170603"
+								"updated": "20261024163429"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "升级硬件，这是提升性能最快的方式"
+									"Data": "硬件资源不足时，再根据瓶颈考虑升级内存、处理器或存储设备"
 								}
 							]
 						}
@@ -372,10 +373,10 @@
 		{
 			"ID": "20230405171407-ltaakx8",
 			"Type": "NodeHeading",
-			"HeadingLevel": 3,
+			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20230405171407-ltaakx8",
-				"updated": "20250825114421"
+				"updated": "20261024163429"
 			},
 			"Children": [
 				{
@@ -527,7 +528,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230405171539-llfg8mm",
-				"updated": "20240420104842"
+				"updated": "20261024163429"
 			},
 			"Children": [
 				{
@@ -604,7 +605,7 @@
 					},
 					"Properties": {
 						"id": "20230406155101-uk1h843",
-						"updated": "20230406155342"
+						"updated": "20261024163429"
 					},
 					"Children": [
 						{
@@ -612,21 +613,76 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230406155101-n6ptkcm",
-								"updated": "20230406155342"
+								"updated": "20261024163429"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "通过 "
+									"Data": "通过聚焦内容块，减少编辑器中同时显示的内容"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260916172814-5e0pyui",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260916172814-5e0pyui",
+						"updated": "20260916172814"
+					},
+					"Children": [
+						{
+							"ID": "20260916172814-s8fpf6v",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260916172814-s8fpf6v",
+								"updated": "20260916172814"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "桌面端默认关闭辅助功能支持，以减少部分环境下长文本编辑或粘贴时的卡顿；如需使用读屏等辅助工具，可在 "
 								},
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "kbd",
-									"TextMarkTextContent": "聚焦"
+									"TextMarkTextContent": "设置"
 								},
 								{
 									"Type": "NodeText",
-									"Data": "​ 减少元素从而提升编辑器性能"
+									"Data": " - "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "应用"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "常规"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " - "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "kbd",
+									"TextMarkTextContent": "辅助功能支持"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " 中开启。该设置适用于本机所有工作空间，修改后需完全退出并重新启动思源；若开启后出现卡顿，可尝试关闭后重启进行对照"
 								}
 							]
 						}
@@ -637,10 +693,10 @@
 		{
 			"ID": "20250825114421-fq73tbi",
 			"Type": "NodeHeading",
-			"HeadingLevel": 3,
+			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20250825114421-fq73tbi",
-				"updated": "20250825114628"
+				"updated": "20261024161440"
 			},
 			"Children": [
 				{
@@ -654,12 +710,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20250825114436-jm8dekc",
-				"updated": "20250825114628"
+				"updated": "20261016191102"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "建议定期执行优化索引 "
+					"Data": "建议定期执行优化索引，入口为 "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -668,16 +724,25 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ - "
+					"Data": " - "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "关于"
+					"TextMarkTextContent": "应用"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ - "
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "维护"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
 				},
 				{
 					"Type": "NodeTextMark",
@@ -686,7 +751,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​。"
+					"Data": "。"
 				}
 			]
 		}

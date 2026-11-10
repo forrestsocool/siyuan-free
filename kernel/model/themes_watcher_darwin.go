@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 //go:build darwin
 
@@ -22,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/88250/gulu"
@@ -30,112 +19,101 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-var themesWatcher *watcher.Watcher
+var (
+	themesWatcher       *watcher.Watcher
+	themesWatcherMu     sync.Mutex
+	themesWatchThemeDir string
+)
 
 func WatchThemes() {
-	if !isFileWatcherAvailable() {
+	if util.IsMobileContainer() {
 		return
 	}
 
-	go watchThemes()
-}
+	themesWatcherMu.Lock()
+	defer themesWatcherMu.Unlock()
+	if nil != themesWatcher {
+		updateThemesWatchThemeDir(themesWatcher)
+		return
+	}
 
-func watchThemes() {
-	CloseWatchThemes()
 	themesDir := util.ThemesPath
-
-	themesWatcher = watcher.New()
+	w := watcher.New()
 
 	if !gulu.File.IsDir(themesDir) {
 		os.MkdirAll(themesDir, 0755)
 	}
 
-	if err := themesWatcher.Add(themesDir); err != nil {
+	if err := w.Add(themesDir); err != nil {
 		logging.LogErrorf("add themes watcher for folder [%s] failed: %s", themesDir, err)
 		return
 	}
 
-	// 为每个子目录添加监听，以便收到 theme.css 的变更
-	addThemesSubdirs(themesWatcher, themesDir)
+	themesWatcher = w
+	updateThemesWatchThemeDir(w)
 
-	go func() {
+	go func(w *watcher.Watcher) {
 		defer logging.Recover()
 
 		for {
 			select {
-			case event, ok := <-themesWatcher.Event:
+			case event, ok := <-w.Event:
 				if !ok {
 					return
 				}
 
-				// 新目录创建时加入监听
 				if watcher.Create == event.Op {
-					if isThemesDirectSubdir(event.Path) {
-						if addErr := themesWatcher.Add(event.Path); addErr != nil {
-							logging.LogWarnf("add themes watcher for new folder [%s] failed: %s", event.Path, addErr)
-						}
-					}
+					addThemesWatchThemeDir(w, event.Path)
 				}
 
 				handleThemesEvent(event)
-			case err, ok := <-themesWatcher.Error:
+			case err, ok := <-w.Error:
 				if !ok {
 					return
 				}
 				logging.LogErrorf("watch themes failed: %s", err)
-			case <-themesWatcher.Closed:
+			case <-w.Closed:
 				return
 			}
 		}
+	}(w)
+
+	go func() {
+		if err := w.Start(10 * time.Second); err != nil {
+			logging.LogErrorf("start themes watcher for folder [%s] failed: %s", themesDir, err)
+		}
 	}()
-
-	if err := themesWatcher.Start(10 * time.Second); err != nil {
-		logging.LogErrorf("start themes watcher for folder [%s] failed: %s", themesDir, err)
-		return
-	}
+	w.Wait()
 }
 
-// addThemesSubdirs 为 themes 下每个子目录添加监听
-func addThemesSubdirs(w *watcher.Watcher, themesDir string) {
-	entries, err := os.ReadDir(themesDir)
-	if err != nil {
-		logging.LogErrorf("read themes folder failed: %s", err)
+func updateThemesWatchThemeDir(w *watcher.Watcher) {
+	themeDir := currentThemeDir()
+	if themeDir == themesWatchThemeDir {
 		return
 	}
-	for _, e := range entries {
-		if !util.IsDirRegularOrSymlink(e) {
-			continue
-		}
-		subdir := filepath.Join(themesDir, e.Name())
-		if addErr := w.Add(subdir); addErr != nil {
-			logging.LogWarnf("add themes watcher for folder [%s] failed: %s", subdir, addErr)
+
+	if "" != themeDir && gulu.File.IsDir(themeDir) {
+		if err := w.Add(themeDir); err != nil {
+			logging.LogWarnf("add themes watcher for folder [%s] failed: %s", themeDir, err)
 		}
 	}
+	if "" != themesWatchThemeDir {
+		if err := w.Remove(themesWatchThemeDir); err != nil {
+			logging.LogWarnf("remove themes watcher for folder [%s] failed: %s", themesWatchThemeDir, err)
+		}
+	}
+	themesWatchThemeDir = themeDir
 }
 
-// isThemesDirectSubdir 判断 path 是否为 themes 下的直接子目录
-func isThemesDirectSubdir(path string) bool {
-	if !gulu.File.IsDir(path) {
-		return false
+func addThemesWatchThemeDir(w *watcher.Watcher, path string) {
+	themesWatcherMu.Lock()
+	defer themesWatcherMu.Unlock()
+	if themesWatcher != w || filepath.Clean(path) != themesWatchThemeDir || !gulu.File.IsDir(path) {
+		return
 	}
-	rel, err := filepath.Rel(util.ThemesPath, path)
-	if err != nil {
-		return false
+	if err := w.Add(path); err != nil {
+		logging.LogWarnf("add themes watcher for new folder [%s] failed: %s", path, err)
 	}
-	if filepath.Base(path) != rel {
-		return false
-	}
-	entries, err := os.ReadDir(util.ThemesPath)
-	if err != nil {
-		return false
-	}
-	name := filepath.Base(path)
-	for _, e := range entries {
-		if e.Name() == name {
-			return util.IsDirRegularOrSymlink(e)
-		}
-	}
-	return false
 }
 
 func handleThemesEvent(event watcher.Event) {
@@ -149,8 +127,13 @@ func handleThemesEvent(event watcher.Event) {
 }
 
 func CloseWatchThemes() {
-	if nil != themesWatcher {
-		themesWatcher.Close()
-		themesWatcher = nil
+	themesWatcherMu.Lock()
+	w := themesWatcher
+	themesWatcher = nil
+	themesWatchThemeDir = ""
+	themesWatcherMu.Unlock()
+
+	if nil != w {
+		w.Close()
 	}
 }

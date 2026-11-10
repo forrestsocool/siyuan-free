@@ -1,8 +1,11 @@
+// SiYuan - https://github.com/siyuan-note/siyuan
+// Copyright (c) 2020-present, b3log.org
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 package sql
 
 import (
 	"bytes"
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -18,54 +21,72 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func RenderAttributeViewGallery(attrView *av.AttributeView, view *av.View, query string, depth *int, cachedAttrViews map[string]*av.AttributeView) (ret *av.Gallery) {
-	viewable := attrView.RenderedViewables[view.ID]
-	if nil != viewable {
-		ret = viewable.(*av.Gallery)
-		return
+func renderAttributeViewGallery(attrView *av.AttributeView, view *av.View, query string, depth *int,
+	cachedAttrViews map[string]*av.AttributeView, ignoreRows, deferTemplateValues bool,
+	renderContext *AttributeViewRenderContext) (ret *av.Gallery) {
+	if !ignoreRows && !deferTemplateValues {
+		viewable := attrView.RenderedViewables[view.ID]
+		if nil != viewable {
+			ret = viewable.(*av.Gallery)
+			return
+		}
 	}
 
 	ret = &av.Gallery{
-		BaseInstance:        av.NewViewBaseInstance(view),
-		CoverFrom:           view.Gallery.CoverFrom,
-		CoverFromAssetKeyID: view.Gallery.CoverFromAssetKeyID,
-		CardAspectRatio:     view.Gallery.CardAspectRatio,
-		CardSize:            view.Gallery.CardSize,
-		FitImage:            view.Gallery.FitImage,
-		DisplayFieldName:    view.Gallery.DisplayFieldName,
-		Fields:              []*av.GalleryField{},
-		Cards:               []*av.GalleryCard{},
+		BaseInstance:         av.NewViewBaseInstance(view),
+		CoverFrom:            view.Gallery.CoverFrom,
+		CoverFromAssetKeyID:  view.Gallery.CoverFromAssetKeyID,
+		CardAspectRatio:      view.Gallery.CardAspectRatio,
+		CardAspectRatioValue: view.Gallery.CardAspectRatioValue,
+		CardSize:             view.Gallery.CardSize,
+		CardWidth:            view.Gallery.CardWidth,
+		CardLayout:           view.Gallery.CardLayout,
+		FitImage:             view.Gallery.FitImage,
+		DisplayFieldName:     view.Gallery.DisplayFieldName,
+		DisplayEmptyFields:   view.Gallery.DisplayEmptyFields,
+		Fields:               []*av.GalleryField{},
+		Cards:                []*av.GalleryCard{},
 	}
 
 	// 组装字段
 	for _, field := range view.Gallery.CardFields {
 		key, getErr := attrView.GetKey(field.ID)
 		if nil != getErr {
-			// 找不到字段则在视图中删除
-			removeMissingField(attrView, view, field.ID)
+			// 找不到字段则在视图中删除（元数据查询场景不写盘）
+			if !ignoreRows {
+				removeMissingField(attrView, view, field.ID, renderContext)
+			}
 			continue
 		}
 
 		ret.Fields = append(ret.Fields, &av.GalleryField{
 			BaseInstanceField: &av.BaseInstanceField{
-				ID:           key.ID,
-				Name:         key.Name,
-				Type:         key.Type,
-				Icon:         key.Icon,
-				Wrap:         field.Wrap,
-				Hidden:       field.Hidden,
-				Desc:         key.Desc,
-				Calc:         field.Calc,
-				Options:      key.Options,
-				NumberFormat: key.NumberFormat,
-				Template:     key.Template,
-				Relation:     key.Relation,
-				Rollup:       key.Rollup,
-				Date:         key.Date,
-				Created:      key.Created,
-				Updated:      key.Updated,
+				ID:             key.ID,
+				Name:           key.Name,
+				Type:           key.Type,
+				Icon:           key.Icon,
+				Wrap:           field.Wrap,
+				Hidden:         field.Hidden,
+				Desc:           key.Desc,
+				Calc:           field.Calc,
+				Options:        key.Options,
+				NumberFormat:   key.NumberFormat,
+				DateFormat:     key.DateFormat,
+				Template:       key.Template,
+				RenderTemplate: key.RenderTemplate,
+				Relation:       key.Relation,
+				Rollup:         key.Rollup,
+				Date:           key.Date,
+				Created:        key.Created,
+				Updated:        key.Updated,
 			},
+			FullRow: field.FullRow,
 		})
+	}
+
+	// 菜单等只需要字段/视图元数据的场景，跳过全部卡片处理
+	if ignoreRows {
+		return
 	}
 
 	cardsValues := generateAttrViewItems(attrView, view) // 生成卡片
@@ -85,19 +106,24 @@ func RenderAttributeViewGallery(attrView *av.AttributeView, view *av.View, query
 
 	// 生成卡片字段值
 	for cardID, cardValues := range cardsValues {
+		// 按字段 ID 建索引，避免后续字段循环里对每个字段做线性查找
+		kvByField := map[string]*av.KeyValues{}
+		for _, keyValues := range cardValues {
+			if _, ok := kvByField[keyValues.Key.ID]; !ok { // 同一字段存在多个值时只取第一个
+				kvByField[keyValues.Key.ID] = keyValues
+			}
+		}
+
 		var galleryCard av.GalleryCard
 		for _, field := range ret.Fields {
 			var fieldValue *av.GalleryFieldValue
-			for _, keyValues := range cardValues {
-				if keyValues.Key.ID == field.ID {
-					fieldValue = &av.GalleryFieldValue{
-						BaseValue: &av.BaseValue{
-							ID:        keyValues.Values[0].ID,
-							Value:     keyValues.Values[0],
-							ValueType: field.Type,
-						},
-					}
-					break
+			if keyValues, ok := kvByField[field.ID]; ok {
+				fieldValue = &av.GalleryFieldValue{
+					BaseValue: &av.BaseValue{
+						ID:        keyValues.Values[0].ID,
+						Value:     keyValues.Values[0],
+						ValueType: field.Type,
+					},
 				}
 			}
 			if nil == fieldValue {
@@ -114,11 +140,14 @@ func RenderAttributeViewGallery(attrView *av.AttributeView, view *av.View, query
 			if nil != field.Date {
 				filedDateIsTime = field.Date.FillSpecificTime
 			}
-			fillAttributeViewBaseValue(fieldValue.BaseValue, field.ID, cardID, field.NumberFormat, field.Template, filedDateIsTime)
+			fillAttributeViewBaseValue(fieldValue.BaseValue, field.ID, cardID, field.NumberFormat, field.DateFormat,
+				field.Template, filedDateIsTime)
 			galleryCard.Values = append(galleryCard.Values, fieldValue)
 		}
 
 		fillAttributeViewGalleryCardCover(attrView, view, cardValues, &galleryCard, cardID, luteEngine, boundTrees)
+		galleryCard.CoverPosition = attrView.GetCardCoverPosition(cardID,
+			av.CardCoverSource(view.Gallery.CoverFrom, view.Gallery.CoverFromAssetKeyID), galleryCard.CoverURL)
 		ret.Cards = append(ret.Cards, &galleryCard)
 	}
 
@@ -129,12 +158,11 @@ func RenderAttributeViewGallery(attrView *av.AttributeView, view *av.View, query
 	ials := BatchGetBlockAttrsWitTrees(ialIDs, boundTrees)
 
 	// 渲染自动生成的字段值，比如关联、汇总、创建时间和更新时间
-	fillAttributeViewAutoGeneratedValues(attrView, ret, ials, depth, cachedAttrViews)
+	fillAttributeViewAutoGeneratedValues(attrView, ret, ials, depth, cachedAttrViews, renderContext)
 
-	// 最后渲染模板字段，这样模板就可以使用汇总、关联、创建时间和更新时间的值了
-	renderTemplateErr := fillAttributeViewTemplateValues(attrView, view, ret, ials)
-	if nil != renderTemplateErr {
-		util.PushErrMsg(fmt.Sprintf(util.Langs[util.Lang][44], util.EscapeHTML(renderTemplateErr.Error())), 30000)
+	if !deferTemplateValues {
+		// 最后渲染模板字段，这样模板就可以使用汇总、关联、创建时间和更新时间的值了
+		fillAttributeViewTemplateValues(attrView, view, ret, ials, renderContext)
 	}
 
 	filterByQuery(query, ret)

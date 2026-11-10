@@ -5,12 +5,12 @@
   padding: 4px 8px;
   font-size: 12px;
   font-weight: normal;
-  -webkit-font-smoothing: subpixel-antialiased;
   color: var(--b3-tooltips-color);
   word-wrap: break-word;
   background-color: var(--b3-tooltips-background);
   border-radius: var(--b3-border-radius);
   line-height: 17px;
+  width: max-content;
   max-width: 320px;
   animation-name: zoomIn;
   animation-duration: 150ms;
@@ -38,6 +38,34 @@
   }
 }
 
+.drag-tip {
+  max-width: min(216px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+
+  &__title,
+  &__target {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__action {
+    color: var(--b3-tooltips-second-color);
+    font-size: 12px;
+
+    &--target {
+      display: grid;
+      grid-template-columns: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+    }
+  }
+
+  &__label {
+    color: var(--b3-tooltips-color);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
+
 .b3-tooltips {
   position: relative;
   cursor: pointer;
@@ -48,7 +76,6 @@
     padding: 4px 8px;
     font-size: 12px;
     font-weight: normal;
-    -webkit-font-smoothing: subpixel-antialiased;
     color: var(--b3-tooltips-color);
     word-wrap: break-word;
     white-space: pre;
@@ -77,7 +104,8 @@
     overflow: initial;
   }
 
-  &:hover::after {
+  &:hover::after,
+  &:focus-within::after {
     display: inline-block;
     opacity: 1;
     transform: scale(1);
@@ -125,7 +153,9 @@
   }
 
   &__s:hover::after,
-  &__n:hover::after {
+  &__n:hover::after,
+  &__s:focus-within::after,
+  &__n:focus-within::after {
     transform: translateX(50%) scale(1);
   }
 
@@ -144,8 +174,20 @@
   }
 
   &__e:hover::after,
-  &__w:hover::after {
+  &__w:hover::after,
+  &__e:focus-within::after,
+  &__w:focus-within::after {
     transform: translateY(50%) scale(1);
+  }
+}
+
+.body--touch-input {
+  .tooltip--hover {
+    display: none;
+  }
+
+  .b3-tooltips::after {
+    content: none;
   }
 }
 

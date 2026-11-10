@@ -7,7 +7,7 @@
 		"id": "20230519105228-hm0y74i",
 		"title": "最新进展",
 		"type": "doc",
-		"updated": "20230617085456"
+		"updated": "20261016110808"
 	},
 	"Children": [
 		{
@@ -16,9 +16,193 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230519110202-1k238kq",
-				"updated": "20230617085456"
+				"updated": "20261016110808"
 			},
 			"Children": [
+				{
+					"ID": "20260925120925-1bfm1wk",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20260925120925-1bfm1wk",
+						"updated": "20260925121123"
+					},
+					"Children": [
+						{
+							"ID": "20260925120925-75shjjr",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260925120925-75shjjr",
+								"updated": "20260925121123"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "小红书 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "a",
+									"TextMarkAHref": "https://www.xiaohongshu.com/user/profile/55c48726c2bdeb631a62fa35",
+									"TextMarkTextContent": "思源笔记"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016110554-qaxz2ug",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016110554-qaxz2ug",
+						"updated": "20261016110554"
+					},
+					"Children": [
+						{
+							"ID": "20261016110554-bs0n8or",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016110554-bs0n8or",
+								"updated": "20261016110615"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "哔哩哔哩 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "a",
+									"TextMarkAHref": "https://space.bilibili.com/1926167138",
+									"TextMarkTextContent": "思源笔记"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016110631-i3uxa7b",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016110631-i3uxa7b",
+						"updated": "20261016110631"
+					},
+					"Children": [
+						{
+							"ID": "20261016110631-lt41a6n",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016110631-lt41a6n",
+								"updated": "20261016110650"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "知乎 "
+								},
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "a",
+									"TextMarkAHref": "https://www.zhihu.com/people/dwb29c",
+									"TextMarkTextContent": "思源笔记"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016110659-h56qujw",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016110659-h56qujw",
+						"updated": "20261016110808"
+					},
+					"Children": [
+						{
+							"ID": "20261016110659-j21zjzg",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016110659-j21zjzg",
+								"updated": "20261016110726"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "微信视频号"
+								}
+							]
+						},
+						{
+							"ID": "20261016110727-xvvcfzi",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016110727-xvvcfzi",
+								"updated": "20261016110808"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								},
+								{
+									"Type": "NodeImage",
+									"Data": "span",
+									"Properties": {
+										"style": "width: 122px;"
+									},
+									"Children": [
+										{
+											"Type": "NodeBang"
+										},
+										{
+											"Type": "NodeOpenBracket"
+										},
+										{
+											"Type": "NodeLinkText",
+											"Data": "image"
+										},
+										{
+											"Type": "NodeCloseBracket"
+										},
+										{
+											"Type": "NodeOpenParen"
+										},
+										{
+											"Type": "NodeLinkDest",
+											"Data": "assets/image-20261016110739-z66jts8.png"
+										},
+										{
+											"Type": "NodeCloseParen"
+										}
+									]
+								},
+								{
+									"Type": "NodeKramdownSpanIAL",
+									"Data": "{: style=\"width: 122px;\"}"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
+								}
+							]
+						}
+					]
+				},
 				{
 					"ID": "20230519110330-3wo6me7",
 					"Type": "NodeListItem",
@@ -41,7 +225,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "微信公众号 "
+									"Data": "微信公众号 ​"
 								},
 								{
 									"Type": "NodeTextMark",
@@ -59,7 +243,7 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230519110335-l2v1hcq",
-								"updated": "20230519112131"
+								"updated": "20261016110719"
 							},
 							"Children": [
 								{
@@ -102,6 +286,10 @@
 								{
 									"Type": "NodeKramdownSpanIAL",
 									"Data": "{: style=\"width: 130px;\" parent-style=\"max-width: 140px;\"}"
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -129,7 +317,7 @@
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "微博 "
+									"Data": "微博 ​"
 								},
 								{
 									"Type": "NodeTextMark",
@@ -188,6 +376,10 @@
 											"Type": "NodeCloseParen"
 										}
 									]
+								},
+								{
+									"Type": "NodeText",
+									"Data": "​"
 								}
 							]
 						}
@@ -201,7 +393,8 @@
 						"Marker": "Kg=="
 					},
 					"Properties": {
-						"id": "20230519111123-ra6yjat"
+						"id": "20230519111123-ra6yjat",
+						"updated": "20260614111937"
 					},
 					"Children": [
 						{
@@ -209,12 +402,12 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230519111123-jwmarc1",
-								"updated": "20230519111143"
+								"updated": "20260614111937"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "Twitter "
+									"Data": "X ​"
 								},
 								{
 									"Type": "NodeTextMark",
@@ -228,8 +421,8 @@
 								{
 									"Type": "NodeTextMark",
 									"TextMarkType": "a",
-									"TextMarkAHref": "https://twitter.com/b3logos",
-									"TextMarkTextContent": "https://twitter.com/b3logos"
+									"TextMarkAHref": "https://x.com/b3logos",
+									"TextMarkTextContent": "https://x.com/b3logos"
 								}
 							]
 						}

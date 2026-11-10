@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package util
 
@@ -24,21 +12,22 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/88250/gulu"
-	"github.com/siyuan-note/eventbus"
 	"github.com/siyuan-note/logging"
 )
 
 var ErrPandocNotFound = errors.New("not found executable pandoc")
 
 func ConvertPandoc(dir string, args ...string) (path string, err error) {
-	if "" == PandocBinPath || ContainerStd != Container {
+	pandocBinPath := GetPandocRuntime().BinPath
+	if "" == pandocBinPath || ContainerStd != Container {
 		err = ErrPandocNotFound
 		return
 	}
 
-	pandoc := exec.Command(PandocBinPath, args...)
+	pandoc := exec.Command(pandocBinPath, args...)
 	gulu.CmdAttr(pandoc)
 	path = filepath.Join("temp", "convert", "pandoc", dir)
 	absPath := filepath.Join(WorkspaceDir, path)
@@ -65,7 +54,8 @@ func Pandoc(from, to, o, content string) (err error) {
 		return
 	}
 
-	if "" == PandocBinPath || ContainerStd != Container {
+	pandocBinPath := GetPandocRuntime().BinPath
+	if "" == pandocBinPath || ContainerStd != Container {
 		err = ErrPandocNotFound
 		return
 	}
@@ -90,7 +80,7 @@ func Pandoc(from, to, o, content string) (err error) {
 		"-o", o,
 	}
 
-	pandoc := exec.Command(PandocBinPath, args...)
+	pandoc := exec.Command(pandocBinPath, args...)
 	gulu.CmdAttr(pandoc)
 	output, err := pandoc.CombinedOutput()
 	if err != nil {
@@ -100,109 +90,161 @@ func Pandoc(from, to, o, content string) (err error) {
 	return
 }
 
+type PandocRuntime struct {
+	BinPath         string
+	TemplatePath    string
+	ColorFilterPath string
+}
+
 var (
-	PandocBinPath         string // Pandoc 可执行文件路径
-	PandocTemplatePath    string // Pandoc Docx 模板文件路径
-	PandocColorFilterPath string // Pandoc 颜色过滤器路径
+	activePandocRuntime PandocRuntime
+	pandocInitMutex     sync.Mutex
 )
 
-func InitPandoc() {
+func GetPandocRuntime() PandocRuntime {
+	pandocInitMutex.Lock()
+	defer pandocInitMutex.Unlock()
+	return activePandocRuntime
+}
+
+func InitPandoc(customPandocBinPath string) {
+	initPandoc(customPandocBinPath, getPandocVer)
+}
+
+func initPandoc(customPandocBinPath string, getVersion func(string) string) {
 	if ContainerStd != Container {
 		return
 	}
 
-	defer eventbus.Publish(EvtConfPandocInitialized)
+	pandocInitMutex.Lock()
+	defer pandocInitMutex.Unlock()
+	runtimeState := PandocRuntime{}
+	defer func() {
+		activePandocRuntime = runtimeState
+	}()
 
-	PandocTemplatePath = filepath.Join(WorkingDir, "pandoc-resources", "pandoc-template.docx")
-	if !gulu.File.IsExist(PandocTemplatePath) {
-		PandocTemplatePath = filepath.Join(WorkingDir, "pandoc", "pandoc-resources", "pandoc-template.docx")
+	runtimeState.TemplatePath = filepath.Join(WorkingDir, "pandoc-resources", "pandoc-template.docx")
+	if !gulu.File.IsExist(runtimeState.TemplatePath) {
+		runtimeState.TemplatePath = filepath.Join(WorkingDir, "pandoc", "pandoc-resources", "pandoc-template.docx")
 	}
-	if !gulu.File.IsExist(PandocTemplatePath) {
-		PandocTemplatePath = ""
-		logging.LogWarnf("pandoc template file [%s] not found", PandocTemplatePath)
+	if !gulu.File.IsExist(runtimeState.TemplatePath) {
+		logging.LogWarnf("pandoc template file [%s] not found", runtimeState.TemplatePath)
+		runtimeState.TemplatePath = ""
 	}
 
-	PandocColorFilterPath = filepath.Join(WorkingDir, "pandoc-resources", "pandoc_color_filter.lua")
-	if !gulu.File.IsExist(PandocColorFilterPath) {
-		PandocColorFilterPath = filepath.Join(WorkingDir, "pandoc", "pandoc-resources", "pandoc_color_filter.lua")
+	runtimeState.ColorFilterPath = filepath.Join(WorkingDir, "pandoc-resources", "pandoc_color_filter.lua")
+	if !gulu.File.IsExist(runtimeState.ColorFilterPath) {
+		runtimeState.ColorFilterPath = filepath.Join(WorkingDir, "pandoc", "pandoc-resources", "pandoc_color_filter.lua")
 	}
-	if !gulu.File.IsExist(PandocColorFilterPath) {
-		PandocColorFilterPath = ""
-		logging.LogWarnf("pandoc color filter file [%s] not found", PandocColorFilterPath)
+	if !gulu.File.IsExist(runtimeState.ColorFilterPath) {
+		logging.LogWarnf("pandoc color filter file [%s] not found", runtimeState.ColorFilterPath)
+		runtimeState.ColorFilterPath = ""
 	}
 
 	tempPandocDir := filepath.Join(TempDir, "pandoc")
-	if confPath := filepath.Join(ConfDir, "conf.json"); gulu.File.IsExist(confPath) {
-		// Workspace built-in Pandoc is no longer initialized after customizing Pandoc path https://github.com/siyuan-note/siyuan/issues/8377
-		if data, err := os.ReadFile(confPath); err == nil {
-			conf := map[string]any{}
-			if err = gulu.JSON.UnmarshalJSON(data, &conf); err == nil && nil != conf["export"] {
-				export := conf["export"].(map[string]any)
-				if customPandocBinPath := export["pandocBin"].(string); !strings.HasPrefix(customPandocBinPath, tempPandocDir) {
-					if pandocVer := getPandocVer(customPandocBinPath); "" != pandocVer {
-						PandocBinPath = customPandocBinPath
-						logging.LogInfof("custom pandoc [ver=%s, bin=%s]", pandocVer, PandocBinPath)
-						return
-					}
-				}
-			}
+	installedPandocDir := filepath.Join(WorkingDir, "pandoc")
+	installedPandocBinPath := pandocBinPath(installedPandocDir)
+	installedPandocVer := getVersion(installedPandocBinPath)
+
+	customPandocBinPath = strings.TrimSpace(customPandocBinPath)
+	if "" != customPandocBinPath && !isPathWithin(tempPandocDir, customPandocBinPath) {
+		if pandocVer := getVersion(customPandocBinPath); "" != pandocVer {
+			runtimeState.BinPath = customPandocBinPath
+			logging.LogInfof("custom pandoc [ver=%s, bin=%s]", pandocVer, runtimeState.BinPath)
+			removeLegacyPandocDir(tempPandocDir)
+			return
 		}
 	}
 
+	if "" != installedPandocVer {
+		runtimeState.BinPath = installedPandocBinPath
+		logging.LogInfof("built-in pandoc [ver=%s, bin=%s]", installedPandocVer, runtimeState.BinPath)
+		removeLegacyPandocDir(tempPandocDir)
+		return
+	}
+
+	removeLegacyPandocDir(tempPandocDir)
+	pandocZip := pandocZipPath(installedPandocDir, runtime.GOOS, runtime.GOARCH)
+	if "" == pandocZip || !gulu.File.IsExist(pandocZip) {
+		logging.LogErrorf("built-in pandoc executable [%s] is unavailable", installedPandocBinPath)
+		return
+	}
+
+	if err := gulu.Zip.Unzip(pandocZip, installedPandocDir); err != nil {
+		logging.LogErrorf("unzip built-in pandoc [%s] failed: %s", pandocZip, err)
+		return
+	}
+	if (gulu.OS.IsDarwin() || gulu.OS.IsLinux()) && "" != installedPandocBinPath {
+		if err := os.Chmod(installedPandocBinPath, 0755); err != nil {
+			logging.LogErrorf("set built-in pandoc executable [%s] permission failed: %s", installedPandocBinPath, err)
+			return
+		}
+	}
+
+	installedPandocVer = getVersion(installedPandocBinPath)
+	if "" == installedPandocVer {
+		logging.LogErrorf("initialized built-in pandoc executable [%s] is invalid", installedPandocBinPath)
+		return
+	}
+	runtimeState.BinPath = installedPandocBinPath
+	logging.LogInfof("initialized built-in pandoc [ver=%s, bin=%s]", installedPandocVer, runtimeState.BinPath)
+}
+
+func pandocZipPath(pandocDir, goos, goarch string) string {
+	name := ""
+	switch goos {
+	case "windows":
+		if "amd64" == goarch {
+			name = "pandoc-windows-amd64.zip"
+		}
+	case "darwin":
+		if "amd64" == goarch || "arm64" == goarch {
+			name = "pandoc-darwin-" + goarch + ".zip"
+		}
+	case "linux":
+		if "amd64" == goarch || "arm64" == goarch {
+			name = "pandoc-linux-" + goarch + ".zip"
+		}
+	}
+	if "" == name {
+		return ""
+	}
+	return filepath.Join(pandocDir, name)
+}
+
+func pandocBinPath(pandocDir string) string {
 	if gulu.OS.IsWindows() {
 		if "amd64" == runtime.GOARCH {
-			PandocBinPath = filepath.Join(tempPandocDir, "bin", "pandoc.exe")
+			return filepath.Join(pandocDir, "bin", "pandoc.exe")
 		}
 	} else if gulu.OS.IsDarwin() {
-		PandocBinPath = filepath.Join(tempPandocDir, "bin", "pandoc")
+		return filepath.Join(pandocDir, "bin", "pandoc")
 	} else if gulu.OS.IsLinux() {
-		if "amd64" == runtime.GOARCH {
-			PandocBinPath = filepath.Join(tempPandocDir, "bin", "pandoc")
-		}
+		return filepath.Join(pandocDir, "bin", "pandoc")
 	}
-	pandocVer := getPandocVer(PandocBinPath)
-	if "" != pandocVer {
-		logging.LogInfof("built-in pandoc [ver=%s, bin=%s]", pandocVer, PandocBinPath)
+	return ""
+}
+
+func isPathWithin(root, target string) bool {
+	if "" == root || "" == target {
+		return false
+	}
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(target))
+	if err != nil {
+		return false
+	}
+	return "." == rel || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+func removeLegacyPandocDir(tempPandocDir string) {
+	if !gulu.File.IsExist(tempPandocDir) {
 		return
 	}
-
-	pandocZip := filepath.Join(WorkingDir, "pandoc.zip")
-	if !gulu.File.IsExist(pandocZip) {
-		if gulu.OS.IsWindows() {
-			if "amd64" == runtime.GOARCH {
-				pandocZip = filepath.Join(WorkingDir, "pandoc", "pandoc-windows-amd64.zip")
-			}
-		} else if gulu.OS.IsDarwin() {
-			if "amd64" == runtime.GOARCH {
-				pandocZip = filepath.Join(WorkingDir, "pandoc", "pandoc-darwin-amd64.zip")
-			} else if "arm64" == runtime.GOARCH {
-				pandocZip = filepath.Join(WorkingDir, "pandoc", "pandoc-darwin-arm64.zip")
-			}
-		} else if gulu.OS.IsLinux() {
-			if "amd64" == runtime.GOARCH {
-				pandocZip = filepath.Join(WorkingDir, "pandoc", "pandoc-linux-amd64.zip")
-			} else if "arm64" == runtime.GOARCH {
-				pandocZip = filepath.Join(WorkingDir, "pandoc", "pandoc-linux-arm64.zip")
-			}
-		}
-	}
-
-	if !gulu.File.IsExist(pandocZip) {
-		PandocBinPath = ""
-		logging.LogErrorf("pandoc zip [%s] not found", pandocZip)
+	if err := os.RemoveAll(tempPandocDir); err != nil {
+		logging.LogWarnf("remove legacy pandoc folder [%s] failed: %s", tempPandocDir, err)
 		return
 	}
-
-	if err := gulu.Zip.Unzip(pandocZip, tempPandocDir); err != nil {
-		logging.LogErrorf("unzip pandoc failed: %s", err)
-		return
-	}
-
-	if gulu.OS.IsDarwin() || gulu.OS.IsLinux() {
-		exec.Command("chmod", "+x", PandocBinPath).CombinedOutput()
-	}
-	pandocVer = getPandocVer(PandocBinPath)
-	logging.LogInfof("initialized built-in pandoc [ver=%s, bin=%s]", pandocVer, PandocBinPath)
+	logging.LogInfof("removed legacy pandoc folder [%s]", tempPandocDir)
 }
 
 func getPandocVer(binPath string) (ret string) {

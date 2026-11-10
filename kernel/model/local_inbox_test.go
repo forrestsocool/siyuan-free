@@ -33,8 +33,8 @@ func withLocalInboxTestState(t *testing.T) {
 	oldReadOnly := util.ReadOnly
 
 	Conf = NewAppConf()
-	Conf.Editor = conf.NewEditor()
-	Conf.Export = conf.NewExport()
+	Conf.Editor.Store(conf.NewEditor())
+	Conf.Export.Store(conf.NewExport())
 	util.DataDir = t.TempDir()
 	util.ReadOnly = true
 

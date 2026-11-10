@@ -10,13 +10,54 @@ on:
     tags:
       - "v*"
 
-jobs:
-  docker:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+permissions:
+  contents: read
+  packages: write
 
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.names.outputs.image }}
+      extra: ${{ steps.names.outputs.extra }}
+      tag: ${{ steps.names.outputs.tag }}
+      version: ${{ steps.names.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: names
+        shell: bash
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "extra=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/siyuan-extra" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r .version app/package.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [tests, prepare]
+    name: Build ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    env:
+      SIYUAN_IMAGE: ${{ needs.prepare.outputs.image }}
+      EXTRA_IMAGE: ${{ needs.prepare.outputs.extra }}
+      BUILD_TAG: build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
     steps:
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
@@ -28,61 +69,93 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set image names
-        shell: bash
-        run: |
-          repo="${GITHUB_REPOSITORY,,}"
-          owner="${GITHUB_REPOSITORY_OWNER,,}"
-          ref="${GITHUB_REF_NAME//\//-}"
-          echo "SIYUAN_IMAGE=ghcr.io/${repo}" >> "$GITHUB_ENV"
-          echo "EXTRA_IMAGE=ghcr.io/${owner}/siyuan-extra" >> "$GITHUB_ENV"
-          echo "IMAGE_TAG=${ref}" >> "$GITHUB_ENV"
-          {
-            echo "SIYUAN_TAGS<<EOF"
-            echo "ghcr.io/${repo}:${ref}"
-            if [[ "$GITHUB_REF_NAME" == "main" || "$GITHUB_REF_NAME" == "master" || "$GITHUB_REF_TYPE" == "tag" ]]; then
-              echo "ghcr.io/${repo}:latest"
-            fi
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-          {
-            echo "EXTRA_TAGS<<EOF"
-            echo "ghcr.io/${owner}/siyuan-extra:${ref}"
-            if [[ "$GITHUB_REF_NAME" == "main" || "$GITHUB_REF_NAME" == "master" || "$GITHUB_REF_TYPE" == "tag" ]]; then
-              echo "ghcr.io/${owner}/siyuan-extra:latest"
-            fi
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push SiYuan image
+      - name: Resolve or build cached ONNX runtime
+        id: onnx
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          python3 scripts/build-docker-onnx.py --context . \
+            --repository "$SIYUAN_IMAGE" --platform "$PLATFORM" \
+            --records "$RUNNER_TEMP/onnx" --github-output "$GITHUB_OUTPUT"
+
+      - name: Build SiYuan candidate
+        id: main
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ env.SIYUAN_TAGS }}
+          tags: ${{ env.SIYUAN_IMAGE }}:${{ env.BUILD_TAG }}
+          build-args: ONNX_IMAGE=${{ steps.onnx.outputs.onnx_image }}
+          cache-from: type=gha,scope=siyuan-${{ matrix.arch }}
+          cache-to: type=gha,scope=siyuan-${{ matrix.arch }},mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
 
-      - name: Build and push extra sidecar image
+      - name: Verify kernel startup and OCR
+        env:
+          IMAGE: ${{ env.SIYUAN_IMAGE }}@${{ steps.main.outputs.digest }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          python3 scripts/verify-docker-release.py verify --image "$IMAGE" \
+            --version "$VERSION" --platform "$PLATFORM" \
+            --source-commit "$GITHUB_SHA" --configuration-commit "$GITHUB_SHA" \
+            --run-id "$GITHUB_RUN_ID" --report "$RUNNER_TEMP/verification/report.json"
+
+      - name: Build extra sidecar candidate
         uses: docker/build-push-action@v6
         with:
           context: ./extra
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ env.EXTRA_TAGS }}
+          tags: ${{ env.EXTRA_IMAGE }}:${{ env.BUILD_TAG }}
+          cache-from: type=gha,scope=extra-${{ matrix.arch }}
+          cache-to: type=gha,scope=extra-${{ matrix.arch }},mode=max
+
+      - name: Preserve build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/onnx
+            ${{ runner.temp }}/verification
+          if-no-files-found: ignore
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    env:
+      SIYUAN_IMAGE: ${{ needs.prepare.outputs.image }}
+      EXTRA_IMAGE: ${{ needs.prepare.outputs.extra }}
+      IMAGE_TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish verified multi-platform images
+        shell: bash
+        run: |
+          for image in "$SIYUAN_IMAGE" "$EXTRA_IMAGE"; do
+            tags=(--tag "$image:$IMAGE_TAG" --tag "$image:sha-${GITHUB_SHA:0:12}")
+            if [[ "$GITHUB_REF_NAME" == main || "$GITHUB_REF_NAME" == master || "$GITHUB_REF_TYPE" == tag ]]; then
+              tags+=(--tag "$image:latest")
+            fi
+            docker buildx imagetools create "${tags[@]}" \
+              "$image:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-amd64" \
+              "$image:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-arm64"
+          done

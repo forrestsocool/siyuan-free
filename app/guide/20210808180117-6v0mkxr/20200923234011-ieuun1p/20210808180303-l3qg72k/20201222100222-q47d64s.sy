@@ -6,16 +6,68 @@
 		"id": "20201222100222-q47d64s",
 		"title": "Type filtering",
 		"type": "doc",
-		"updated": "20251219205842"
+		"updated": "20261016111305"
 	},
 	"Children": [
+		{
+			"ID": "20260913020024-b527599",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260913020024-b527599",
+				"updated": "20260913020024"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Search type filters"
+				}
+			]
+		},
+		{
+			"ID": "20260913020024-jcrzyhk",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260913020024-jcrzyhk",
+				"updated": "20260913020024"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "In the search dialog, open "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Search type"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "  and expand Heading, List block, or List item block to select heading levels or ordered, unordered, and task subtypes independently. For example, select only Ordered under List item block to find ordered list items."
+				}
+			]
+		},
+		{
+			"ID": "20260913020024-t1ymzbn",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260913020024-t1ymzbn",
+				"updated": "20260913020024"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Selecting a parent selects all its subtypes; clearing it clears the group. Selecting any subtype enables its parent, and clearing the last subtype disables the parent. An enabled parent with no subtype restriction appears with all its subtypes selected."
+				}
+			]
+		},
 		{
 			"ID": "20210210104024-efd1ar6",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210210104024-efd1ar6",
-				"updated": "20251219205820"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -39,7 +91,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20201224092621-haejkkh",
-				"updated": "20251219205820"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -744,6 +796,171 @@
 							]
 						}
 					]
+				},
+				{
+					"ID": "20261016111305-o5i41v2",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016111305-o5i41v2",
+						"updated": "20261016111305"
+					},
+					"Children": [
+						{
+							"ID": "20261016111305-3hdt5oq",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016111305-3hdt5oq",
+								"updated": "20261016111305"
+							},
+							"Children": [
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "mindmap"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " Mind map block"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016111305-l79dcbo",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016111305-l79dcbo",
+						"updated": "20261016111305"
+					},
+					"Children": [
+						{
+							"ID": "20261016111305-ksqiqw2",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016111305-ksqiqw2",
+								"updated": "20261016111305"
+							},
+							"Children": [
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "mindmap_item"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " Mind map item block"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016111305-bfh1zf7",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016111305-bfh1zf7",
+						"updated": "20261016111305"
+					},
+					"Children": [
+						{
+							"ID": "20261016111305-jvyhg7f",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016111305-jvyhg7f",
+								"updated": "20261016111305"
+							},
+							"Children": [
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "tabs"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " Tabbed container block"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016111305-zv0b39m",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016111305-zv0b39m",
+						"updated": "20261016111305"
+					},
+					"Children": [
+						{
+							"ID": "20261016111305-zjfj3uz",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016111305-zjfj3uz",
+								"updated": "20261016111305"
+							},
+							"Children": [
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "tab"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " Tab item block"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20261016111305-foj74ni",
+					"Type": "NodeListItem",
+					"ListData": {
+						"BulletChar": 42,
+						"Marker": "Kg=="
+					},
+					"Properties": {
+						"id": "20261016111305-foj74ni",
+						"updated": "20261016111305"
+					},
+					"Children": [
+						{
+							"ID": "20261016111305-lwleoww",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20261016111305-lwleoww",
+								"updated": "20261016111305"
+							},
+							"Children": [
+								{
+									"Type": "NodeTextMark",
+									"TextMarkType": "code",
+									"TextMarkTextContent": "custom"
+								},
+								{
+									"Type": "NodeText",
+									"Data": " Custom block"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -753,7 +970,7 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20210210104037-xex9wds",
-				"updated": "20251219205842"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -775,12 +992,13 @@
 			"ID": "20210210104044-84398d1",
 			"Type": "NodeParagraph",
 			"Properties": {
-				"id": "20210210104044-84398d1"
+				"id": "20210210104044-84398d1",
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "List block / List item block subtypes:"
+					"Data": "List block, list item block, mind map block, and mind map item block subtypes:"
 				}
 			]
 		},

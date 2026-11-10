@@ -4,9 +4,9 @@
 	"Type": "NodeDocument",
 	"Properties": {
 		"id": "20211226120055-9mityht",
-		"title": "什麼是內容塊",
+		"title": "什麼是內容區塊",
 		"type": "doc",
-		"updated": "20230630091613"
+		"updated": "20261024160716"
 	},
 	"Children": [
 		{
@@ -15,12 +15,12 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226120120-jm4t451",
-				"updated": "20211225224210"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "內容塊定義"
+					"Data": "內容區塊定義"
 				}
 			]
 		},
@@ -29,30 +29,30 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-83k0bgj",
-				"updated": "20211228124624"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "“"
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "tag",
-					"TextMarkTextContent": "內容塊"
-				},
-				{
-					"Type": "NodeText",
-					"Data": "”指的是一塊內容，每塊這樣的內容通過一個全域唯一的 ID 進行標識。ID 是程式自動生成的，形如： "
+					"Data": "內容區塊是思源中可獨立編輯、引用和組織的內容單元。每個內容區塊都有程式自動產生的全域唯一 ID，例如 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "code",
-					"TextMarkTextContent": "202008250000-a1b2c3d"
+					"TextMarkTextContent": "20200825000000-a1b2c3d"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "，由時間和 7 位隨機字符組成。"
+					"Data": "。ID 由 14 位時間戳記（"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "YYYYMMDDHHMMSS"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "）、連字號和 7 位隨機小寫英文字母或數字組成。"
 				}
 			]
 		},
@@ -62,12 +62,12 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226120120-es5r7jz",
-				"updated": "20211225224210"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "內容塊類型"
+					"Data": "內容區塊類型"
 				}
 			]
 		},
@@ -76,12 +76,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-mabxgr7",
-				"updated": "20211228105035"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "最常見的內容塊就是我們所熟悉的段落（Paragraph）。在中文傳統排版中，段落通常是通過段首縮進（空兩格）來表示，網際網路的發展逐漸影響了段落的表示，現在使用較多的方式是增加段落之間的行距，或者使用空行來分隔段落。"
+					"Data": "最常見的內容區塊是段落，用於撰寫正文。每個段落都是獨立的內容區塊，可以單獨移動、設定屬性或被其他內容引用。"
 				}
 			]
 		},
@@ -90,12 +90,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-o6vc62t",
-				"updated": "20211225224210"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "實際使用時，僅僅靠段落排版是不夠的，往往還需要用到標題（Heading）、列表（List）、表格（Table）、塊引用（Blockquote）等來豐富我們的排版。這些排版樣式除了視覺上的不同，更重要的是它們在一定程度上表達了內容的語義。比如在看到無序列表時，我們可以知道每個列表項是不分先後的平級關系，而在看到有序列表時則相反。"
+					"Data": "標題、列表、表格和引述區塊等類型用於表達不同的內容結構。標題劃分章節，無序列表組織並列項目，有序列表表示步驟或順序。選擇合適的類型，既能改善排版，也能讓內容的層次更清楚。"
 				}
 			]
 		},
@@ -104,28 +104,23 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-8gxppvd",
-				"updated": "20211226125227"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "所以，內容塊存在"
+					"Data": "各類型的特點和包含規則請參閱 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "block-ref",
-					"TextMarkBlockRefID": "20211226120227-2s70boj",
+					"TextMarkBlockRefID": "20211226120147-ib6yy3i",
 					"TextMarkBlockRefSubtype": "s",
-					"TextMarkTextContent": "很多類型"
+					"TextMarkTextContent": "內容區塊類型"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "，不同的排版格式會形成不同的內容塊。"
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "tag",
-					"TextMarkTextContent": "內容塊/類型"
+					"Data": "。"
 				}
 			]
 		},
@@ -135,12 +130,12 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226120120-dpno0zb",
-				"updated": "20211225224210"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "組合內容塊"
+					"Data": "組合內容區塊"
 				}
 			]
 		},
@@ -149,26 +144,12 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-z442iy4",
-				"updated": "20211225224448"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "一篇文檔是一些內容塊的組合，內容塊是基本單位。這就好比樂高積木，可以使用不同的基本模塊進行組合。"
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "tag",
-					"TextMarkTextContent": "注意"
-				},
-				{
-					"Type": "NodeText",
-					"Data": "：文檔本身也是一種內容塊，更準確地說，文檔塊、列表塊、引述塊這三種內容塊是容器塊，他們可以包含其他任意類型的內容塊。"
-				},
-				{
-					"Type": "NodeTextMark",
-					"TextMarkType": "tag",
-					"TextMarkTextContent": "內容塊/組合"
+					"Data": "一篇文檔由多個內容區塊組成。能包含其他內容區塊的類型稱為容器區塊，例如列表和引述區塊。"
 				}
 			]
 		},
@@ -177,23 +158,23 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-l22275a",
-				"updated": "20211226152623"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "至此，我們已經能夠用內容塊來描述所有的內容了，這樣就能通過統一的用法來"
+					"Data": "文檔本身也是內容區塊。無論是整篇文檔還是其中的段落，都可以透過 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20211226120247-63nd8y5",
 					"TextMarkBlockRefSubtype": "s",
-					"TextMarkTextContent": "連結內容塊"
+					"TextMarkTextContent": "區塊引用"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "了。邏輯上沒有頁面（Page）概念，減少使用中不必要的負擔，讓用戶將註意力集中在內容塊上。"
+					"Data": " 建立聯繫，不必為了引用一段內容而將它拆成獨立文檔。"
 				}
 			]
 		},
@@ -203,12 +184,12 @@
 			"HeadingLevel": 2,
 			"Properties": {
 				"id": "20211226120120-a9g5s86",
-				"updated": "20211225224210"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "命名和備註"
+					"Data": "命名、別名和備註"
 				}
 			]
 		},
@@ -218,23 +199,23 @@
 			"Properties": {
 				"id": "20211226120120-ez8kp2p",
 				"memo": "備註通常是一句簡短的話",
-				"updated": "20211228130959"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "我們可以為每個內容塊命名、新增別名和備註。命名和別名主要用於反連"
+					"Data": "可以為內容區塊設定命名、別名和備註。命名和別名用於 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20211226120415-kqk522d",
 					"TextMarkBlockRefSubtype": "s",
-					"TextMarkTextContent": "提及"
+					"TextMarkTextContent": "反向連結提及"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "搜索，備註用於記錄一些不便在內容區中出現的訊息。"
+					"Data": " 搜尋；備註用於記錄不需要出現在正文中的補充資訊。"
 				}
 			]
 		},
@@ -243,17 +224,17 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-tk670g9",
-				"updated": "20211228134758"
+				"updated": "20261016013311"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "在 "
+					"Data": "啟用 "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "設置"
+					"TextMarkTextContent": "設定"
 				},
 				{
 					"Type": "NodeText",
@@ -266,7 +247,25 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 中打開顯示書簽、命名、別名標識選項後，被命名的內容塊在編輯器中會被加上外框顯示。如果對文檔塊進行命名和備註，則當滑鼠懸浮文檔樹文檔上時將浮出該文檔的相關命名和備註訊息。"
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "行為"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "內容區塊角標"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " 後，可在編輯器中顯示命名、別名和備註。文檔區塊設定命名或備註後，將滑鼠懸浮在文檔樹中的文檔上可檢視這些資訊。"
 				}
 			]
 		},
@@ -275,7 +274,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20211226120120-mik443d",
-				"updated": "20211226125508"
+				"updated": "20260730184353"
 			},
 			"Children": [
 				{
@@ -287,7 +286,7 @@
 					"TextMarkType": "block-ref",
 					"TextMarkBlockRefID": "20211226120508-yzh70eh",
 					"TextMarkBlockRefSubtype": "s",
-					"TextMarkTextContent": "嵌入內容塊"
+					"TextMarkTextContent": "嵌入內容區塊"
 				},
 				{
 					"Type": "NodeText",
@@ -300,7 +299,7 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": " 關鍵字的內容塊："
+					"Data": " 關鍵字的內容區塊："
 				}
 			]
 		},
@@ -309,7 +308,7 @@
 			"Type": "NodeBlockQueryEmbed",
 			"Properties": {
 				"id": "20211226152553-bvudiv9",
-				"updated": "20211226152553"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
@@ -320,7 +319,7 @@
 				},
 				{
 					"Type": "NodeBlockQueryEmbedScript",
-					"Data": "select * from blocks where id='20211226120120-ez8kp2p'"
+					"Data": "SELECT * FROM blocks WHERE memo LIKE '%簡短%'"
 				},
 				{
 					"Type": "NodeCloseBrace"
@@ -359,7 +358,7 @@
 			"ListData": {},
 			"Properties": {
 				"id": "20230419153659-uh8hdye",
-				"updated": "20230630091613"
+				"updated": "20261024160716"
 			},
 			"Children": [
 				{
@@ -371,7 +370,7 @@
 					},
 					"Properties": {
 						"id": "20230419153659-w5q9kdh",
-						"updated": "20230419153659"
+						"updated": "20261024160716"
 					},
 					"Children": [
 						{
@@ -379,12 +378,12 @@
 							"Type": "NodeParagraph",
 							"Properties": {
 								"id": "20230419153659-egnlgvq",
-								"updated": "20230419153659"
+								"updated": "20261024160716"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "命名是唯一的，一個塊只能設置一個命名"
+									"Data": "一個內容區塊只能設定一個命名；不同內容區塊可以使用相同的命名"
 								}
 							]
 						}

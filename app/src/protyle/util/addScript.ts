@@ -1,21 +1,45 @@
-export const addScriptSync = async (path: string, id: string) => {
+const pendingScripts = new Map<string, {promise: Promise<boolean>; reloadOnFailure: boolean}>();
+
+export const addScriptSync = async (path: string, id: string, options: {reloadOnFailure?: boolean} = {}) => {
+    if (pendingScripts.has(id)) {
+        const pending = pendingScripts.get(id);
+        if (options.reloadOnFailure === false) {
+            pending.reloadOnFailure = false;
+        }
+        return pending.promise;
+    }
     if (document.getElementById(id)) {
         return false;
     }
-    const xhrObj = new XMLHttpRequest();
-    xhrObj.open("GET", path, false);
-    xhrObj.setRequestHeader("Accept",
-        "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01");
-    xhrObj.send("");
-    const scriptElement = document.createElement("script");
-    scriptElement.type = "text/javascript";
-    scriptElement.text = xhrObj.responseText;
-    scriptElement.id = id;
-    document.head.appendChild(scriptElement);
-    if (typeof Lute === "undefined") {
-        // 鸿蒙系统上第一次加载会出现 Lute 未定义的情况，重新载入一次就好了，暂时没找到原因，先这样处理
-        window.location.reload();
-    }
+    const pending = {promise: undefined as Promise<boolean>, reloadOnFailure: options.reloadOnFailure !== false};
+    pending.promise = new Promise<boolean>((resolve) => {
+        const scriptElement = document.createElement("script");
+        scriptElement.type = "text/javascript";
+        scriptElement.src = path;
+        scriptElement.async = false;
+        scriptElement.id = id;
+        scriptElement.onload = () => {
+            pendingScripts.delete(id);
+            if (id === "protyleLuteScript" && typeof Lute === "undefined") {
+                if (!pending.reloadOnFailure) {
+                    scriptElement.remove();
+                    resolve(false);
+                    return;
+                }
+                // 鸿蒙系统上首次加载可能没有初始化 Lute，重新载入页面恢复编辑器。
+                window.location.reload();
+            }
+            resolve(true);
+        };
+        scriptElement.onerror = () => {
+            pendingScripts.delete(id);
+            scriptElement.remove();
+            resolve(false);
+        };
+        document.head.appendChild(scriptElement);
+    });
+    pendingScripts.set(id, pending);
+    return pending.promise;
 };
 
 export const addScript = (path: string, id: string) => {
@@ -39,6 +63,10 @@ export const addScript = (path: string, id: string) => {
             }
             scriptElement.id = id;
             resolve(true);
+        };
+        scriptElement.onerror = () => {
+            scriptElement.remove();
+            resolve(false);
         };
     });
 };

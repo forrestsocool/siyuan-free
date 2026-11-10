@@ -1,268 +1,205 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package api
 
 import (
-	"net/http"
+	"path/filepath"
+	"sort"
 	"time"
 
-	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
+	"github.com/siyuan-note/siyuan/kernel/apicontract"
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func searchHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var notebook, query, op string
-	if !util.ParseJsonArgs(arg, ret,
-		util.BindJsonArg("notebook", &notebook, false, false),
-		util.BindJsonArg("query", &query, false, false),
-		util.BindJsonArg("op", &op, false, false),
-	) {
-		return
-	}
+var searchHistory = contractHandler(apicontract.SearchHistory, func(c *gin.Context, request apicontract.SearchHistoryRequest) apicontract.Response[apicontract.SearchHistoryData] {
 	typ := model.HistoryTypeDoc
-	if nil != arg["type"] {
-		typeVal, ok := util.ParseJsonArg[float64]("type", arg, ret, true, false)
-		if !ok {
-			return
-		}
-		typ = int(typeVal)
+	if request.Type != nil {
+		typ = int(*request.Type)
 	}
 	page := 1
-	if nil != arg["page"] {
-		pageVal, ok := util.ParseJsonArg[float64]("page", arg, ret, true, false)
-		if !ok {
-			return
-		}
-		page = int(pageVal)
+	if request.Page != nil {
+		page = int(*request.Page)
 	}
-	histories, pageCount, totalCount := model.FullTextSearchHistory(query, notebook, op, typ, page)
-	ret.Data = map[string]any{
-		"histories":  histories,
-		"pageCount":  pageCount,
-		"totalCount": totalCount,
-	}
-}
+	histories, pageCount, totalCount := model.FullTextSearchHistory(request.Query, request.Notebook, request.Op, typ, page)
+	return apicontract.Success(apicontract.SearchHistoryData{Histories: histories, PageCount: pageCount, TotalCount: totalCount})
+})
 
-func getHistoryItems(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var created, notebook, query, op string
-	if !util.ParseJsonArgs(arg, ret,
-		util.BindJsonArg("created", &created, true, true),
-		util.BindJsonArg("notebook", &notebook, false, false),
-		util.BindJsonArg("query", &query, false, false),
-		util.BindJsonArg("op", &op, false, false),
-	) {
-		return
-	}
+var getHistoryItems = contractHandler(apicontract.GetHistoryItems, func(c *gin.Context, request apicontract.HistoryItemsRequest) apicontract.Response[apicontract.HistoryItemsData] {
 	typ := model.HistoryTypeDoc
-	if nil != arg["type"] {
-		typeVal, ok := util.ParseJsonArg[float64]("type", arg, ret, true, false)
-		if !ok {
-			return
-		}
-		typ = int(typeVal)
+	if request.Type != nil {
+		typ = int(*request.Type)
 	}
-	histories := model.FullTextSearchHistoryItems(created, query, notebook, op, typ)
-	ret.Data = map[string]any{
-		"items": histories,
-	}
-}
+	histories := model.FullTextSearchHistoryItems(request.Created, request.Query, request.Notebook, request.Op, typ)
+	return apicontract.Success(apicontract.HistoryItemsData{Items: historyItemContracts(histories)})
+})
 
-func reindexHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
+var reindexHistory = contractHandler(apicontract.ReindexHistory, func(c *gin.Context, request apicontract.EmptyRequest) apicontract.Response[apicontract.Null] {
 	model.ReindexHistory()
-}
+	return apicontract.Success(apicontract.Null{})
+})
 
-func getNotebookHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
+var getNotebookHistory = contractHandler(apicontract.GetNotebookHistory, func(c *gin.Context, request apicontract.EmptyRequest) apicontract.Response[apicontract.NotebookHistoryData] {
 	histories, err := model.GetNotebookHistory()
 	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[apicontract.NotebookHistoryData](-1, err.Error())
 	}
-
-	ret.Data = map[string]any{
-		"histories": histories,
-	}
-}
-
-func clearWorkspaceHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	msgId := util.PushMsg(model.Conf.Language(100), 1000*60*15)
-	time.Sleep(3 * time.Second)
-	err := model.ClearWorkspaceHistory()
-	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-	util.PushUpdateMsg(msgId, model.Conf.Language(99), 1000*5)
-}
-
-func getDocHistoryContent(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var historyPath, keyword string
-	if !util.ParseJsonArgs(arg, ret,
-		util.BindJsonArg("historyPath", &historyPath, true, true),
-		util.BindJsonArg("k", &keyword, false, false),
-	) {
-		return
-	}
-	highlight := true
-	if nil != arg["highlight"] {
-		highlightVal, ok := util.ParseJsonArg[bool]("highlight", arg, ret, true, false)
-		if !ok {
-			return
+	var result []*apicontract.History
+	if histories != nil {
+		result = make([]*apicontract.History, len(histories))
+		for i, history := range histories {
+			if history != nil {
+				result[i] = &apicontract.History{HCreated: history.HCreated, Items: historyItemContracts(history.Items)}
+			}
 		}
-		highlight = highlightVal
+	}
+	return apicontract.Success(apicontract.NotebookHistoryData{Histories: result})
+})
+
+func historyItemContracts(items []*model.HistoryItem) []*apicontract.HistoryItem {
+	if items == nil {
+		return nil
+	}
+	result := make([]*apicontract.HistoryItem, len(items))
+	for i, item := range items {
+		result[i] = (*apicontract.HistoryItem)(item)
+	}
+	return result
+}
+
+var clearWorkspaceHistory = contractHandler(apicontract.ClearWorkspaceHistory, func(c *gin.Context, request apicontract.EmptyRequest) apicontract.Response[apicontract.Null] {
+	msgID := util.PushMsg(model.Conf.Language(100), 1000*60*15)
+	time.Sleep(3 * time.Second)
+	if err := model.ClearWorkspaceHistory(); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
+	}
+	util.PushUpdateMsg(msgID, model.Conf.Language(99), 1000*5)
+	return apicontract.Success(apicontract.Null{})
+})
+
+var getDocHistoryContent = contractHandler(apicontract.GetDocHistoryContent, func(c *gin.Context, request apicontract.DocHistoryContentRequest) apicontract.Response[apicontract.DocHistoryContentData] {
+	historyPath, keyword := request.HistoryPath, request.K
+	highlight := true
+	if request.Highlight != nil {
+		highlight = *request.Highlight
+	}
+	if err := holdHistoryRequest(c, historyPath); err != nil {
+		return apicontract.FailureFrom[apicontract.DocHistoryContentData](err)
 	}
 	id, rootID, content, isLargeDoc, err := model.GetDocHistoryContent(historyPath, keyword, highlight)
 	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[apicontract.DocHistoryContentData](-1, err.Error())
+	}
+	return apicontract.Success(apicontract.DocHistoryContentData{ID: id, RootID: rootID, Content: content, IsLargeDoc: isLargeDoc})
+})
+
+var diffDocVersions = contractHandler(apicontract.DiffDocVersions, func(c *gin.Context, request apicontract.DiffDocVersionsRequest) apicontract.Response[*apicontract.DocVersionDiffResult] {
+	left, right := (*model.DocVersionRef)(&request.Left), (*model.DocVersionRef)(&request.Right)
+	boxIDs := map[string]struct{}{}
+	for _, ref := range []*model.DocVersionRef{left, right} {
+		boxID, resolveErr := model.ResolveDocVersionBoxID(ref)
+		if resolveErr != nil {
+			return apicontract.Failure[*apicontract.DocVersionDiffResult](-1, resolveErr.Error())
+		}
+		if boxID != "" {
+			boxIDs[boxID] = struct{}{}
+		}
+	}
+	sortedBoxIDs := make([]string, 0, len(boxIDs))
+	for boxID := range boxIDs {
+		sortedBoxIDs = append(sortedBoxIDs, boxID)
+	}
+	sort.Strings(sortedBoxIDs)
+	for _, boxID := range sortedBoxIDs {
+		if err := holdEncryptedBoxRequest(c, boxID); err != nil {
+			return apicontract.Failure[*apicontract.DocVersionDiffResult](-1, model.Conf.Language(314))
+		}
 	}
 
-	ret.Data = map[string]any{
-		"id":         id,
-		"rootID":     rootID,
-		"content":    content,
-		"isLargeDoc": isLargeDoc,
+	diff, err := model.DiffDocVersions(left, right)
+	if err != nil {
+		return apicontract.Failure[*apicontract.DocVersionDiffResult](-1, err.Error())
 	}
+	return apicontract.Success(docVersionDiffContract(diff))
+})
+
+var rollbackDocHistory = contractHandler(apicontract.RollbackDocHistory, func(c *gin.Context, request apicontract.HistoryPathRequest) apicontract.Response[apicontract.Null] {
+	if err := holdHistoryRequest(c, request.HistoryPath); err != nil {
+		return apicontract.FailureFrom[apicontract.Null](err)
+	}
+	if err := model.RollbackDocHistory(request.HistoryPath); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
+	}
+	return apicontract.Success(apicontract.Null{})
+})
+
+var rollbackAssetsHistory = contractHandler(apicontract.RollbackAssetsHistory, func(c *gin.Context, request apicontract.HistoryPathRequest) apicontract.Response[apicontract.Null] {
+	if err := holdHistoryRequest(c, request.HistoryPath); err != nil {
+		return apicontract.FailureFrom[apicontract.Null](err)
+	}
+	if err := model.RollbackAssetsHistory(request.HistoryPath); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
+	}
+	return apicontract.Success(apicontract.Null{})
+})
+
+var rollbackNotebookHistory = contractHandler(apicontract.RollbackNotebookHistory, func(c *gin.Context, request apicontract.HistoryPathRequest) apicontract.Response[apicontract.Null] {
+	if err := model.RollbackNotebookHistory(request.HistoryPath); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
+	}
+	return apicontract.Success(apicontract.Null{})
+})
+
+var rollbackAttributeViewHistory = contractHandler(apicontract.RollbackAttributeViewHistory, func(c *gin.Context, request apicontract.HistoryPathRequest) apicontract.Response[apicontract.Null] {
+	if err := holdHistoryRequest(c, request.HistoryPath); err != nil {
+		return apicontract.FailureFrom[apicontract.Null](err)
+	}
+	if err := model.RollbackAttributeViewHistory(request.HistoryPath); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
+	}
+	return apicontract.Success(apicontract.Null{})
+})
+
+// holdHistoryRequest 在读取加密笔记本的历史前取得租约，返回 nil 表示可以继续。
+func holdHistoryRequest(c *gin.Context, historyPath string) error {
+	absolutePath := filepath.Join(util.WorkspaceDir, historyPath)
+	boxID := model.ExtractBoxIDFromHistoryPath(absolutePath)
+	if err := holdEncryptedBoxRequest(c, boxID); err != nil {
+		return apicontract.Reject(model.Conf.Language(314))
+	}
+	return nil
 }
 
-func rollbackDocHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var notebook, historyPath string
-	if !util.ParseJsonArgs(arg, ret,
-		util.BindJsonArg("notebook", &notebook, true, true),
-		util.BindJsonArg("historyPath", &historyPath, true, true),
-	) {
-		return
-	}
-	err := model.RollbackDocHistory(notebook, historyPath)
+var createDocHistory = contractHandler(apicontract.CreateDocHistory, func(c *gin.Context, request apicontract.CreateDocHistoryRequest) apicontract.Response[apicontract.Null] {
+	err := model.CreateDocHistory(request.ID)
 	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
 	}
+	return apicontract.Success(apicontract.Null{})
+})
 
-	ret.Data = map[string]any{
-		"box": notebook,
-	}
-}
-
-func rollbackAssetsHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var historyPath string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("historyPath", &historyPath, true, true)) {
-		return
-	}
-	err := model.RollbackAssetsHistory(historyPath)
+var createAssetHistory = contractHandler(apicontract.CreateAssetHistory, func(c *gin.Context, request apicontract.CreateAssetHistoryRequest) apicontract.Response[apicontract.Null] {
+	err := model.CreateAssetHistory(request.Path)
 	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
 	}
-}
+	return apicontract.Success(apicontract.Null{})
+})
 
-func rollbackNotebookHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
+func docVersionDiffContract(diff *model.DocVersionDiffResult) *apicontract.DocVersionDiffResult {
+	if diff == nil {
+		return nil
 	}
-
-	var historyPath string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("historyPath", &historyPath, true, true)) {
-		return
+	result := &apicontract.DocVersionDiffResult{Left: (*apicontract.DocVersionDiffContent)(diff.Left), Right: (*apicontract.DocVersionDiffContent)(diff.Right),
+		Large: diff.Large, Fallback: diff.Fallback, Message: diff.Message, TitleModified: diff.TitleModified}
+	if diff.Differences != nil {
+		result.Differences = make([]*apicontract.DocVersionDifference, len(diff.Differences))
+		for i, difference := range diff.Differences {
+			result.Differences[i] = (*apicontract.DocVersionDifference)(difference)
+		}
 	}
-	err := model.RollbackNotebookHistory(historyPath)
-	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-}
-
-func rollbackAttributeViewHistory(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var historyPath string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("historyPath", &historyPath, true, true)) {
-		return
-	}
-	err := model.RollbackAttributeViewHistory(historyPath)
-	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
+	return result
 }

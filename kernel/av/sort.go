@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package av
 
@@ -27,8 +15,10 @@ import (
 
 // ViewSort 描述了视图排序规则的结构。
 type ViewSort struct {
-	Column string    `json:"column"` // 字段（列）ID
-	Order  SortOrder `json:"order"`  // 排序顺序
+	Column       string       `json:"column"`                 // 字段（列）ID
+	ValueSource  ValueSource  `json:"valueSource,omitempty"`  // 值来源
+	Order        SortOrder    `json:"order"`                  // 排序顺序
+	DateEndpoint DateEndpoint `json:"dateEndpoint,omitempty"` // 日期端点
 }
 
 type SortOrder string
@@ -46,25 +36,52 @@ func Sort(viewable Viewable, attrView *AttributeView) {
 	}
 
 	type FieldIndexSort struct {
-		Index int
-		Order SortOrder
+		Index        int
+		ValueSource  ValueSource
+		Order        SortOrder
+		DateEndpoint DateEndpoint
 	}
 
 	var fieldIndexSorts []*FieldIndexSort
+	fields := collection.GetFields()
 	for _, s := range sorts {
-		for i, c := range collection.GetFields() {
+		for i, c := range fields {
 			if c.GetID() == s.Column {
-				fieldIndexSorts = append(fieldIndexSorts, &FieldIndexSort{Index: i, Order: s.Order})
+				fieldIndexSorts = append(fieldIndexSorts, &FieldIndexSort{
+					Index:        i,
+					ValueSource:  s.ValueSource,
+					Order:        s.Order,
+					DateEndpoint: s.DateEndpoint,
+				})
 				break
 			}
 		}
+	}
+
+	// 预算每个排序字段的选项顺序映射，避免在比较器内每次比较都重建（O(N log N) 次比较 × 每次 O(选项数)）
+	optionSortByIndex := map[int]map[string]int{}
+	for _, fis := range fieldIndexSorts {
+		field := fields[fis.Index]
+		fieldType := field.GetType()
+		if KeyTypeSelect != fieldType && KeyTypeMSelect != fieldType {
+			continue
+		}
+		key, _ := attrView.GetKey(field.GetID())
+		if nil == key {
+			continue
+		}
+		optionSort := map[string]int{}
+		for i, op := range key.Options {
+			optionSort[op.Name] = i
+		}
+		optionSortByIndex[fis.Index] = optionSort
 	}
 
 	items := collection.GetItems()
 	editedValItems := map[string]bool{}
 	for i, item := range items {
 		for _, fieldIndexSort := range fieldIndexSorts {
-			val := items[i].GetValues()[fieldIndexSort.Index]
+			val := ResolveValueSource(items[i].GetValues()[fieldIndexSort.Index], fieldIndexSort.ValueSource)
 			if KeyTypeCheckbox == val.Type {
 				if block := item.GetBlockValue(); nil != block && block.IsEdited() {
 					// 如果主键编辑过，则复选框也算作编辑过，参与排序 https://github.com/siyuan-note/siyuan/issues/11016
@@ -91,41 +108,26 @@ func Sort(viewable Viewable, attrView *AttributeView) {
 		}
 	}
 
-	sort.Slice(uneditedItems, func(i, j int) bool {
-		val1 := uneditedItems[i].GetBlockValue()
-		if nil == val1 {
-			return true
-		}
-		val2 := uneditedItems[j].GetBlockValue()
-		if nil == val2 {
-			return false
-		}
-		return val1.CreatedAt < val2.CreatedAt
-	})
-
-	sort.Slice(editedItems, func(i, j int) bool {
-		sorted := true
+	// 同值项目保留视图中的手动顺序，未编辑项目也保留各自的手动顺序。
+	sort.SliceStable(editedItems, func(i, j int) bool {
 		for _, fieldIndexSort := range fieldIndexSorts {
-			val1 := editedItems[i].GetValues()[fieldIndexSort.Index]
-			val2 := editedItems[j].GetValues()[fieldIndexSort.Index]
-			if nil == val1 || val1.IsEmpty() {
-				if nil != val2 && !val2.IsEmpty() {
+			val1 := ResolveValueSource(editedItems[i].GetValues()[fieldIndexSort.Index], fieldIndexSort.ValueSource)
+			val2 := ResolveValueSource(editedItems[j].GetValues()[fieldIndexSort.Index], fieldIndexSort.ValueSource)
+			if isSortValueEmpty(val1, fieldIndexSort.DateEndpoint) {
+				if !isSortValueEmpty(val2, fieldIndexSort.DateEndpoint) {
 					return false
 				}
-				sorted = false
 				continue
 			} else {
-				if nil == val2 || val2.IsEmpty() {
+				if isSortValueEmpty(val2, fieldIndexSort.DateEndpoint) {
 					return true
 				}
 			}
 
-			result := val1.Compare(val2, attrView)
+			result := val1.compare(val2, optionSortByIndex[fieldIndexSort.Index], fieldIndexSort.DateEndpoint)
 			if 0 == result {
-				sorted = false
 				continue
 			}
-			sorted = true
 
 			switch fieldIndexSort.Order {
 			case SortOrderAsc:
@@ -137,17 +139,6 @@ func Sort(viewable Viewable, attrView *AttributeView) {
 			}
 		}
 
-		if !sorted {
-			key1 := editedItems[i].GetBlockValue()
-			if nil == key1 {
-				return false
-			}
-			key2 := editedItems[j].GetBlockValue()
-			if nil == key2 {
-				return false
-			}
-			return key1.CreatedAt < key2.CreatedAt
-		}
 		return false
 	})
 
@@ -158,7 +149,22 @@ func Sort(viewable Viewable, attrView *AttributeView) {
 	}
 }
 
-func (value *Value) Compare(other *Value, attrView *AttributeView) int {
+func isSortValueEmpty(value *Value, dateEndpoint DateEndpoint) bool {
+	if nil == value {
+		return true
+	}
+	if KeyTypeDate == value.Type {
+		_, isNotEmpty := value.Date.GetByEndpoint(dateEndpoint)
+		return !isNotEmpty
+	}
+	return value.IsEmpty()
+}
+
+func (value *Value) Compare(other *Value, optionSort map[string]int) int {
+	return value.compare(other, optionSort, DateEndpointStart)
+}
+
+func (value *Value) compare(other *Value, optionSort map[string]int, dateEndpoint DateEndpoint) int {
 	switch value.Type {
 	case KeyTypeBlock:
 		if nil != value.Block && nil != other.Block {
@@ -173,12 +179,13 @@ func (value *Value) Compare(other *Value, attrView *AttributeView) int {
 		}
 	case KeyTypeText:
 		if nil != value.Text && nil != other.Text {
-			if "" == value.Text.Content {
+			switch "" {
+			case value.Text.Content:
 				if "" == other.Text.Content {
 					return 0
 				}
 				return 1
-			} else if "" == other.Text.Content {
+			case other.Text.Content:
 				return -1
 			}
 
@@ -214,13 +221,12 @@ func (value *Value) Compare(other *Value, attrView *AttributeView) int {
 		}
 	case KeyTypeDate:
 		if nil != value.Date && nil != other.Date {
-			if value.Date.IsNotEmpty {
-				if !other.Date.IsNotEmpty {
+			valueContent, valueIsNotEmpty := value.Date.GetByEndpoint(dateEndpoint)
+			otherContent, otherIsNotEmpty := other.Date.GetByEndpoint(dateEndpoint)
+			if valueIsNotEmpty {
+				if !otherIsNotEmpty {
 					return -1
 				}
-
-				valueContent := value.Date.Content
-				otherContent := other.Date.Content
 
 				if value.Date.IsNotTime {
 					v := time.UnixMilli(valueContent)
@@ -240,7 +246,7 @@ func (value *Value) Compare(other *Value, attrView *AttributeView) int {
 				return 0
 			}
 
-			if !other.Date.IsNotEmpty {
+			if !otherIsNotEmpty {
 				return 1
 			}
 			return 0
@@ -267,19 +273,15 @@ func (value *Value) Compare(other *Value, attrView *AttributeView) int {
 		}
 	case KeyTypeSelect, KeyTypeMSelect:
 		if nil != value.MSelect && nil != other.MSelect {
-			// 按设置的选项顺序排序
-			key, _ := attrView.GetKey(value.KeyID)
-			optionSort := map[string]int{}
-			if nil != key {
-				for i, op := range key.Options {
-					optionSort[op.Name] = i
-				}
+			// 按设置的选项顺序排序，optionSort 由外层 Sort 按字段预算好后传入
+			if nil == optionSort {
+				optionSort = map[string]int{}
 			}
 
 			vLen := len(value.MSelect)
 			oLen := len(other.MSelect)
 			if vLen <= oLen {
-				for i := 0; i < vLen; i++ {
+				for i := range vLen {
 					v := value.MSelect[i].Content
 					o := other.MSelect[i].Content
 					vSort := optionSort[v]
@@ -293,7 +295,7 @@ func (value *Value) Compare(other *Value, attrView *AttributeView) int {
 					}
 				}
 			} else {
-				for i := 0; i < oLen; i++ {
+				for i := range oLen {
 					v := value.MSelect[i].Content
 					o := other.MSelect[i].Content
 					vSort := optionSort[v]
@@ -311,56 +313,71 @@ func (value *Value) Compare(other *Value, attrView *AttributeView) int {
 		}
 	case KeyTypeURL:
 		if nil != value.URL && nil != other.URL {
-			if "" == value.URL.Content {
+			switch "" {
+			case value.URL.Content:
 				if "" == other.URL.Content {
 					return 0
 				}
 				return 1
-			} else if "" == other.URL.Content {
+			case other.URL.Content:
 				return -1
 			}
 			return strings.Compare(value.URL.Content, other.URL.Content)
 		}
 	case KeyTypeEmail:
 		if nil != value.Email && nil != other.Email {
-			if "" == value.Email.Content {
+			switch "" {
+			case value.Email.Content:
 				if "" == other.Email.Content {
 					return 0
 				}
 				return 1
-			} else if "" == other.Email.Content {
+			case other.Email.Content:
 				return -1
 			}
 			return strings.Compare(value.Email.Content, other.Email.Content)
 		}
+	case KeyTypeLocation:
+		left, right := value.String(false), other.String(false)
+		if left == right {
+			return 0
+		}
+		if "" == left {
+			return 1
+		}
+		if "" == right {
+			return -1
+		}
+		return strings.Compare(left, right)
 	case KeyTypePhone:
 		if nil != value.Phone && nil != other.Phone {
-			if "" == value.Phone.Content {
+			switch "" {
+			case value.Phone.Content:
 				if "" == other.Phone.Content {
 					return 0
 				}
 				return 1
-			} else if "" == other.Phone.Content {
+			case other.Phone.Content:
 				return -1
 			}
 			return strings.Compare(value.Phone.Content, other.Phone.Content)
 		}
 	case KeyTypeMAsset:
 		if nil != value.MAsset && nil != other.MAsset {
-			var v1 string
+			var v1 strings.Builder
 			for _, v := range value.MAsset {
-				v1 += v.Content
+				v1.WriteString(v.Content)
 			}
-			var v2 string
+			var v2 strings.Builder
 			for _, v := range other.MAsset {
-				v2 += v.Content
+				v2.WriteString(v.Content)
 			}
 
-			if 0 == strings.Compare(v1, v2) {
+			if 0 == strings.Compare(v1.String(), v2.String()) {
 				return 0
 			}
 
-			if util.EmojiPinYinCompare(v1, v2) {
+			if util.EmojiPinYinCompare(v1.String(), v2.String()) {
 				return -1
 			}
 			return 1

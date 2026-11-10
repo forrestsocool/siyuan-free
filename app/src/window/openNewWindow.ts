@@ -6,8 +6,12 @@ import {Constants} from "../constants";
 import {Tab} from "../layout/Tab";
 import {fetchSyncPost} from "../util/fetch";
 import {showMessage} from "../dialog/message";
-import {getDisplayName, pathPosix} from "../util/pathName";
+import {getAssetExtension, getAssetPathWithoutQuery, getDisplayName} from "../util/pathName";
 import {getSearch} from "../util/functions";
+import {isBrowserRenderableImagePath} from "../util/imageURL";
+import {appendRemoteQuery} from "../util/hostCapabilities";
+import type {IWindowGeometry} from "./geometry";
+import {getWindowAppearance} from "./appearance";
 
 interface windowOptions {
     position?: {
@@ -19,17 +23,34 @@ interface windowOptions {
     alwaysOnTop?: boolean,
 }
 
+const getWindowURL = (layout: unknown) => {
+    const url = new URL("/stage/build/app/window.html", window.location.origin);
+    url.searchParams.set("v", Constants.SIYUAN_VERSION);
+    url.searchParams.set("json", JSON.stringify(layout));
+    return appendRemoteQuery(url).href;
+};
+
+export const openNewWindowByWorkspace = (id: string, windowGeometry?: IWindowGeometry) => {
+    /// #if !BROWSER
+    const url = new URL(getWindowURL([]));
+    url.searchParams.set("windowWorkspace", id);
+    ipcRenderer.send(Constants.SIYUAN_OPEN_WINDOW, {
+        ...getWindowAppearance(), url: url.href, alwaysOnTop: false, windowGeometry,
+    });
+    /// #endif
+};
+
 export const openNewWindow = (tab: Tab, options: windowOptions = {}) => {
     const json = {};
     layoutToJSON(tab, json);
     /// #if !BROWSER
     ipcRenderer.send(Constants.SIYUAN_OPEN_WINDOW, {
+        ...getWindowAppearance(),
         position: options.position,
         width: options.width,
         height: options.height,
         alwaysOnTop: !!options.alwaysOnTop,
-        // 需要 encode， 否则 https://github.com/siyuan-note/siyuan/issues/9343
-        url: `${window.location.protocol}//${window.location.host}/stage/build/app/window.html?v=${Constants.SIYUAN_VERSION}&json=${encodeURIComponent(JSON.stringify([json]))}`
+        url: getWindowURL([json]),
     });
     /// #endif
     tab.parent.removeTab(tab.id);
@@ -45,6 +66,9 @@ export const openNewWindowById = async (id: string | string[], options: windowOp
         const response = await fetchSyncPost("/api/block/getBlockInfo", {id: ids[i]});
         if (response.code === 3) {
             showMessage(response.msg);
+            return;
+        }
+        if (response.code !== 0) {
             return;
         }
         json.push({
@@ -66,19 +90,25 @@ export const openNewWindowById = async (id: string | string[], options: windowOp
     }
     /// #if !BROWSER
     ipcRenderer.send(Constants.SIYUAN_OPEN_WINDOW, {
+        ...getWindowAppearance(),
         position: options.position,
         width: options.width,
         height: options.height,
         alwaysOnTop: !!options.alwaysOnTop,
-        url: `${window.location.protocol}//${window.location.host}/stage/build/app/window.html?v=${Constants.SIYUAN_VERSION}&json=${encodeURIComponent(JSON.stringify(json))}`
+        url: getWindowURL(json),
     });
     /// #endif
 };
 
-export const openAssetNewWindow = (assetPath: string, options: windowOptions = {}) => {
+export const openAssetNewWindow = (
+    assetPath: string,
+    options: windowOptions = {},
+    page?: number | string,
+) => {
     /// #if !BROWSER
-    const suffix = pathPosix().extname(assetPath).split("?")[0];
-    if (Constants.SIYUAN_ASSETS_EXTS.includes(suffix)) {
+    const suffix = getAssetExtension(assetPath).toLowerCase();
+    if (Constants.SIYUAN_ASSETS_EXTS.includes(suffix) &&
+        isBrowserRenderableImagePath(assetPath)) {
         let docIcon = "iconPDF";
         if (Constants.SIYUAN_ASSETS_IMAGE.includes(suffix)) {
             docIcon = "iconImage";
@@ -88,7 +118,7 @@ export const openAssetNewWindow = (assetPath: string, options: windowOptions = {
             docIcon = "iconVideo";
         }
         const json: any = [{
-            title: getDisplayName(assetPath),
+            title: getDisplayName(getAssetPathWithoutQuery(assetPath)),
             docIcon,
             pin: false,
             active: true,
@@ -96,16 +126,17 @@ export const openAssetNewWindow = (assetPath: string, options: windowOptions = {
             action: "Tab",
             children: {
                 path: assetPath,
-                page: parseInt(getSearch("page", assetPath)),
+                page: page ?? parseInt(getSearch("page", assetPath)),
                 instance: "Asset",
             }
         }];
         ipcRenderer.send(Constants.SIYUAN_OPEN_WINDOW, {
+            ...getWindowAppearance(),
             position: options.position,
             width: options.width,
             height: options.height,
             alwaysOnTop: !!options.alwaysOnTop,
-            url: `${window.location.protocol}//${window.location.host}/stage/build/app/window.html?v=${Constants.SIYUAN_VERSION}&json=${encodeURIComponent(JSON.stringify(json))}`
+            url: getWindowURL(json),
         });
     }
     /// #endif

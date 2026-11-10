@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package api
 
@@ -22,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/88250/gulu"
 	"github.com/asaskevich/EventBus"
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"github.com/olahol/melody"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/apicontract"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
@@ -346,20 +334,6 @@ type ChannelInfo struct {
 	Count int    `json:"count"`
 }
 
-type PublishMessage struct {
-	Type     MessageType `json:"type"`     // "string" | "binary"
-	Size     int         `json:"size"`     // message size
-	Filename string      `json:"filename"` // empty string for string-message
-}
-
-type PublishResult struct {
-	Code int    `json:"code"` // 0: success
-	Msg  string `json:"msg"`  // error message
-
-	Channel ChannelInfo    `json:"channel"`
-	Message PublishMessage `json:"message"`
-}
-
 // broadcast create a broadcast channel WebSocket connection
 //
 // @param
@@ -371,7 +345,13 @@ type PublishResult struct {
 // @example
 //
 //	"ws://localhost:6806/ws/broadcast?channel=test"
-func broadcast(c *gin.Context) {
+var broadcast = contractHandler(apicontract.BroadcastWebSocket, func(c *gin.Context, _ apicontract.EmptyRequest) apicontract.Response[apicontract.Null] {
+	return apicontract.UpgradeWebSocket[apicontract.Null](func(http.ResponseWriter, *http.Request) {
+		serveBroadcastWebSocket(c)
+	})
+})
+
+func serveBroadcastWebSocket(c *gin.Context) {
 	var (
 		channel          = c.Query("channel")
 		broadcastChannel *BroadcastChannel
@@ -413,7 +393,14 @@ func GetBroadcastChannel(channel string) *BroadcastChannel {
 // ConstructBroadcastChannel creates a broadcast channel
 func ConstructBroadcastChannel(channel string) *BroadcastChannel {
 	websocket := melody.New()
+	// 校验 Origin，防止跨站 WebSocket 劫持（CSWSH） https://github.com/siyuan-note/siyuan/security/advisories/GHSA-3cc2-h3v6-rqpq
+	websocket.Upgrader.CheckOrigin = func(r *http.Request) bool {
+		return util.IsSessionOriginAllowedRequest(r)
+	}
 	websocket.Config.MaxMessageSize = 1024 * 1024 * 128 // 128 MiB
+	websocket.HandleError(func(s *melody.Session, err error) {
+		util.LogWebSocketError(s, channel, err)
+	})
 
 	// broadcast string message to other session
 	websocket.HandleMessage(func(s *melody.Session, msg []byte) {
@@ -522,12 +509,18 @@ func PruneBroadcastChannels() []string {
 // @example
 //
 //	"http://localhost:6806/es/broadcast/subscribe?retry=1000&channel=test1&channel=test2"
-func broadcastSubscribe(c *gin.Context) {
+var broadcastSubscribe = contractHandler(apicontract.BroadcastSubscribe, func(c *gin.Context, _ apicontract.EmptyRequest) apicontract.Response[apicontract.Null] {
+	return apicontract.StreamSSE[apicontract.Null](func(http.ResponseWriter, *http.Request) {
+		serveBroadcastSubscribe(c)
+	})
+})
+
+func serveBroadcastSubscribe(c *gin.Context) {
 	// REF: https://github.com/gin-gonic/examples/blob/master/server-sent-event/main.go
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Header().Set("Transfer-Encoding", "chunked")
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Transfer-Encoding", "chunked")
 
 	defer UnifiedSSE.WaitGroup.Done()
 	UnifiedSSE.WaitGroup.Add(1)
@@ -573,23 +566,11 @@ func broadcastSubscribe(c *gin.Context) {
 //			}[],
 //		},
 //	}
-func broadcastPublish(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	results := []*PublishResult{}
-
-	// Multipart form
-	form, err := c.MultipartForm()
-	if err != nil {
-		ret.Code = -2
-		ret.Msg = err.Error()
-		return
-	}
-
+var broadcastPublish = contractHandler(apicontract.BroadcastPublish, func(c *gin.Context, request apicontract.MultipartFields) apicontract.Response[apicontract.BroadcastPublishData] {
+	results := []*apicontract.BroadcastPublishResult{}
 	// Broadcast string messages
-	for name, values := range form.Value {
-		channel := ChannelInfo{
+	for name, values := range request.Value {
+		channel := apicontract.BroadcastChannel{
 			Name:  name,
 			Count: 0,
 		}
@@ -604,12 +585,12 @@ func broadcastPublish(c *gin.Context) {
 
 		// Broadcast each string message to the same channel
 		for _, value := range values {
-			result := &PublishResult{
+			result := &apicontract.BroadcastPublishResult{
 				Code:    0,
 				Msg:     "",
 				Channel: channel,
-				Message: PublishMessage{
-					Type:     MessageTypeString,
+				Message: apicontract.BroadcastPublishMessage{
+					Type:     string(MessageTypeString),
 					Size:     len(value),
 					Filename: "",
 				},
@@ -620,7 +601,7 @@ func broadcastPublish(c *gin.Context) {
 				_, err := broadcastChannel.BroadcastString(value)
 				if err != nil {
 					logging.LogErrorf("broadcast message failed: %s", err)
-					result.Code = -2
+					result.Code = 2
 					result.Msg = err.Error()
 					continue
 				}
@@ -629,8 +610,8 @@ func broadcastPublish(c *gin.Context) {
 	}
 
 	// Broadcast binary message
-	for name, files := range form.File {
-		channel := ChannelInfo{
+	for name, files := range request.File {
+		channel := apicontract.BroadcastChannel{
 			Name:  name,
 			Count: 0,
 		}
@@ -645,12 +626,12 @@ func broadcastPublish(c *gin.Context) {
 
 		// Broadcast each binary message to the same channel
 		for _, file := range files {
-			result := &PublishResult{
+			result := &apicontract.BroadcastPublishResult{
 				Code:    0,
 				Msg:     "",
 				Channel: channel,
-				Message: PublishMessage{
-					Type:     MessageTypeBinary,
+				Message: apicontract.BroadcastPublishMessage{
+					Type:     string(MessageTypeBinary),
 					Size:     int(file.Size),
 					Filename: file.Filename,
 				},
@@ -661,7 +642,7 @@ func broadcastPublish(c *gin.Context) {
 				value, err := file.Open()
 				if err != nil {
 					logging.LogErrorf("open multipart form file [%s] failed: %s", file.Filename, err)
-					result.Code = -4
+					result.Code = 3
 					result.Msg = err.Error()
 					continue
 				}
@@ -669,14 +650,14 @@ func broadcastPublish(c *gin.Context) {
 				content := make([]byte, file.Size)
 				if _, err := value.Read(content); err != nil {
 					logging.LogErrorf("read multipart form file [%s] failed: %s", file.Filename, err)
-					result.Code = -3
+					result.Code = 4
 					result.Msg = err.Error()
 					continue
 				}
 
 				if _, err := broadcastChannel.BroadcastBinary(content); err != nil {
 					logging.LogErrorf("broadcast binary message failed: %s", err)
-					result.Code = -2
+					result.Code = 5
 					result.Msg = err.Error()
 					continue
 				}
@@ -684,10 +665,8 @@ func broadcastPublish(c *gin.Context) {
 		}
 	}
 
-	ret.Data = map[string]any{
-		"results": results,
-	}
-}
+	return apicontract.Success(apicontract.BroadcastPublishData{Results: results})
+})
 
 // postMessage send string message to a broadcast channel
 //
@@ -710,24 +689,10 @@ func broadcastPublish(c *gin.Context) {
 //			},
 //		},
 //	}
-func postMessage(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
+var postMessage = contractHandler(apicontract.PostBroadcastMessage, func(c *gin.Context, request apicontract.BroadcastMessageRequest) apicontract.Response[apicontract.BroadcastChannelData] {
 
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var message, channelName string
-	if !util.ParseJsonArgs(arg, ret,
-		util.BindJsonArg("message", &message, true, true),
-		util.BindJsonArg("channel", &channelName, true, true),
-	) {
-		return
-	}
-
-	channel := &ChannelInfo{
+	message, channelName := request.Message, request.Channel
+	channel := &apicontract.BroadcastChannel{
 		Name:  channelName,
 		Count: 0,
 	}
@@ -740,15 +705,11 @@ func postMessage(c *gin.Context) {
 		if _, err := broadcastChannel.BroadcastString(message); err != nil {
 			logging.LogErrorf("broadcast message failed: %s", err)
 
-			ret.Code = -2
-			ret.Msg = err.Error()
-			return
+			return apicontract.Failure[apicontract.BroadcastChannelData](1, err.Error())
 		}
 	}
-	ret.Data = map[string]any{
-		"channel": channel,
-	}
-}
+	return apicontract.Success(apicontract.BroadcastChannelData{Channel: channel})
+})
 
 // getChannelInfo gets the information of a broadcast channel
 //
@@ -770,21 +731,10 @@ func postMessage(c *gin.Context) {
 //			},
 //		},
 //	}
-func getChannelInfo(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
+var getChannelInfo = contractHandler(apicontract.GetBroadcastChannelInfo, func(c *gin.Context, request apicontract.BroadcastChannelRequest) apicontract.Response[apicontract.BroadcastChannelData] {
 
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var name string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("name", &name, true, true)) {
-		return
-	}
-
-	channel := &ChannelInfo{
+	name := request.Name
+	channel := &apicontract.BroadcastChannel{
 		Name:  name,
 		Count: 0,
 	}
@@ -796,10 +746,8 @@ func getChannelInfo(c *gin.Context) {
 		channel.Count = broadcastChannel.SubscriberCount()
 	}
 
-	ret.Data = map[string]any{
-		"channel": channel,
-	}
-}
+	return apicontract.Success(apicontract.BroadcastChannelData{Channel: channel})
+})
 
 // getChannels gets the channel name and lintener number of all broadcast chanel
 //
@@ -815,20 +763,16 @@ func getChannelInfo(c *gin.Context) {
 //			}[],
 //		},
 //	}
-func getChannels(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
+var getChannels = contractHandler(apicontract.GetBroadcastChannels, func(c *gin.Context, request apicontract.EmptyRequest) apicontract.Response[apicontract.BroadcastChannelsData] {
 
-	channels := []*ChannelInfo{}
+	channels := []*apicontract.BroadcastChannel{}
 	BroadcastChannels.Range(func(key, value any) bool {
 		broadcastChannel := value.(*BroadcastChannel)
-		channels = append(channels, &ChannelInfo{
+		channels = append(channels, &apicontract.BroadcastChannel{
 			Name:  key.(string),
 			Count: broadcastChannel.SubscriberCount(),
 		})
 		return true
 	})
-	ret.Data = map[string]any{
-		"channels": channels,
-	}
-}
+	return apicontract.Success(apicontract.BroadcastChannelsData{Channels: channels})
+})

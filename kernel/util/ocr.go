@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package util
 
@@ -21,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +26,7 @@ import (
 	"github.com/88250/lute/html"
 	"github.com/siyuan-note/filelock"
 	"github.com/siyuan-note/logging"
+	"github.com/siyuan-note/siyuan/kernel/ocr"
 )
 
 var (
@@ -46,20 +36,21 @@ var (
 	TesseractLangs   []string
 
 	assetsTexts        = map[string]string{}
+	assetsTextAliases  = map[string][]string{}
 	assetsTextsLock    = sync.Mutex{}
 	assetsTextsChanged = atomic.Bool{}
 )
 
-func CleanNotExistAssetsTexts() {
+func CleanNotExistAssetsTexts(exists func(string) bool) {
 	assetsTextsLock.Lock()
 	defer assetsTextsLock.Unlock()
 
 	assetsPath := GetDataAssetsAbsPath()
 	var toRemoves []string
 	for asset := range assetsTexts {
-		assetAbsPath := strings.TrimPrefix(asset, "assets")
+		assetAbsPath := strings.TrimPrefix(OCRAssetKey(asset), "assets")
 		assetAbsPath = filepath.Join(assetsPath, assetAbsPath)
-		if !filelock.IsExist(assetAbsPath) {
+		if !filelock.IsExist(assetAbsPath) && !exists(asset) {
 			toRemoves = append(toRemoves, asset)
 		}
 	}
@@ -68,7 +59,6 @@ func CleanNotExistAssetsTexts() {
 		delete(assetsTexts, asset)
 		assetsTextsChanged.Store(true)
 	}
-	return
 }
 
 func LoadAssetsTexts() {
@@ -85,21 +75,29 @@ func LoadAssetsTexts() {
 		return
 	}
 
-	assetsTextsLock.Lock()
-	if err = gulu.JSON.UnmarshalJSON(data, &assetsTexts); err != nil {
+	loaded := map[string]string{}
+	if err = gulu.JSON.UnmarshalJSON(data, &loaded); err == nil && loaded == nil {
+		err = errors.New("OCR texts must be an object")
+	}
+	if err != nil {
 		logging.LogErrorf("unmarshal assets texts failed: %s", err)
-		if err = filelock.Remove(assetsTextsPath); err != nil {
-			logging.LogErrorf("removed corrupted assets texts failed: %s", err)
-		}
 		return
 	}
+	aliases := map[string][]string{}
+	for reference := range loaded {
+		if key := OCRAssetKey(reference); key != reference {
+			aliases[key] = append(aliases[key], reference)
+		}
+	}
+	assetsTextsLock.Lock()
+	assetsTexts = loaded
+	assetsTextAliases = aliases
 	assetsTextsLock.Unlock()
 	debug.FreeOSMemory()
 
 	if elapsed := time.Since(start).Seconds(); 2 < elapsed {
 		logging.LogWarnf("read assets texts [%s] to [%s], elapsed [%.2fs]", humanize.BytesCustomCeil(uint64(len(data)), 2), assetsTextsPath, elapsed)
 	}
-	return
 }
 
 func SaveAssetsTexts() {
@@ -114,7 +112,7 @@ func SaveAssetsTexts() {
 
 	assetsTextsLock.Lock()
 	// OCR 功能未开启且 ocr-texts.json 不存在时，如果 assetsTexts 为空则不创建文件
-	if !TesseractEnabled && !filelock.IsExist(assetsTextsPath) && 0 == len(assetsTexts) {
+	if !filelock.IsExist(assetsTextsPath) && 0 == len(assetsTexts) {
 		assetsTextsLock.Unlock()
 		assetsTextsChanged.Store(false)
 		return
@@ -125,22 +123,22 @@ func SaveAssetsTexts() {
 		assetsTextsLock.Unlock()
 		return
 	}
-	assetsTextsLock.Unlock()
-
 	if err = filelock.WriteFile(assetsTextsPath, data); err != nil {
+		assetsTextsLock.Unlock()
 		logging.LogErrorf("write assets texts failed: %s", err)
 		return
 	}
+	assetsTextsChanged.Store(false)
+	assetsTextsLock.Unlock()
 	debug.FreeOSMemory()
 
 	if elapsed := time.Since(start).Seconds(); 2 < elapsed {
 		logging.LogWarnf("save assets texts [size=%s] to [%s], elapsed [%.2fs]", humanize.BytesCustomCeil(uint64(len(data)), 2), assetsTextsPath, elapsed)
 	}
-
-	assetsTextsChanged.Store(false)
 }
 
 func SetAssetText(asset, text string) {
+	asset = OCRAssetKey(asset)
 	assetsTextsLock.Lock()
 	oldText, ok := assetsTexts[asset]
 	assetsTexts[asset] = text
@@ -153,42 +151,52 @@ func SetAssetText(asset, text string) {
 func ExistsAssetText(asset string) (ret bool) {
 	assetsTextsLock.Lock()
 	_, ret = assetsTexts[asset]
-	assetsTextsLock.Unlock()
-	return
-}
-
-func OcrAsset(asset string) (ret []map[string]any, err error) {
-	if !TesseractEnabled {
-		err = fmt.Errorf(Langs[Lang][266])
-		return
+	if !ret {
+		_, ret = assetsTexts[OCRAssetKey(asset)]
 	}
-
-	assetsPath := GetDataAssetsAbsPath()
-	assetAbsPath := strings.TrimPrefix(asset, "assets")
-	assetAbsPath = filepath.Join(assetsPath, assetAbsPath)
-	ret = Tesseract(assetAbsPath)
-	assetsTextsLock.Lock()
-	ocrText := GetOcrJsonText(ret)
-	assetsTexts[asset] = ocrText
 	assetsTextsLock.Unlock()
-	if "" != ocrText {
-		assetsTextsChanged.Store(true)
-	}
 	return
 }
 
 func GetAssetText(asset string) (ret string) {
 	assetsTextsLock.Lock()
-	ret = assetsTexts[asset]
+	var found bool
+	ret, found = assetsTexts[OCRAssetKey(asset)]
+	if !found {
+		ret = assetsTexts[asset]
+	}
 	assetsTextsLock.Unlock()
 	return
 }
 
 func RemoveAssetText(asset string) {
+	key := OCRAssetKey(asset)
 	assetsTextsLock.Lock()
 	delete(assetsTexts, asset)
+	delete(assetsTexts, key)
+	// 同时移除旧版本保存的完整查询参数别名，避免删除规范键后重新读到旧结果。
+	for _, reference := range assetsTextAliases[key] {
+		delete(assetsTexts, reference)
+	}
+	delete(assetsTextAliases, key)
 	assetsTextsLock.Unlock()
 	assetsTextsChanged.Store(true)
+}
+
+// OCRAssetKey 保留本地资源的笔记本身份，只合并显示参数和片段；外部地址保留完整查询参数。
+func OCRAssetKey(asset string) string {
+	asset = strings.SplitN(asset, "#", 2)[0]
+	if index := strings.IndexByte(asset, '?'); index >= 0 && strings.HasPrefix(asset, "assets/") {
+		query, err := url.ParseQuery(asset[index+1:])
+		if err != nil {
+			return asset
+		}
+		if boxID := strings.TrimSpace(query.Get("box")); boxID != "" {
+			return asset[:index] + "?box=" + url.QueryEscape(boxID)
+		}
+		return asset[:index]
+	}
+	return asset
 }
 
 var tesseractExts = []string{
@@ -219,16 +227,23 @@ func IsTesseractExtractable(p string) bool {
 // tesseractOCRLock 用于 Tesseract OCR 加锁串行执行提升稳定性 https://github.com/siyuan-note/siyuan/issues/7265
 var tesseractOCRLock = sync.Mutex{}
 
-func Tesseract(imgAbsPath string) (ret []map[string]any) {
+type TesseractProvider struct{}
+
+func (TesseractProvider) Available() bool {
+	return ContainerStd == Container && TesseractEnabled
+}
+
+func (TesseractProvider) Recognize(parent context.Context, imgAbsPath string) (ret []map[string]string, err error) {
 	if ContainerStd != Container || !TesseractEnabled {
+		err = ocr.ErrUnavailable
 		return
 	}
 
-	defer logging.Recover()
 	tesseractOCRLock.Lock()
 	defer tesseractOCRLock.Unlock()
 
 	if !IsTesseractExtractable(imgAbsPath) {
+		err = errors.New("unsupported Tesseract image format")
 		return
 	}
 
@@ -238,28 +253,28 @@ func Tesseract(imgAbsPath string) (ret []map[string]any) {
 	}
 
 	if TesseractMaxSize < uint64(info.Size()) {
+		err = errors.New("image exceeds Tesseract size limit")
 		return
 	}
-
-	defer logging.Recover()
 
 	timeout := 7000
 	timeoutEnv := os.Getenv("SIYUAN_TESSERACT_TIMEOUT")
 	if "" != timeoutEnv {
-		if timeoutParsed, parseErr := strconv.Atoi(timeoutEnv); nil == parseErr {
+		if timeoutParsed, parseErr := strconv.Atoi(timeoutEnv); nil == parseErr && timeoutParsed > 0 {
 			timeout = timeoutParsed
 		} else {
 			logging.LogWarnf("parse tesseract timeout [%s] failed: %s", timeoutEnv, parseErr)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
+	ctx, cancel := context.WithTimeout(parent, time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, TesseractBin, "-c", "debug_file=/dev/null", imgAbsPath, "stdout", "-l", strings.Join(TesseractLangs, "+"), "tsv")
 	gulu.CmdAttr(cmd)
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		logging.LogWarnf("tesseract [path=%s, size=%d] timeout [%dms]", imgAbsPath, info.Size(), timeout)
+		err = ctx.Err()
 		return
 	}
 
@@ -274,6 +289,9 @@ func Tesseract(imgAbsPath string) (ret []map[string]any) {
 	// 按行分割 TSV 数据
 	tsv = strings.ReplaceAll(tsv, "\r", "")
 	lines := strings.Split(tsv, "\n")
+	if len(lines) == 0 || !strings.HasPrefix(lines[0], "level\t") {
+		return nil, errors.New("invalid Tesseract TSV response")
+	}
 
 	// 解析 TSV 数据 跳过标题行，从第二行开始处理
 	for _, line := range lines[1:] {
@@ -283,7 +301,7 @@ func Tesseract(imgAbsPath string) (ret []map[string]any) {
 		// 分割每列数据
 		fields := strings.Split(line, "\t")
 		// 将字段名和字段值映射到一个 map 中
-		dataMap := make(map[string]any)
+		dataMap := make(map[string]string)
 		headers := strings.Split(lines[0], "\t")
 		for i, header := range headers {
 			if i < len(fields) {
@@ -303,14 +321,11 @@ func Tesseract(imgAbsPath string) (ret []map[string]any) {
 }
 
 // GetOcrJsonText 提取并连接所有 text 字段的函数
-func GetOcrJsonText(jsonData []map[string]any) (ret string) {
+func GetOcrJsonText(jsonData []map[string]string) (ret string) {
 	for _, dataMap := range jsonData {
 		// 检查 text 字段是否存在
 		if text, ok := dataMap["text"]; ok {
-			// 确保 text 是字符串类型
-			if textStr, ok := text.(string); ok {
-				ret += " " + strings.ReplaceAll(textStr, "\r", "")
-			}
+			ret += " " + strings.ReplaceAll(text, "\r", "")
 		}
 	}
 	ret = RemoveInvalid(ret)
@@ -321,15 +336,24 @@ func GetOcrJsonText(jsonData []map[string]any) (ret string) {
 var tesseractInited = atomic.Bool{}
 
 func WaitForTesseractInit() {
-	for {
-		if tesseractInited.Load() {
-			return
+	_ = WaitForTesseractInitContext(context.Background())
+}
+
+func WaitForTesseractInitContext(ctx context.Context) error {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for !tesseractInited.Load() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
 		}
-		time.Sleep(time.Second)
 	}
+	return ctx.Err()
 }
 
 func InitTesseract() {
+	defer BroadcastByType("main", "ocrChanged", 0, "", nil)
 	ver := getTesseractVer()
 	if "" == ver {
 		tesseractInited.Store(true)

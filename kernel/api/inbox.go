@@ -1,125 +1,60 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package api
 
 import (
-	"net/http"
-
-	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
+	"github.com/siyuan-note/siyuan/kernel/apicontract"
 	"github.com/siyuan-note/siyuan/kernel/model"
-	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func removeShorthands(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
+var addShorthand = contractHandler(apicontract.AddShorthand, func(c *gin.Context, request apicontract.AddShorthandRequest) apicontract.Response[*apicontract.Shorthand] {
+	md := request.MD
+	if md == "" {
+		md = request.Content
 	}
+	data, err := model.AddLocalShorthand(request.Title, md, request.URL)
+	if err != nil {
+		return apicontract.Failure[*apicontract.Shorthand](1, err.Error())
+	}
+	result, err := decodeCloudInbox[apicontract.Shorthand](data)
+	if err != nil {
+		return apicontract.Failure[*apicontract.Shorthand](1, err.Error())
+	}
+	return apicontract.Success(result)
+})
 
-	idsArg := arg["ids"].([]any)
+var removeShorthands = contractHandler(apicontract.RemoveShorthands, func(c *gin.Context, request apicontract.RemoveShorthandsRequest) apicontract.Response[apicontract.Null] {
 	var ids []string
-	for _, id := range idsArg {
-		ids = append(ids, id.(string))
+	ids = append(ids, request.IDs...)
+	if err := model.RemoveLocalShorthands(ids); err != nil {
+		return apicontract.Failure[apicontract.Null](1, err.Error())
 	}
+	return apicontract.Success(apicontract.Null{})
+})
 
-	err := model.RemoveLocalShorthands(ids)
+var getShorthand = contractHandler(apicontract.GetShorthand, func(c *gin.Context, request apicontract.TrimmedIDRequest) apicontract.Response[*apicontract.Shorthand] {
+	data, err := model.GetLocalShorthand(request.ID)
 	if err != nil {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[*apicontract.Shorthand](1, err.Error())
 	}
-}
-
-func addShorthand(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var title, md, url string
-	if v, ok := arg["title"].(string); ok {
-		title = v
-	}
-	if v, ok := arg["md"].(string); ok {
-		md = v
-	}
-	if v, ok := arg["content"].(string); ok && "" == md {
-		md = v
-	}
-	if v, ok := arg["url"].(string); ok {
-		url = v
-	}
-
-	data, err := model.AddLocalShorthand(title, md, url)
+	result, err := decodeCloudInbox[apicontract.Shorthand](data)
 	if err != nil {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[*apicontract.Shorthand](1, err.Error())
 	}
-	ret.Data = data
-}
+	return apicontract.Success(result)
+})
 
-func getShorthand(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var id string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("id", &id, true, true)) {
-		return
-	}
-	data, err := model.GetLocalShorthand(id)
+var getShorthands = contractHandler(apicontract.GetShorthands, func(c *gin.Context, request apicontract.ShorthandsRequest) apicontract.Response[*apicontract.ShorthandsData] {
+	data, err := model.GetLocalShorthands(int(request.Page))
 	if err != nil {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[*apicontract.ShorthandsData](1, err.Error())
 	}
-	ret.Data = data
-}
-
-func getShorthands(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var page float64
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("page", &page, true, false)) {
-		return
-	}
-	data, err := model.GetLocalShorthands(int(page))
+	result, err := decodeCloudInbox[apicontract.ShorthandsData](data)
 	if err != nil {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[*apicontract.ShorthandsData](1, err.Error())
 	}
-	ret.Data = data
-}
+	return apicontract.Success(result)
+})

@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
@@ -27,10 +15,16 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (srcRootBlockID, newTargetPath string, err error) {
+func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string, toTop bool) (srcRootBlockID, newTargetPath string, err error) {
+	targetPath = normalizeBoxDocTarget(targetBoxID, targetPath)
 	FlushTxQueue()
+	flushLock.Lock()
+	defer flushLock.Unlock()
 
-	srcTree, _ := LoadTreeByBlockID(srcListItemID)
+	srcTree, sourceBefore, loadErr := loadBatchMutationTree(srcListItemID)
+	if loadErr != nil {
+		return "", "", loadErr
+	}
 	if nil == srcTree {
 		err = ErrBlockNotFound
 		return
@@ -45,10 +39,10 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (
 
 	box := Conf.Box(targetBoxID)
 	listItemText := sql.GetContainerText(listItemNode)
-	listItemText = util.FilterFileName(listItemText)
+	listItemText = normalizeDocumentTitle(listItemText)
 
 	moveToRoot := "/" == targetPath
-	toHP := path.Join("/", listItemText)
+	toHP := "/" + listItemText
 	toFolder := "/"
 
 	if "" != previousPath {
@@ -65,7 +59,7 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (
 				err = ErrBlockNotFound
 				return
 			}
-			toHP = path.Join(parentDoc.HPath, listItemText)
+			toHP = parentDoc.HPath + "/" + listItemText
 			toFolder = path.Join(path.Dir(parentPath), parentDoc.ID)
 		}
 	} else {
@@ -75,7 +69,7 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (
 				err = ErrBlockNotFound
 				return
 			}
-			toHP = path.Join(parentDoc.HPath, listItemText)
+			toHP = parentDoc.HPath + "/" + listItemText
 			toFolder = path.Join(path.Dir(targetPath), parentDoc.ID)
 		}
 	}
@@ -87,56 +81,27 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (
 		}
 	}
 
-	var children []*ast.Node
-	for c := listItemNode.FirstChild; nil != c; c = c.Next {
-		if c.IsMarker() {
-			continue
-		}
-		children = append(children, c)
-	}
-	if 1 > len(children) {
-		newNode := treenode.NewParagraph("")
-		children = append(children, newNode)
-	}
-
 	luteEngine := util.NewLute()
-	newTree := &parse.Tree{Root: &ast.Node{Type: ast.NodeDocument, ID: srcListItemID}, Context: &parse.Context{ParseOption: luteEngine.ParseOptions}}
-	for _, c := range children {
-		newTree.Root.AppendChild(c)
-	}
+	newTree := &parse.Tree{Root: listItemDocRoot(listItemNode, listItemText), Context: &parse.Context{ParseOption: luteEngine.ParseOptions}}
 	newTree.ID = srcListItemID
 	newTree.Path = newTargetPath
 	newTree.HPath = toHP
-	listItemNode.SetIALAttr("type", "doc")
-	listItemNode.SetIALAttr("id", srcListItemID)
-	listItemNode.SetIALAttr("title", listItemText)
-	listItemNode.RemoveIALAttr("fold")
-	listItemNode.RemoveIALAttr(DocHiddenAttr)
-	newTree.Root.KramdownIAL = listItemNode.KramdownIAL
-	srcLiParent := listItemNode.Parent
-	listItemNode.Unlink()
-	if nil != srcLiParent && nil == srcLiParent.FirstChild {
-		srcLiParent.Unlink()
-	}
 	srcTree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
 	if nil == srcTree.Root.FirstChild {
 		srcTree.Root.AppendChild(treenode.NewParagraph(""))
 	}
-	treenode.RemoveBlockTreesByRootID(srcTree.ID)
-	if err = indexWriteTreeUpsertQueue(srcTree); err != nil {
-		return "", "", err
-	}
-
 	newTree.Box, newTree.Path = targetBoxID, newTargetPath
 	newTree.Root.SetIALAttr("updated", util.CurrentTimeSecondsStr())
-	newTree.Root.Spec = treenode.CurrentSpec
+	newTree.Root.Spec = treenode.BaseSpec
+	if err = commitDocumentConversion(srcTree, newTree, sourceBefore, nil, false, indexWriteTreeUpsertQueue); err != nil {
+		return "", "", err
+	}
 	if "" != previousPath {
 		box.addSort(previousPath, newTree.ID)
+	} else if toTop {
+		box.addMinSort(path.Dir(newTargetPath), newTree.ID)
 	} else {
 		box.setSortByConf(path.Dir(newTargetPath), newTree.ID)
-	}
-	if err = indexWriteTreeUpsertQueue(newTree); err != nil {
-		return "", "", err
 	}
 	IncSync()
 	go func() {
@@ -145,4 +110,53 @@ func ListItem2Doc(srcListItemID, targetBoxID, targetPath, previousPath string) (
 		ResetVirtualBlockRefCache()
 	}()
 	return
+}
+
+// listItemDocRoot 将完整列表项移入新文档，原列表项 ID 继续作为文档 ID 使用。
+func listItemDocRoot(item *ast.Node, title string) *ast.Node {
+	root := &ast.Node{Type: ast.NodeDocument, ID: item.ID}
+	for _, attr := range item.KramdownIAL {
+		root.KramdownIAL = append(root.KramdownIAL, append([]string(nil), attr...))
+	}
+	root.SetIALAttr("type", "doc")
+	root.SetIALAttr("id", root.ID)
+	root.SetIALAttr("title", title)
+	treenode.SetSelfFolded(root, false)
+	root.RemoveIALAttr(DocHiddenAttr)
+
+	parent := item.Parent
+	list := &ast.Node{Type: ast.NodeList, ID: ast.NewNodeID(), ListData: &ast.ListData{}}
+	if nil != parent && ast.NodeList == parent.Type {
+		if nil != parent.ListData {
+			*list.ListData = *parent.ListData
+		}
+		for _, attr := range parent.KramdownIAL {
+			list.KramdownIAL = append(list.KramdownIAL, append([]string(nil), attr...))
+		}
+	} else if nil != item.ListData {
+		*list.ListData = *item.ListData
+	}
+	list.ListData.Marker = append([]byte(nil), list.ListData.Marker...)
+	if 1 == list.ListData.Typ && nil != item.ListData {
+		list.ListData.Start = item.ListData.Num
+	}
+	list.SetIALAttr("id", list.ID)
+	item.ID = ast.NewNodeID()
+	item.SetIALAttr("id", item.ID)
+	hasContent := false
+	for child := item.FirstChild; nil != child; child = child.Next {
+		if child.IsBlock() && ast.NodeKramdownBlockIAL != child.Type {
+			hasContent = true
+			break
+		}
+	}
+	if !hasContent {
+		item.AppendChild(treenode.NewParagraph(""))
+	}
+	list.AppendChild(item)
+	root.AppendChild(list)
+	if nil != parent && nil == parent.FirstChild {
+		parent.Unlink()
+	}
+	return root
 }

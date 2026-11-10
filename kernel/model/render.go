@@ -1,23 +1,12 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
 import (
 	"bytes"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -35,13 +24,15 @@ import (
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
+var outlineFontSizePattern = regexp.MustCompile("font-size:.*?;")
+
 func renderOutline(heading *ast.Node, luteEngine *lute.Lute) (ret string) {
 	if nil == heading {
 		return ""
 	}
 
 	if ast.NodeDocument == heading.Type {
-		return heading.IALAttr("title")
+		return treenode.ReadDocumentTitle(heading).Text
 	}
 
 	buf := bytes.Buffer{}
@@ -60,7 +51,7 @@ func renderOutline(heading *ast.Node, luteEngine *lute.Lute) (ret string) {
 
 		if style := n.IALAttr("style"); "" != style {
 			if strings.Contains(style, "font-size") { // 大纲字号不应该跟随字体设置 https://github.com/siyuan-note/siyuan/issues/7202
-				style = regexp.MustCompile("font-size:.*?;").ReplaceAllString(style, "font-size: inherit;")
+				style = outlineFontSizePattern.ReplaceAllString(style, "font-size: inherit;")
 				n.SetIALAttr("style", style)
 			}
 		}
@@ -69,8 +60,11 @@ func renderOutline(heading *ast.Node, luteEngine *lute.Lute) (ret string) {
 		case ast.NodeHeading:
 			// Show heading block appearance style in the Outline Panel https://github.com/siyuan-note/siyuan/issues/7872
 			if style := n.IALAttr("style"); "" != style {
+				// 样式值按属性值转义后再拼接，否则其中的引号会闭合 style 属性注入标签；
+				// 转义后的实体在解析属性值时会被还原，不影响样式展示
+				// https://github.com/siyuan-note/siyuan/security/advisories/GHSA-928g-4hfq-qwvx
 				buf.WriteString("<span style=\"")
-				buf.WriteString(style)
+				buf.WriteString(util.EscapeHTML(style))
 				buf.WriteString("\">")
 			}
 		case ast.NodeText, ast.NodeLinkText, ast.NodeCodeBlockCode, ast.NodeMathBlockContent:
@@ -145,7 +139,7 @@ func renderBlockText(node *ast.Node, excludeTypes []string, removeLineBreak bool
 	return
 }
 
-func fillBlockRefCount(nodes []*ast.Node) {
+func fillBlockRefCount(nodes []*ast.Node, boxID string) {
 	var defIDs []string
 	for _, n := range nodes {
 		ast.Walk(n, func(n *ast.Node, entering bool) ast.WalkStatus {
@@ -160,7 +154,7 @@ func fillBlockRefCount(nodes []*ast.Node) {
 		})
 	}
 	defIDs = gulu.Str.RemoveDuplicatedElem(defIDs)
-	refCount := sql.QueryRefCount(defIDs)
+	refCount := sql.QueryRefCountInBox(defIDs, boxID)
 	for _, n := range nodes {
 		ast.Walk(n, func(n *ast.Node, entering bool) ast.WalkStatus {
 			if !entering || !n.IsBlock() {
@@ -173,6 +167,74 @@ func fillBlockRefCount(nodes []*ast.Node) {
 			return ast.WalkContinue
 		})
 	}
+}
+
+func cloneRenderNode(node *ast.Node) *ast.Node {
+	if nil == node {
+		return nil
+	}
+
+	cloned := *node
+	cloned.Parent = nil
+	cloned.Previous = nil
+	cloned.Next = nil
+	cloned.FirstChild = nil
+	cloned.LastChild = nil
+	cloned.Children = nil
+	cloned.Tokens = bytes.Clone(node.Tokens)
+	if nil != node.KramdownIAL {
+		cloned.KramdownIAL = make([][]string, 0, len(node.KramdownIAL))
+		for _, attr := range node.KramdownIAL {
+			cloned.KramdownIAL = append(cloned.KramdownIAL, append([]string{}, attr...))
+		}
+	}
+	if nil != node.Properties {
+		cloned.Properties = make(map[string]string, len(node.Properties))
+		maps.Copy(cloned.Properties, node.Properties)
+	}
+
+	for child := node.FirstChild; nil != child; child = child.Next {
+		cloned.AppendChild(cloneRenderNode(child))
+	}
+	return &cloned
+}
+
+func cleanRenderNodes(nodes []*ast.Node, visibleOnly bool) (ret []*ast.Node) {
+	root := &ast.Node{Type: ast.NodeDocument}
+	for _, node := range nodes {
+		if cloned := cloneRenderNode(node); nil != cloned {
+			root.AppendChild(cloned)
+		}
+	}
+
+	ast.Walk(root, func(node *ast.Node, entering bool) ast.WalkStatus {
+		if entering && node.IsBlock() {
+			treenode.ClearLegacyHeadingFold(node)
+		}
+		return ast.WalkContinue
+	})
+	if visibleOnly {
+		for _, node := range treenode.CollectFoldHiddenNodes(root) {
+			node.Unlink()
+		}
+	}
+
+	for node := root.FirstChild; nil != node; node = node.Next {
+		ret = append(ret, node)
+	}
+	return
+}
+
+func cleanRenderNode(node *ast.Node, visibleOnly bool) *ast.Node {
+	nodes := cleanRenderNodes([]*ast.Node{node}, visibleOnly)
+	if 0 == len(nodes) {
+		return nil
+	}
+	return nodes[0]
+}
+
+func renderVisibleBlockDOMByNodes(nodes []*ast.Node, luteEngine *lute.Lute) string {
+	return renderBlockDOMByNodes(cleanRenderNodes(nodes, true), luteEngine)
 }
 
 func renderBlockDOMByNodes(nodes []*ast.Node, luteEngine *lute.Lute) string {
@@ -222,7 +284,7 @@ func renderBlockContentByNodes(nodes []*ast.Node) string {
 	return buf.String()
 }
 
-func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resolved *[]string, depth *int) {
+func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resolved *[]string, depth *int, accessChecker ...EmbedBlockAccessChecker) {
 	var children []*ast.Node
 	if ast.NodeHeading == n.Type {
 		children = append(children, n)
@@ -243,7 +305,7 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 	for _, child := range children {
 		var unlinks []*ast.Node
 
-		parentHeadingLevel := 0
+		parentHeadingLevel := 1
 		for prev := child; nil != prev; prev = prev.Previous {
 			if ast.NodeHeading == prev.Type {
 				parentHeadingLevel = prev.HeadingLevel
@@ -268,7 +330,12 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 			stmt := n.ChildByType(ast.NodeBlockQueryEmbedScript).TokensStr()
 			stmt = html.UnescapeString(stmt)
 			stmt = strings.ReplaceAll(stmt, editor.IALValEscNewLine, "\n")
-			sqlBlocks := sql.SelectBlocksRawStmt(stmt, 1, Conf.Search.Limit)
+			sqlBlocks := sql.SelectBlocksRawStmt(stmt, 1, Conf.Search.Load().Limit)
+			var embedAccessChecker EmbedBlockAccessChecker
+			if 0 < len(accessChecker) {
+				embedAccessChecker = accessChecker[0]
+			}
+			sqlBlocks = filterEmbedBlocksByAccess(sqlBlocks, embedAccessChecker)
 			for _, sqlBlock := range sqlBlocks {
 				if "query_embed" == sqlBlock.Type {
 					continue
@@ -283,19 +350,25 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 				if "d" == sqlBlock.Type {
 					if 0 == blockEmbedMode {
 						// 嵌入块中出现了大于等于上方非嵌入块的标题时需要降低嵌入块中的标题级别
-						// Improve export of heading levels in embedded blocks https://github.com/siyuan-note/siyuan/issues/12233 https://github.com/siyuan-note/siyuan/issues/12741
+						// Improve export of heading levels in embedded blocks
+						// https://github.com/siyuan-note/siyuan/issues/12233
+						// https://github.com/siyuan-note/siyuan/issues/12741
+						// https://github.com/siyuan-note/siyuan/issues/17629
 						embedTopLevel := 0
+						embedFirstHeading := subTree.Root.ChildByType(ast.NodeHeading)
+						if nil != embedFirstHeading {
+							embedTopLevel = embedFirstHeading.HeadingLevel
+						}
 						ast.Walk(subTree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
 							if !entering || ast.NodeHeading != n.Type {
 								return ast.WalkContinue
 							}
 
-							embedTopLevel = n.HeadingLevel
-							if parentHeadingLevel >= embedTopLevel {
-								n.HeadingLevel += parentHeadingLevel - embedTopLevel + 1
-								if 6 < n.HeadingLevel {
-									n.HeadingLevel = 6
-								}
+							n.HeadingLevel += parentHeadingLevel - embedTopLevel + 1
+							if 2 > n.HeadingLevel {
+								n.HeadingLevel = 2
+							} else if 6 < n.HeadingLevel {
+								n.HeadingLevel = 6
 							}
 							return ast.WalkContinue
 						})
@@ -307,8 +380,8 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 					var hChildren []*ast.Node
 
 					// 从嵌入块的 IAL 属性中解析 custom-heading-mode，使用全局配置作为默认值
-					blockHeadingMode := Conf.Editor.HeadingEmbedMode
-					if customHeadingMode := n.IALAttr("custom-heading-mode"); "" != customHeadingMode {
+					blockHeadingMode := Conf.Editor.Load().HeadingEmbedMode
+					if customHeadingMode := n.IALAttr(embedHeadingModeAttr); "" != customHeadingMode {
 						if mode, err := strconv.Atoi(customHeadingMode); nil == err && (mode == 0 || mode == 1 || mode == 2) {
 							blockHeadingMode = mode
 						}
@@ -321,22 +394,18 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 						hChildren = append(hChildren, h)
 					} else if 2 == blockHeadingMode {
 						// 仅显示标题下方的块（默认行为）
-						if "1" != h.IALAttr("fold") {
-							children := treenode.HeadingChildren(h)
-							for _, c := range children {
-								if "1" == c.IALAttr("heading-fold") {
-									// 嵌入块包含折叠标题时不应该显示其下方块 https://github.com/siyuan-note/siyuan/issues/4765
-									continue
-								}
-								hChildren = append(hChildren, c)
-							}
+						if !treenode.IsSelfFolded(h) {
+							hChildren = append(hChildren, treenode.HeadingChildren(h)...)
 						}
 					} else {
 						// 0: 显示标题与下方的块
 						hChildren = append(hChildren, h)
 						hChildren = append(hChildren, treenode.HeadingChildren(h)...)
 					}
-					if 0 == blockEmbedMode {
+					hChildren = cleanRenderNodes(hChildren, true)
+					if level := explicitEmbedHeadingLevel(n, sqlBlock.ID); level != 0 {
+						adjustEmbedHeadingLevels(hChildren, level)
+					} else if 0 == blockEmbedMode && treenode.GetEmbedBlockRef(n) != sqlBlock.ID {
 						embedTopLevel := 0
 						for _, hChild := range hChildren {
 							if ast.NodeHeading == hChild.Type {
@@ -344,13 +413,14 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 								break
 							}
 						}
-						if parentHeadingLevel >= embedTopLevel {
-							for _, hChild := range hChildren {
-								if ast.NodeHeading == hChild.Type {
-									hChild.HeadingLevel += parentHeadingLevel - embedTopLevel + 1
-									if 6 < hChild.HeadingLevel {
-										hChild.HeadingLevel = 6
-									}
+
+						for _, hChild := range hChildren {
+							if ast.NodeHeading == hChild.Type {
+								hChild.HeadingLevel += parentHeadingLevel - embedTopLevel + 1
+								if 2 > hChild.HeadingLevel {
+									hChild.HeadingLevel = 2
+								} else if 6 < hChild.HeadingLevel {
+									hChild.HeadingLevel = 6
 								}
 							}
 						}
@@ -374,7 +444,8 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 					if 0 == blockEmbedMode { // 使用原始文本
 						buf.WriteString(line)
 					} else { // 使用引述块
-						buf.WriteString("> " + line)
+						buf.WriteString("> ")
+						buf.WriteString(line)
 					}
 					if i < len(lines)-1 {
 						buf.WriteString("\n")
@@ -410,7 +481,7 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 						return ast.WalkContinue
 					}
 
-					resolveEmbedR(insert, blockEmbedMode, luteEngine, resolved, depth)
+					resolveEmbedR(insert, blockEmbedMode, luteEngine, resolved, depth, accessChecker...)
 					*depth--
 				}
 			}
@@ -422,23 +493,35 @@ func resolveEmbedR(n *ast.Node, blockEmbedMode int, luteEngine *lute.Lute, resol
 			unlink.Unlink()
 		}
 	}
-	return
 }
 
-func renderBlockMarkdownR(id string, rendered *[]string) (ret []*ast.Node) {
-	if gulu.Str.Contains(id, *rendered) {
+func renderBlockMarkdownR(id string, rendered *[]string, boxIDs ...string) (ret []*ast.Node) {
+	boxID := ""
+	if len(boxIDs) > 0 {
+		boxID = boxIDs[0]
+	}
+	renderedID := id
+	if boxID != "" {
+		renderedID = boxID + "\x00" + id
+	}
+	if gulu.Str.Contains(renderedID, *rendered) {
 		return
 	}
-	*rendered = append(*rendered, id)
+	*rendered = append(*rendered, renderedID)
 
-	b := treenode.GetBlockTree(id)
+	b := treenode.GetBlockTreeInBox(id, boxID)
 	if nil == b {
 		return
 	}
 
 	var err error
 	var t *parse.Tree
-	if t, err = LoadTreeByBlockID(b.ID); err != nil {
+	if boxID == "" {
+		t, err = LoadTreeByBlockID(b.ID)
+	} else {
+		t, err = LoadTreeByBlockIDInExactBox(b.ID, boxID)
+	}
+	if err != nil {
 		return
 	}
 	node := treenode.GetNodeInTree(t, b.ID)
@@ -461,6 +544,8 @@ func renderBlockMarkdownR(id string, rendered *[]string) (ret []*ast.Node) {
 	for _, child := range children {
 		var unlinks, inserts []*ast.Node
 		ast.Walk(child, func(n *ast.Node, entering bool) ast.WalkStatus {
+			confSearchSnapshot := Conf.LoadSearch()
+
 			if !entering || !n.IsBlock() {
 				return ast.WalkContinue
 			}
@@ -469,9 +554,14 @@ func renderBlockMarkdownR(id string, rendered *[]string) (ret []*ast.Node) {
 				stmt := n.ChildByType(ast.NodeBlockQueryEmbedScript).TokensStr()
 				stmt = html.UnescapeString(stmt)
 				stmt = strings.ReplaceAll(stmt, editor.IALValEscNewLine, "\n")
-				sqlBlocks := sql.SelectBlocksRawStmt(stmt, 1, Conf.Search.Limit)
+				var sqlBlocks []*sql.Block
+				if boxID != "" && IsEncryptedBox(boxID) {
+					sqlBlocks = sql.SelectBlocksRawStmtInBox(stmt, 1, confSearchSnapshot.Limit, boxID)
+				} else {
+					sqlBlocks = sql.SelectBlocksRawStmt(stmt, 1, confSearchSnapshot.Limit)
+				}
 				for _, sqlBlock := range sqlBlocks {
-					subNodes := renderBlockMarkdownR(sqlBlock.ID, rendered)
+					subNodes := renderBlockMarkdownR(sqlBlock.ID, rendered, boxID)
 					for _, subNode := range subNodes {
 						inserts = append(inserts, subNode)
 					}

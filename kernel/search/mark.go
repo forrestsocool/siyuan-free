@@ -1,28 +1,18 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package search
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/88250/gulu"
+	"github.com/88250/lute/html"
 	"github.com/88250/lute/lex"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
@@ -32,26 +22,19 @@ func MarkText(text string, keyword string, beforeLen int, caseSensitive bool) (p
 		return -1, text
 	}
 	keywords := SplitKeyword(keyword)
-	marked = EncloseHighlighting(text, keywords, "<mark>", "</mark>", caseSensitive, false)
+	pos, marked, _ = encloseHighlightingRaw(text, keywords, "<mark>", "</mark>", caseSensitive, false, beforeLen)
+	return
+}
 
-	pos = strings.Index(marked, "<mark>")
-	if 0 > pos {
-		return
+// MarkTextContext 在匹配和生成高亮期间检查请求取消，不返回未完成的高亮片段。
+func MarkTextContext(ctx context.Context, text, keyword string, beforeLen int, caseSensitive bool) (pos int, marked string) {
+	if ctx.Err() != nil {
+		return -1, ""
 	}
-
-	var before []rune
-	var count int
-	for i := pos; 0 < i; { // 关键字前面太长的话缩短一些
-		r, size := utf8.DecodeLastRuneInString(marked[:i])
-		i -= size
-		before = append([]rune{r}, before...)
-		count++
-		if beforeLen < count {
-			before = append([]rune("..."), before...)
-			break
-		}
+	if keyword == "" {
+		return -1, text
 	}
-	marked = string(before) + marked[pos:]
+	pos, marked, _ = encloseHighlightingRawContext(ctx, text, SplitKeyword(keyword), "<mark>", "</mark>", caseSensitive, false, beforeLen)
 	return
 }
 
@@ -81,13 +64,108 @@ func SplitKeyword(keyword string) (keywords []string) {
 }
 
 func EncloseHighlighting(text string, keywords []string, openMark, closeMark string, caseSensitive, splitWords bool) (ret string) {
+	ret, _ = EncloseHighlightingRaw(text, keywords, openMark, closeMark, caseSensitive, splitWords)
+	return
+}
+
+// EncloseHighlightingRaw 在原始文本中匹配关键字，并在插入高亮标记时转义文本。
+func EncloseHighlightingRaw(text string, keywords []string, openMark, closeMark string, caseSensitive, splitWords bool) (ret string, matched bool) {
+	_, ret, matched = encloseHighlightingRaw(text, keywords, openMark, closeMark, caseSensitive, splitWords, -1)
+	return
+}
+
+// encloseHighlightingRaw 在原始文本上完成上下文截取和高亮，beforeLen 小于零时保留全部前文。
+func encloseHighlightingRaw(text string, keywords []string, openMark, closeMark string, caseSensitive, splitWords bool, beforeLen int) (pos int, ret string, matched bool) {
+	return encloseHighlightingRawContext(context.Background(), text, keywords, openMark, closeMark, caseSensitive, splitWords, beforeLen)
+}
+
+func encloseHighlightingRawContext(ctx context.Context, text string, keywords []string, openMark, closeMark string, caseSensitive, splitWords bool, beforeLen int) (pos int, ret string, matched bool) {
+	pos = -1
+	if ctx.Err() != nil {
+		return
+	}
+	reg, err := compileHighlightingRegexp(keywords, caseSensitive, splitWords)
+	if ctx.Err() != nil {
+		return
+	}
+	if err != nil {
+		ret = html.EscapeString(text)
+		return
+	}
+
+	var indexes [][]int
+	if len(text) <= 4096 || ctx.Done() == nil || splitWords {
+		indexes = reg.FindAllStringIndex(text, -1)
+	} else {
+		indexes = findHighlightingMatchesContext(ctx, reg, text, keywords)
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	if 1 > len(indexes) {
+		ret = html.EscapeString(text)
+		return
+	}
+
+	start := 0
+	truncated := false
+	if 0 <= beforeLen {
+		start = indexes[0][0]
+		var count int
+		for 0 < start { // 关键字前面太长的话缩短一些
+			if ctx.Err() != nil {
+				return -1, "", false
+			}
+			_, size := utf8.DecodeLastRuneInString(text[:start])
+			start -= size
+			count++
+			if beforeLen < count {
+				truncated = true
+				break
+			}
+		}
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(text) - start + len(indexes)*(len(openMark)+len(closeMark)))
+	if truncated {
+		buf.WriteString("...")
+	}
+	last := start
+	for _, index := range indexes {
+		if ctx.Err() != nil {
+			return -1, "", false
+		}
+		buf.WriteString(html.EscapeString(text[last:index[0]]))
+		if !matched {
+			pos = buf.Len()
+		}
+		buf.WriteString(openMark)
+		buf.WriteString(html.EscapeString(text[index[0]:index[1]]))
+		buf.WriteString(closeMark)
+		last = index[1]
+		matched = true
+	}
+	buf.WriteString(html.EscapeString(text[last:]))
+	ret = buf.String()
+
+	// 避免反斜杠转义生成的高亮标签 https://github.com/siyuan-note/siyuan/issues/9790
+	ret = strings.ReplaceAll(ret, "\\<span", "\\\\<span")
+	if ctx.Err() != nil {
+		return -1, "", false
+	}
+	return
+}
+
+func compileHighlightingRegexp(keywords []string, caseSensitive, splitWords bool) (ret *regexp.Regexp, err error) {
 	ic := "(?i)"
 	if caseSensitive {
 		ic = "(?)"
 	}
 
 	var re strings.Builder
-	re.WriteString(ic + "(")
+	re.WriteString(ic)
+	re.WriteString("(")
 	for i, k := range keywords {
 		if "" == k {
 			continue
@@ -97,7 +175,12 @@ func EncloseHighlighting(text string, keywords []string, openMark, closeMark str
 		if splitWords {
 			wordBoundary = lex.IsASCIILetterNums(gulu.Str.ToBytes(k)) // Improve virtual reference split words https://github.com/siyuan-note/siyuan/issues/7833
 		}
-		k = regexp.QuoteMeta(util.EscapeHTML(k))
+		if !util.SearchHanSensitive.Load() {
+			// 不区分繁简：将关键字逐字符展开为繁简等价字符类，如 "诗经" -> "[诗詩][经經]"
+			k = hanInsensitiveRegexp(k)
+		} else {
+			k = regexp.QuoteMeta(k)
+		}
 		re.WriteString("(")
 		if wordBoundary {
 			re.WriteString("\\b")
@@ -112,23 +195,7 @@ func EncloseHighlighting(text string, keywords []string, openMark, closeMark str
 		}
 	}
 	re.WriteString(")")
-
-	ret = util.EscapeHTML(text)
-
-	ret = strings.ReplaceAll(ret, "&#34;", "\ue000")
-	ret = strings.ReplaceAll(ret, "&lt;", "\ue001")
-	ret = strings.ReplaceAll(ret, "&gt;", "\ue002")
-	ret = strings.ReplaceAll(ret, "&#39;", "\ue003")
-	if reg, err := regexp.Compile(re.String()); err == nil {
-		ret = reg.ReplaceAllStringFunc(ret, func(s string) string { return openMark + s + closeMark })
-	}
-	ret = strings.ReplaceAll(ret, "\ue000", "&#34;")
-	ret = strings.ReplaceAll(ret, "\ue001", "&lt;")
-	ret = strings.ReplaceAll(ret, "\ue002", "&gt;")
-	ret = strings.ReplaceAll(ret, "\ue003", "&#39;")
-
-	// 搜索结果预览包含转义符问题 Search results preview contains escape character issue https://github.com/siyuan-note/siyuan/issues/9790
-	ret = strings.ReplaceAll(ret, "\\<span", "\\\\<span")
+	ret, err = regexp.Compile(re.String())
 	return
 }
 

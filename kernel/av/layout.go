@@ -1,20 +1,17 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package av
+
+// ValidateLayouts 统一校验日历和列表布局，拒绝损坏数据并保留原始文件。
+func (attrView *AttributeView) ValidateLayouts() error {
+	attrView.restoreLegacyMapColumns()
+	if err := attrView.ValidateCalendarLayouts(); err != nil {
+		return err
+	}
+	return attrView.ValidateListLayouts()
+}
 
 // BaseLayout 描述了布局的基础结构。
 type BaseLayout struct {
@@ -24,13 +21,11 @@ type BaseLayout struct {
 	ShowIcon  bool `json:"showIcon"`  // 是否显示字段图标
 	WrapField bool `json:"wrapField"` // 是否换行字段内容
 
-	// TODO 以下三个字段已经废弃，计划于 2026 年 6 月 30 日后删除 https://github.com/siyuan-note/siyuan/issues/15162
-
-	//Deprecated
+	// Deprecated: 仅用于读取和升级旧版布局，过滤规则由 View.Filters 维护。
 	Filters []*ViewFilter `json:"filters,omitempty"` // 过滤规则
-	//Deprecated
+	// Deprecated: 仅用于读取和升级旧版布局，排序规则由 View.Sorts 维护。
 	Sorts []*ViewSort `json:"sorts,omitempty"` // 排序规则
-	//Deprecated
+	// Deprecated: 仅用于读取和升级旧版布局，分页大小由 View.PageSize 维护。
 	PageSize int `json:"pageSize,omitempty"` // 每页条目数
 }
 
@@ -52,17 +47,18 @@ type BaseValue struct {
 
 // BaseInstance 描述了实例的基础结构。
 type BaseInstance struct {
-	ID               string        `json:"id"`               // ID
-	Icon             string        `json:"icon"`             // 图标
-	Name             string        `json:"name"`             // 名称
-	Desc             string        `json:"desc"`             // 描述
-	HideAttrViewName bool          `json:"hideAttrViewName"` // 是否隐藏属性视图名称
-	Filters          []*ViewFilter `json:"filters"`          // 过滤规则
-	Sorts            []*ViewSort   `json:"sorts"`            // 排序规则
-	Group            *ViewGroup    `json:"group"`            // 分组规则
-	PageSize         int           `json:"pageSize"`         // 每页项目数
-	ShowIcon         bool          `json:"showIcon"`         // 是否显示字段图标
-	WrapField        bool          `json:"wrapField"`        // 是否换行字段内容
+	ConditionalColors []*ConditionalColorRule `json:"conditionalColors"`
+	ID                string                  `json:"id"`               // ID
+	Icon              string                  `json:"icon"`             // 图标
+	Name              string                  `json:"name"`             // 名称
+	Desc              string                  `json:"desc"`             // 描述
+	HideAttrViewName  bool                    `json:"hideAttrViewName"` // 是否隐藏属性视图名称
+	Filters           []*ViewFilter           `json:"filters"`          // 过滤规则
+	Sorts             []*ViewSort             `json:"sorts"`            // 排序规则
+	Group             *ViewGroup              `json:"group"`            // 分组规则
+	PageSize          int                     `json:"pageSize"`         // 每页项目数
+	ShowIcon          bool                    `json:"showIcon"`         // 是否显示字段图标
+	WrapField         bool                    `json:"wrapField"`        // 是否换行字段内容
 
 	GroupKey    *Key       `json:"groupKey,omitempty"`   // 分组字段
 	GroupValue  *Value     `json:"groupValue,omitempty"` // 分组值
@@ -72,35 +68,64 @@ type BaseInstance struct {
 	GroupHidden int        `json:"groupHidden"`          // 分组是否隐藏，0：显示，1：空白隐藏，2：手动隐藏
 }
 
+// GetBaseLayout 返回当前布局的基础设置，布局缺失时返回 nil。
+// 表格、列表和日历共用表格布局的基础设置。
+func (view *View) GetBaseLayout() *BaseLayout {
+	switch view.LayoutType {
+	case LayoutTypeTable, LayoutTypeList, LayoutTypeCalendar:
+		if table := view.GetTableLayout(); nil != table {
+			return table.BaseLayout
+		}
+	case LayoutTypeGallery:
+		if nil != view.Gallery {
+			return view.Gallery.BaseLayout
+		}
+	case LayoutTypeKanban:
+		if nil != view.Kanban {
+			return view.Kanban.BaseLayout
+		}
+	}
+	return nil
+}
+
+// GetCardSettings 返回卡片类布局共有的卡片设置，其他布局返回 nil。
+func (view *View) GetCardSettings() *CardSettings {
+	switch view.LayoutType {
+	case LayoutTypeGallery:
+		if nil != view.Gallery {
+			return &view.Gallery.CardSettings
+		}
+	case LayoutTypeKanban:
+		if nil != view.Kanban {
+			return &view.Kanban.CardSettings
+		}
+	}
+	return nil
+}
+
 func NewViewBaseInstance(view *View) *BaseInstance {
 	showIcon, wrapField := true, false
-	switch view.LayoutType {
-	case LayoutTypeTable:
-		showIcon = view.Table.ShowIcon
-		wrapField = view.Table.WrapField
-	case LayoutTypeGallery:
-		showIcon = view.Gallery.ShowIcon
-		wrapField = view.Gallery.WrapField
-	case LayoutTypeKanban:
-		showIcon = view.Kanban.ShowIcon
-		wrapField = view.Kanban.WrapField
+	if base := view.GetBaseLayout(); nil != base {
+		showIcon, wrapField = base.ShowIcon, base.WrapField
 	}
 	return &BaseInstance{
-		ID:               view.ID,
-		Icon:             view.Icon,
-		Name:             view.Name,
-		Desc:             view.Desc,
-		HideAttrViewName: view.HideAttrViewName,
-		Filters:          view.Filters,
-		Sorts:            view.Sorts,
-		Group:            view.Group,
-		GroupKey:         view.GroupKey,
-		GroupValue:       view.GroupVal,
-		GroupCalc:        view.GroupCalc,
-		GroupFolded:      view.GroupFolded,
-		GroupHidden:      view.GroupHidden,
-		ShowIcon:         showIcon,
-		WrapField:        wrapField,
+		ConditionalColors: view.EffectiveConditionalColors(),
+		ID:                view.ID,
+		Icon:              view.Icon,
+		Name:              view.Name,
+		Desc:              view.Desc,
+		HideAttrViewName:  view.HideAttrViewName,
+		Filters:           view.Filters,
+		Sorts:             view.Sorts,
+		Group:             view.Group,
+		GroupKey:          view.GroupKey,
+		GroupValue:        view.GroupVal,
+		GroupCalc:         view.GroupCalc,
+		GroupFolded:       view.GroupFolded,
+		GroupHidden:       view.GroupHidden,
+		PageSize:          view.PageSize,
+		ShowIcon:          showIcon,
+		WrapField:         wrapField,
 	}
 }
 
@@ -153,14 +178,16 @@ type BaseInstanceField struct {
 
 	// 以下是某些字段类型的特有属性
 
-	Options      []*SelectOption `json:"options,omitempty"`  // 选项列表
-	NumberFormat NumberFormat    `json:"numberFormat"`       // 数字字段格式化
-	Template     string          `json:"template"`           // 模板字段内容
-	Relation     *Relation       `json:"relation,omitempty"` // 关联字段
-	Rollup       *Rollup         `json:"rollup,omitempty"`   // 汇总字段
-	Date         *Date           `json:"date,omitempty"`     // 日期设置
-	Created      *Created        `json:"created,omitempty"`  // 创建时间设置
-	Updated      *Updated        `json:"updated,omitempty"`  // 更新时间设置
+	Options        []*SelectOption   `json:"options,omitempty"`        // 选项列表
+	NumberFormat   NumberFormat      `json:"numberFormat"`             // 数字字段格式化
+	DateFormat     DateDisplayFormat `json:"dateFormat,omitempty"`     // 日期显示格式
+	Template       string            `json:"template"`                 // 模板字段内容
+	RenderTemplate string            `json:"renderTemplate,omitempty"` // 显示模板内容
+	Relation       *Relation         `json:"relation,omitempty"`       // 关联字段
+	Rollup         *Rollup           `json:"rollup,omitempty"`         // 汇总字段
+	Date           *Date             `json:"date,omitempty"`           // 日期设置
+	Created        *Created          `json:"created,omitempty"`        // 创建时间设置
+	Updated        *Updated          `json:"updated,omitempty"`        // 更新时间设置
 }
 
 func (baseInstanceField *BaseInstanceField) GetID() string {
@@ -181,6 +208,10 @@ func (baseInstanceField *BaseInstanceField) GetType() KeyType {
 
 func (baseInstanceField *BaseInstanceField) GetNumberFormat() NumberFormat {
 	return baseInstanceField.NumberFormat
+}
+
+func (baseInstanceField *BaseInstanceField) GetDateFormat() DateDisplayFormat {
+	return baseInstanceField.DateFormat
 }
 
 // Collection 描述了一个集合的接口。
@@ -229,6 +260,9 @@ type Field interface {
 
 	// GetNumberFormat 返回数字字段的格式化设置。
 	GetNumberFormat() NumberFormat
+
+	// GetDateFormat 返回日期字段的显示格式。
+	GetDateFormat() DateDisplayFormat
 }
 
 // Item 描述了一个项目的接口。

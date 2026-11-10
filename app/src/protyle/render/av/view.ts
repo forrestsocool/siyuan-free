@@ -1,12 +1,71 @@
+import {isTableLikeView} from "./viewType";
 import {Menu} from "../../../plugin/Menu";
 import {unicode2Emoji} from "../../../emoji";
 import {transaction} from "../../wysiwyg/transaction";
 import {openMenuPanel} from "./openMenuPanel";
-import {focusBlock} from "../../util/selection";
+import {focusBlock, getEditorRange} from "../../util/selection";
+import {focusByRange} from "../../util/selectionOffsets";
 import {upDownHint} from "../../../util/upDownHint";
 import {escapeAriaLabel, escapeAttr, escapeHtml} from "../../../util/escape";
 import {hasClosestByClassName} from "../../util/hasClosest";
 import {Constants} from "../../../constants";
+import {clearSelect} from "../../util/clear";
+import {getAVVisibleViewIDs, setAVVisibleViewIDs} from "./viewVisibility";
+import {isNotEditBlock} from "../../wysiwyg/getBlock";
+import {countFilterLeaves} from "./filterTree";
+import {isMobile} from "../../../util/functions";
+
+export const setAVBlockVisibleViewIDs = (
+    protyle: IProtyle,
+    blockElement: Element,
+    requestedViewIDs: string[]
+) => {
+    const allViewIDs = (blockElement.querySelector(".av__header")?.getAttribute("data-view-ids") || "")
+        .split(",").filter(Boolean);
+    const oldViewIDs = getAVVisibleViewIDs(blockElement, allViewIDs);
+    const requested = new Set(requestedViewIDs);
+    const viewIDs = allViewIDs.filter((viewID) => requested.has(viewID));
+    if (viewIDs.length === 0 || viewIDs.join(",") === oldViewIDs.join(",")) {
+        return false;
+    }
+
+    setAVVisibleViewIDs(blockElement, viewIDs);
+    transaction(protyle, [{
+        action: "setAttrViewBlockVisibleViews",
+        avID: blockElement.getAttribute("data-av-id"),
+        blockID: blockElement.getAttribute("data-node-id"),
+        viewIDs,
+    }], [{
+        action: "setAttrViewBlockVisibleViews",
+        avID: blockElement.getAttribute("data-av-id"),
+        blockID: blockElement.getAttribute("data-node-id"),
+        viewIDs: oldViewIDs,
+    }]);
+    return true;
+};
+
+const copyViewMirror = (blockElement: Element, viewID: string) => {
+    const oldVisibleViewIDs = blockElement.getAttribute(Constants.CUSTOM_SY_AV_VISIBLE_VIEWS);
+    const oldViewID = blockElement.getAttribute(Constants.CUSTOM_SY_AV_VIEW);
+    blockElement.setAttribute(Constants.CUSTOM_SY_AV_VISIBLE_VIEWS, viewID);
+    blockElement.setAttribute(Constants.CUSTOM_SY_AV_VIEW, viewID);
+    if (isNotEditBlock(blockElement)) {
+        focusBlock(blockElement);
+    } else {
+        focusByRange(getEditorRange(blockElement));
+    }
+    document.execCommand("copy");
+    if (null === oldVisibleViewIDs) {
+        blockElement.removeAttribute(Constants.CUSTOM_SY_AV_VISIBLE_VIEWS);
+    } else {
+        blockElement.setAttribute(Constants.CUSTOM_SY_AV_VISIBLE_VIEWS, oldVisibleViewIDs);
+    }
+    if (null === oldViewID) {
+        blockElement.removeAttribute(Constants.CUSTOM_SY_AV_VIEW);
+    } else {
+        blockElement.setAttribute(Constants.CUSTOM_SY_AV_VIEW, oldViewID);
+    }
+};
 
 export const openViewMenu = (options: { protyle: IProtyle, blockElement: HTMLElement, element: HTMLElement }) => {
     if (options.protyle.disabled) {
@@ -49,10 +108,16 @@ export const openViewMenu = (options: { protyle: IProtyle, blockElement: HTMLEle
     menu.addItem({
         id: "duplicate",
         icon: "iconCopy",
-        label: window.siyuan.languages.duplicate,
+        label: window.siyuan.languages.duplicateCopy,
         click() {
             document.querySelector(".av__panel")?.remove();
             const id = Lute.NewNodeID();
+            const allViewIDs = (options.blockElement.querySelector(".av__header")?.getAttribute("data-view-ids") || "")
+                .split(",").filter(Boolean);
+            setAVVisibleViewIDs(
+                options.blockElement,
+                getAVVisibleViewIDs(options.blockElement, allViewIDs).concat(id)
+            );
             transaction(options.protyle, [{
                 action: "duplicateAttrViewView",
                 avID: options.blockElement.dataset.avId,
@@ -67,11 +132,39 @@ export const openViewMenu = (options: { protyle: IProtyle, blockElement: HTMLEle
             }]);
         }
     });
-    if (options.blockElement.querySelectorAll(".layout-tab-bar .item").length > 1) {
+    menu.addItem({
+        id: "copyViewMirror",
+        icon: "iconCopy",
+        label: window.siyuan.languages.copyViewMirror,
+        click() {
+            document.querySelector(".av__panel")?.remove();
+            copyViewMirror(options.blockElement, options.element.dataset.id);
+        }
+    });
+    const allViewIDs = (options.blockElement.querySelector(".av__header")?.getAttribute("data-view-ids") || "")
+        .split(",").filter(Boolean);
+    const visibleViewIDs = getAVVisibleViewIDs(options.blockElement, allViewIDs);
+    const isVisible = visibleViewIDs.includes(options.element.dataset.id);
+    if (!isVisible || visibleViewIDs.length > 1) {
+        menu.addItem({
+            id: "setViewVisibility",
+            icon: isVisible ? "iconEyeoff" : "iconEye",
+            label: isVisible ? window.siyuan.languages.hideViewTab : window.siyuan.languages.showViewTab,
+            click() {
+                document.querySelector(".av__panel")?.remove();
+                const viewIDs = isVisible ?
+                    visibleViewIDs.filter((viewID) => viewID !== options.element.dataset.id) :
+                    visibleViewIDs.concat(options.element.dataset.id);
+                setAVBlockVisibleViewIDs(options.protyle, options.blockElement, viewIDs);
+            }
+        });
+    }
+    if (allViewIDs.length > 1) {
         menu.addItem({
             id: "delete",
             icon: "iconTrashcan",
             label: window.siyuan.languages.delete,
+            warning: true,
             click() {
                 document.querySelector(".av__panel")?.remove();
                 transaction(options.protyle, [{
@@ -86,7 +179,8 @@ export const openViewMenu = (options: { protyle: IProtyle, blockElement: HTMLEle
     const rect = options.element.getBoundingClientRect();
     menu.open({
         x: rect.left,
-        y: rect.bottom
+        y: rect.bottom,
+        h: rect.height
     });
 };
 
@@ -123,7 +217,9 @@ export const bindViewEvent = (options: {
             options.menuElement.parentElement.remove();
         }
     });
-    inputElement.select();
+    if (!isMobile()) {
+        inputElement.select();
+    }
     inputElement.value = inputElement.dataset.value;
     const descElement = options.menuElement.querySelector('.b3-text-field[data-type="desc"]') as HTMLTextAreaElement;
     inputElement.nextElementSibling.addEventListener("click", () => {
@@ -172,7 +268,7 @@ export const getViewHTML = (data: IAV) => {
     <span class="b3-menu__label ft__center">${window.siyuan.languages.config}</span>
 </button>
 <button class="b3-menu__separator"></button>
-<button class="b3-menu__item" data-type="nobg">
+<button class="b3-menu__item av__panel-name" data-type="nobg">
     <div class="fn__block">
         <div class="fn__flex">
             <span class="b3-menu__avemoji" data-type="update-view-icon">${view.icon ? unicode2Emoji(view.icon) : `<svg style="height: 14px;width: 14px"><use xlink:href="#${getViewIcon(data.viewType)}"></use></svg>`}</span>
@@ -183,7 +279,7 @@ export const getViewHTML = (data: IAV) => {
         </div>
         <div class="fn__none">
             <div class="fn__hr"></div>
-            <textarea placeholder="${window.siyuan.languages.addDesc}" rows="1" data-type="desc" class="b3-text-field fn__block" type="text" data-value="${escapeAttr(view.desc)}">${view.desc}</textarea>
+            <textarea placeholder="${window.siyuan.languages.addDesc}" rows="1" data-type="desc" class="b3-text-field fn__block" type="text" data-value="${escapeAttr(view.desc)}">${escapeHtml(view.desc)}</textarea>
         </div>
         <div class="fn__hr"></div>
     </div>
@@ -204,7 +300,18 @@ export const getViewHTML = (data: IAV) => {
 <button class="b3-menu__item" data-type="goFilters">
     <svg class="b3-menu__icon"><use xlink:href="#iconFilter"></use></svg>
     <span class="b3-menu__label">${window.siyuan.languages.filter}</span>
-    <span class="b3-menu__accelerator">${view.filters.length}</span>
+    <span class="b3-menu__accelerator">${countFilterLeaves(view.filters)}</span>
+    <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
+</button>
+<button class="b3-menu__item" data-type="goConditionalColors">
+    <svg class="b3-menu__icon"><use xlink:href="#iconFont"></use></svg>
+    <span class="b3-menu__label">${window.siyuan.languages.conditionalColors}</span>
+    <span class="b3-menu__accelerator">${view.conditionalColors?.length || 0}</span>
+    <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
+</button>
+<button class="b3-menu__item" data-type="automations">
+    <svg class="b3-menu__icon"><use xlink:href="#iconZap"></use></svg>
+    <span class="b3-menu__label">${window.siyuan.languages.databaseAutomations}</span>
     <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
 </button>
 <button class="b3-menu__item" data-type="goSorts">
@@ -213,10 +320,10 @@ export const getViewHTML = (data: IAV) => {
     <span class="b3-menu__accelerator">${view.sorts.length}</span>
     <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
 </button>
-<button class="b3-menu__item" data-type="goGroups">
+<button class="b3-menu__item${data.viewType === "calendar" ? " fn__none" : ""}" data-type="goGroups">
     <svg class="b3-menu__icon"><use xlink:href="#iconGroups"></use></svg>
     <span class="b3-menu__label">${window.siyuan.languages.group}</span>
-    <span class="b3-menu__accelerator">${(data.view.group && data.view.group.field) ? fields.filter((item: IAVColumn) => item.id === data.view.group.field)[0].name : ""}</span>
+    <span class="b3-menu__accelerator">${escapeHtml((data.view.group && data.view.group.field) ? fields.find((item: IAVColumn) => item.id === data.view.group.field)?.name || "" : "")}</span>
     <svg class="b3-menu__icon b3-menu__icon--small"><use xlink:href="#iconRight"></use></svg>
 </button>
 <button class="b3-menu__separator"></button>
@@ -224,9 +331,9 @@ export const getViewHTML = (data: IAV) => {
     <svg class="b3-menu__icon">
         <use xlink:href="#iconCopy"></use>
     </svg>
-    <span class="b3-menu__label">${window.siyuan.languages.duplicate}</span>
+    <span class="b3-menu__label">${window.siyuan.languages.duplicateCopy}</span>
 </button>
-<button class="b3-menu__item${data.views.length > 1 ? "" : " fn__none"}" data-type="delete-view">
+<button class="b3-menu__item b3-menu__item--warning${data.views.length > 1 ? "" : " fn__none"}" data-type="delete-view">
     <svg class="b3-menu__icon"><use xlink:href="#iconTrashcan"></use></svg>
     <span class="b3-menu__label">${window.siyuan.languages.delete}</span>
 </button>
@@ -235,7 +342,9 @@ export const getViewHTML = (data: IAV) => {
 
 export const bindSwitcherEvent = (options: { protyle: IProtyle, menuElement: Element, blockElement: Element }) => {
     const inputElement = options.menuElement.querySelector(".b3-text-field") as HTMLInputElement;
-    inputElement.focus();
+    if (!isMobile()) {
+        inputElement.focus();
+    }
     inputElement.addEventListener("keydown", (event) => {
         event.stopPropagation();
         if (event.isComposing) {
@@ -245,6 +354,11 @@ export const bindSwitcherEvent = (options: { protyle: IProtyle, menuElement: Ele
         if (event.key === "Enter") {
             const currentElement = options.menuElement.querySelector(".b3-menu__item--current") as HTMLElement;
             if (currentElement) {
+                const currentViewID = options.blockElement.getAttribute(Constants.CUSTOM_SY_AV_VIEW) ||
+                    options.blockElement.querySelector(".av__views .item--focus")?.getAttribute("data-id");
+                if (currentElement.dataset.id !== currentViewID) {
+                    clearSelect(["row", "galleryItem"], options.blockElement);
+                }
                 transaction(options.protyle, [{
                     action: "setAttrViewBlockView",
                     blockID: options.blockElement.getAttribute("data-node-id"),
@@ -253,7 +367,7 @@ export const bindSwitcherEvent = (options: { protyle: IProtyle, menuElement: Ele
                 }], [{
                     action: "setAttrViewBlockView",
                     blockID: options.blockElement.getAttribute("data-node-id"),
-                    id: options.blockElement.querySelector(".av__views .item--focus").getAttribute("data-id"),
+                    id: currentViewID,
                     avID: options.blockElement.getAttribute("data-av-id"),
                 }]);
                 options.menuElement.remove();
@@ -288,35 +402,72 @@ const filterSwitcher = (menuElement: Element) => {
             item.classList.remove("b3-menu__item--current");
         }
     });
+    menuElement.querySelectorAll("[data-av-view-section]").forEach((sectionElement: HTMLElement) => {
+        const hasMatchedView = Array.from(menuElement.querySelectorAll(`[data-av-view-visibility="${sectionElement.dataset.avViewSection}"]`))
+            .some((item) => !item.classList.contains("fn__none"));
+        sectionElement.classList.toggle("fn__none", !!key && !hasMatchedView);
+    });
     if (!menuElement.querySelector(".b3-menu__item--current")) {
-        menuElement.querySelector(".fn__flex-1 .b3-menu__item:not(.fn__none)")?.classList.add("b3-menu__item--current");
+        menuElement.querySelector('.fn__flex-1 .b3-menu__item[draggable="true"]:not(.fn__none)')?.classList.add("b3-menu__item--current");
     }
 };
 
-export const getSwitcherHTML = (views: IAVView[], viewId: string) => {
-    let html = "";
+export const getSwitcherHTML = (views: IAVView[], viewId: string, blockElement: Element) => {
+    const visibleViewIDs = getAVVisibleViewIDs(blockElement, views);
+    let visibleHTML = "";
+    let hiddenHTML = "";
     views.forEach((item) => {
-        html += `<button draggable="true" class="b3-menu__item${item.id === viewId ? " b3-menu__item--current" : ""}" data-id="${item.id}">
+        const visible = visibleViewIDs.includes(item.id);
+        const html = `<button draggable="true" class="b3-menu__item${item.id === viewId ? " b3-menu__item--current" : ""}" data-id="${item.id}" data-av-view-visibility="${visible ? "visible" : "hidden"}">
     <svg class="b3-menu__icon fn__grab"><use xlink:href="#iconDrag"></use></svg>
     <div class="b3-menu__label fn__flex" data-type="av-view-switch" data-av-type="${item.type}">
         ${item.icon ? unicode2Emoji(item.icon, "b3-menu__icon", true) : `<svg class="b3-menu__icon"><use xlink:href="#${getViewIcon(item.type)}"></use></svg>`}
-        <span class="fn__ellipsis">${item.name}</span>
+        <span class="fn__ellipsis">${escapeHtml(item.name)}</span>
     </div>
+    <svg class="b3-menu__action ariaLabel${visibleViewIDs.length === 1 && visible ? " fn__none" : ""}" data-type="av-view-visibility" data-position="4west" aria-label="${visible ? window.siyuan.languages.hideViewTab : window.siyuan.languages.showViewTab}"><use xlink:href="#${visible ? "iconEyeoff" : "iconEye"}"></use></svg>
     <svg class="b3-menu__action" data-type="av-view-edit"><use xlink:href="#iconEdit"></use></svg>
 </button>`;
+        if (visible) {
+            visibleHTML += html;
+        } else {
+            hiddenHTML += html;
+        }
     });
+    const visibleSectionHTML = `<div data-av-view-section="visible">
+<button class="b3-menu__separator"></button>
+<button class="b3-menu__item" data-type="nobg">
+    <span class="b3-menu__label">${window.siyuan.languages.visibleViews}</span>
+    <span class="block__icon" data-type="av-view-hide-all">
+        ${window.siyuan.languages.hideAll}
+        <span class="fn__space"></span>
+        <svg><use xlink:href="#iconEyeoff"></use></svg>
+    </span>
+</button>
+</div>${visibleHTML}`;
+    const hiddenSectionHTML = hiddenHTML ? `<div data-av-view-section="hidden">
+<button class="b3-menu__separator"></button>
+<button class="b3-menu__item" data-type="nobg">
+    <span class="b3-menu__label">${window.siyuan.languages.hiddenViews}</span>
+    <span class="block__icon" data-type="av-view-show-all">
+        ${window.siyuan.languages.showAll}
+        <span class="fn__space"></span>
+        <svg><use xlink:href="#iconEye"></use></svg>
+    </span>
+</button>
+</div>${hiddenHTML}` : "";
     return `<div class="b3-menu__items fn__flex-column">
-<button class="b3-menu__item" data-type="av-add">
+<div class="b3-menu__item fn__flex-shrink" data-type="nobg">
+    <input spellcheck="false" class="b3-text-field fn__block" type="text" style="margin: 4px 0" placeholder="${window.siyuan.languages.searchPlaceholder}">
+</div>
+<div class="fn__flex-1" style="overflow: auto">
+    ${visibleSectionHTML}
+    ${hiddenSectionHTML}
+</div>
+<button class="b3-menu__separator fn__flex-shrink"></button>
+<button class="b3-menu__item fn__flex-shrink" data-type="av-add">
     <svg class="b3-menu__icon"><use xlink:href="#iconAdd"></use></svg>
     <span class="b3-menu__label">${window.siyuan.languages.newView}</span>
 </button>
-<button class="b3-menu__separator"></button>
-<div class="b3-menu__item fn__flex-shrink" data-type="nobg">
-    <input class="b3-text-field fn__block" type="text" style="margin: 4px 0" placeholder="${window.siyuan.languages.search}">
-</div>
-<div class="fn__flex-1" style="overflow: auto">
-    ${html}
-</div>
 </div>`;
 };
 
@@ -324,6 +475,11 @@ export const addView = (protyle: IProtyle, blockElement: Element) => {
     const id = Lute.NewNodeID();
     const avID = blockElement.getAttribute("data-av-id");
     const viewElement = blockElement.querySelector(".av__views");
+    const addVisibleView = () => {
+        const allViewIDs = (blockElement.querySelector(".av__header")?.getAttribute("data-view-ids") || "")
+            .split(",").filter(Boolean);
+        setAVVisibleViewIDs(blockElement, getAVVisibleViewIDs(blockElement, allViewIDs).concat(id));
+    };
     const addMenu = new Menu(undefined, () => {
         viewElement.classList.remove("av__views--show");
     });
@@ -331,6 +487,7 @@ export const addView = (protyle: IProtyle, blockElement: Element) => {
         icon: "iconTable",
         label: window.siyuan.languages.table,
         click() {
+            addVisibleView();
             transaction(protyle, [{
                 action: "addAttrViewView",
                 avID,
@@ -345,18 +502,19 @@ export const addView = (protyle: IProtyle, blockElement: Element) => {
         }
     });
     addMenu.addItem({
-        icon: "iconBoard",
-        label: window.siyuan.languages.kanban,
+        icon: "iconList",
+        label: window.siyuan.languages.listView,
         click() {
+            addVisibleView();
             transaction(protyle, [{
                 action: "addAttrViewView",
                 avID,
-                layout: "kanban",
+                layout: "list",
                 id,
                 blockID: blockElement.getAttribute("data-node-id")
             }], [{
                 action: "removeAttrViewView",
-                layout: "kanban",
+                layout: "list",
                 avID,
                 id,
                 blockID: blockElement.getAttribute("data-node-id")
@@ -367,6 +525,7 @@ export const addView = (protyle: IProtyle, blockElement: Element) => {
         icon: "iconGallery",
         label: window.siyuan.languages.gallery,
         click() {
+            addVisibleView();
             transaction(protyle, [{
                 action: "addAttrViewView",
                 avID,
@@ -382,18 +541,52 @@ export const addView = (protyle: IProtyle, blockElement: Element) => {
             }]);
         }
     });
+    addMenu.addItem({
+        icon: "iconBoard",
+        label: window.siyuan.languages.kanban,
+        click() {
+            addVisibleView();
+            transaction(protyle, [{
+                action: "addAttrViewView",
+                avID,
+                layout: "kanban",
+                id,
+                blockID: blockElement.getAttribute("data-node-id")
+            }], [{
+                action: "removeAttrViewView",
+                layout: "kanban",
+                avID,
+                id,
+                blockID: blockElement.getAttribute("data-node-id")
+            }]);
+        }
+    });
+    addMenu.addItem({
+        icon: "iconCalendar",
+        label: window.siyuan.languages.calendarView,
+        click() {
+            addVisibleView();
+            const context = {avID, id, blockID: blockElement.getAttribute("data-node-id"), layout: "calendar"};
+            transaction(protyle, [{...context, action: "addAttrViewView"}], [{...context, action: "removeAttrViewView"}]);
+        }
+    });
     viewElement.classList.add("av__views--show");
     const addRect = viewElement.querySelector('.block__icon[data-type="av-add"]')?.getBoundingClientRect();
     addMenu.open({
         x: addRect.left,
-        y: addRect.bottom + 8
+        y: addRect.bottom + 8,
+        h: addRect.height + 8
     });
 };
 
 export const getViewIcon = (type: string) => {
     switch (type) {
+        case "calendar":
+            return "iconCalendar";
         case "table":
             return "iconTable";
+        case "list":
+            return "iconList";
         case "gallery":
             return "iconGallery";
         case "kanban":
@@ -403,8 +596,12 @@ export const getViewIcon = (type: string) => {
 
 export const getViewName = (type: string) => {
     switch (type) {
+        case "calendar":
+            return window.siyuan.languages.calendarView;
         case "table":
             return window.siyuan.languages.table;
+        case "list":
+            return window.siyuan.languages.listView;
         case "gallery":
             return window.siyuan.languages.gallery;
         case "kanban":
@@ -413,7 +610,7 @@ export const getViewName = (type: string) => {
 };
 
 export const getFieldsByData = (data: IAV) => {
-    return data.viewType === "table" ? (data.view as IAVTable).columns : (data.view as IAVGallery).fields;
+    return isTableLikeView(data.viewType) || data.viewType === "calendar" ? (data.view as IAVTable).columns : (data.view as IAVGallery).fields;
 };
 
 export const dragoverTab = (event: DragEvent) => {

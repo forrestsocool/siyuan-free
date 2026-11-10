@@ -1,30 +1,40 @@
+import {fileConfigApi} from "../config/tabs/fileRuntime";
 import {fetchPost, fetchSyncPost} from "../util/fetch";
-import {unicode2Emoji} from "../emoji";
+import {getFileTreeIconHTML} from "../emoji/fileTreeIcon";
 import {Constants} from "../constants";
 import {escapeHtml} from "../util/escape";
 import {isWindow} from "../util/functions";
-import {setStorageVal, updateHotkeyTip} from "../protyle/util/compatibility";
+import {updateHotkeyTip} from "../protyle/util/compatibility";
 import {getAllDocks} from "../layout/getAll";
+import {getDockHotkey} from "../layout/dock/hotkey";
 import {Dialog} from "../dialog";
-import {focusByRange} from "../protyle/util/selection";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
 import {hideElements} from "../protyle/ui/hideElements";
+import {destroyDialogBlockPanels} from "../block/panelOwnership";
+import {bindClearRecentDocs, clearRecentDocsTextButtonHTML} from "./clearRecentDocs";
+
+const recentDocsRenderVersions = new WeakMap<Element, number>();
+const RECENT_DOCS_LIST = "recentDocsList";
 
 const renderRecentDocsContent = async (data: {
     rootID: string,
-    icon: string,
-    title: string,
+    icon?: string,
+    title?: string,
     viewedAt?: number,
     closedAt?: number,
     openAt?: number,
 }[], element: Element, key?: string) => {
+    const version = (recentDocsRenderVersions.get(element) || 0) + 1;
+    recentDocsRenderVersions.set(element, version);
     let tabHtml = "";
     let index = 0;
+    let firstRootID: string;
     data.forEach((item) => {
-        if (!key || item.title.toLowerCase().includes(key.toLowerCase())) {
+        if (!key || (item.title || "").toLowerCase().includes(key.toLowerCase())) {
+            firstRootID = firstRootID || item.rootID;
             tabHtml += `<li data-index="${index}" data-node-id="${item.rootID}" class="b3-list-item${index === 0 ? " b3-list-item--focus" : ""}">
-    ${unicode2Emoji(item.icon || window.siyuan.storage[Constants.LOCAL_IMAGES].file, "b3-list-item__graphic", true)}
-    <span class="b3-list-item__text">${escapeHtml(item.title)}</span>
+    ${getFileTreeIconHTML(item.icon, "file", "b3-list-item__graphic", true)}
+    <span class="b3-list-item__text">${escapeHtml(item.title || "")}</span>
 </li>`;
             index++;
         }
@@ -32,9 +42,11 @@ const renderRecentDocsContent = async (data: {
     let switchPath = "";
     if (tabHtml) {
         const pathResponse = await fetchSyncPost("/api/filetree/getFullHPathByID", {
-            id: data[0].rootID // 过滤后的第一个文档 ID
+            id: firstRootID
         });
-        switchPath = escapeHtml(pathResponse.data);
+        if (pathResponse.code === 0 && typeof pathResponse.data === "string") {
+            switchPath = escapeHtml(pathResponse.data);
+        }
     }
     let dockHtml = "";
     if (!isWindow()) {
@@ -55,7 +67,7 @@ const renderRecentDocsContent = async (data: {
                 dockHtml += `<li data-type="${item.type}" data-index="${docIndex}" class="b3-list-item${!switchPath ? " b3-list-item--focus" : ""}">
     <svg class="b3-list-item__graphic"><use xlink:href="#${item.icon}"></use></svg>
     <span class="b3-list-item__text">${item.title}</span>
-    <span class="b3-list-item__meta">${updateHotkeyTip(item.hotkey)}</span>
+    <span class="b3-list-item__meta">${updateHotkeyTip(getDockHotkey(item))}</span>
 </li>`;
                 if (!switchPath) {
                     switchPath = item.title;
@@ -66,43 +78,45 @@ const renderRecentDocsContent = async (data: {
         dockHtml = '<ul class="b3-list b3-list--background" style="overflow: auto;width: 200px;">' + dockHtml + "</ul>";
     }
 
-    const pathElement = element.querySelector(".switch-doc__path");
-    pathElement.innerHTML = switchPath;
-    pathElement.previousElementSibling.innerHTML = `<div class="fn__flex fn__flex-1" style="overflow: auto;">
+    if (!element.isConnected || element.hasAttribute("data-dialog-closing") ||
+        recentDocsRenderVersions.get(element) !== version) {
+        return;
+    }
+    destroyDialogBlockPanels(element as HTMLElement);
+    element.querySelector(".switch-doc__path").innerHTML = switchPath;
+    element.querySelector(`[data-type="${RECENT_DOCS_LIST}"]`).innerHTML = `<div class="fn__flex fn__flex-1" style="overflow: auto;">
     ${dockHtml}
     <ul style="${isWindow() ? "border-left: 0;" : ""}min-width: 360px;" class="b3-list b3-list--background fn__flex-1">${tabHtml}</ul>
 </div>`;
+    element.querySelectorAll<HTMLElement>("li[data-node-id] > .b3-list-item__graphic").forEach(icon => {
+        icon.classList.add("popover__block");
+        icon.dataset.id = icon.parentElement.dataset.nodeId;
+    });
 };
 
-export const openRecentDocs = () => {
+export const openRecentDocs = (openOnly = false) => {
     const openRecentDocsDialog = window.siyuan.dialogs.find(item => {
         if (item.element.getAttribute("data-key") === Constants.DIALOG_RECENTDOCS) {
             return true;
         }
     });
     if (openRecentDocsDialog) {
-        hideElements(["dialog"]);
+        if (!openOnly) {
+            hideElements(["dialog"]);
+        }
         return;
     }
-    const sortBy = window.siyuan.storage[Constants.LOCAL_RECENT_DOCS].type as TRecentDocsSort;
+    const sortBy = window.siyuan.config.fileTree.recentDocsSort as TRecentDocsSort;
     fetchPost("/api/storage/getRecentDocs", {sortBy}, (response) => {
-        let range: Range;
-        if (getSelection().rangeCount > 0) {
-            range = getSelection().getRangeAt(0);
-        }
         const dialog = new Dialog({
             positionId: Constants.DIALOG_RECENTDOCS,
-            title: `<div class="fn__flex">
-<div class="fn__flex-center">${window.siyuan.languages.recentDocs}</div>
-<div class="fn__flex-1"></div>
-<div class="b3-form__icon fn__size200">
-    <svg class="b3-form__icon-icon"><use xlink:href="#iconSearch"></use></svg>
-    <input placeholder="${window.siyuan.languages.search}" class="b3-text-field fn__block b3-form__icon-input">
-</div>
-<span class="fn__space"></span>
-<div class="fn__flex-center">
+            title: `<div class="switch-doc__header">
+<div class="switch-doc__title">${window.siyuan.languages.recentDocs}</div>
+<input spellcheck="false" placeholder="${window.siyuan.languages.searchPlaceholder}" class="b3-text-field switch-doc__search">
+<div class="switch-doc__actions">
     <select class="b3-select" id="recentDocsSort">
         <option value="viewedAt">${window.siyuan.languages.recentViewed}</option>
+        <option value="created">${window.siyuan.languages.recentCreated}</option>
         <option value="updated">${window.siyuan.languages.recentModified}</option>
         <option value="openAt">${window.siyuan.languages.recentOpened}</option>
         <option value="closedAt">${window.siyuan.languages.recentClosed}</option>
@@ -110,15 +124,13 @@ export const openRecentDocs = () => {
 </div>
 </div>`,
             content: `<div class="fn__flex-column switch-doc">
-    <div class="fn__flex fn__flex-1" style="overflow: auto;"></div>
-    <div class="switch-doc__path"></div>
+    <div class="fn__flex fn__flex-1" data-type="${RECENT_DOCS_LIST}" style="overflow: auto;"></div>
+    <div class="switch-doc__footer">
+        <div class="switch-doc__path"></div>
+        ${clearRecentDocsTextButtonHTML()}
+    </div>
 </div>`,
             height: "80vh",
-            destroyCallback: () => {
-                if (range && range.getBoundingClientRect().height !== 0) {
-                    focusByRange(range);
-                }
-            }
         });
         const sortSelect = dialog.element.querySelector("#recentDocsSort") as HTMLSelectElement;
         sortSelect.value = sortBy;
@@ -139,21 +151,39 @@ export const openRecentDocs = () => {
             if (liElement) {
                 dialog.element.querySelector(".b3-list-item--focus").classList.remove("b3-list-item--focus");
                 liElement.classList.add("b3-list-item--focus");
-                window.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter"}));
+                liElement.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
                 event.stopPropagation();
                 event.preventDefault();
             }
         });
 
-        // 添加排序下拉框事件监听
-        sortSelect.addEventListener("change", () => {
-            // 重新调用 API 获取排序后的数据
+        const isActive = () => dialog.element.isConnected && !dialog.element.hasAttribute("data-dialog-closing");
+        let sortRequestId = 0;
+        const loadRecentDocs = () => {
+            const requestId = ++sortRequestId;
             fetchPost("/api/storage/getRecentDocs", {sortBy: sortSelect.value}, (newResponse) => {
+                if (requestId !== sortRequestId || !isActive()) {
+                    return;
+                }
                 response = newResponse;
                 renderRecentDocsContent(newResponse.data, dialog.element, searchElement.value);
             });
-            window.siyuan.storage[Constants.LOCAL_RECENT_DOCS].type = sortSelect.value;
-            setStorageVal(Constants.LOCAL_RECENT_DOCS, window.siyuan.storage[Constants.LOCAL_RECENT_DOCS]);
+        };
+        const updateClearButton = bindClearRecentDocs(dialog.element.querySelector('[data-action="clear-recent-docs"]'),
+            () => sortSelect.value, isActive, () => {
+                recentDocsRenderVersions.set(dialog.element, (recentDocsRenderVersions.get(dialog.element) || 0) + 1);
+                if (!["created", "updated"].includes(sortSelect.value)) {
+                    response.data = [];
+                    void renderRecentDocsContent([], dialog.element, searchElement.value);
+                }
+                loadRecentDocs();
+            });
+        sortSelect.addEventListener("change", () => {
+            updateClearButton();
+            loadRecentDocs();
+            if (!window.siyuan.config.readonly && !window.siyuan.isPublish) {
+                void fileConfigApi.patch("recentDocsSort", sortSelect.value);
+            }
         });
 
         renderRecentDocsContent(response.data, dialog.element);

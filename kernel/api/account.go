@@ -1,103 +1,38 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package api
 
 import (
-	"net/http"
-
-	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
+	"github.com/siyuan-note/siyuan/kernel/apicontract"
 	"github.com/siyuan-note/siyuan/kernel/model"
-	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func startFreeTrial(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	err := model.StartFreeTrial()
-	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
+var startFreeTrial = contractHandler(apicontract.StartFreeTrial, func(c *gin.Context, request apicontract.EmptyRequest) apicontract.Response[apicontract.Null] {
+	if err := model.StartFreeTrial(); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
 	}
-}
-
-func useActivationcode(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
+	return apicontract.Success(apicontract.Null{})
+})
+var useActivationcode = contractHandler(apicontract.UseActivationCode, func(c *gin.Context, request apicontract.ActivationCodeRequest) apicontract.Response[apicontract.Null] {
+	if err := model.UseActivationcode(request.Data); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
 	}
-
-	var code string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("data", &code, true, true)) {
-		return
+	return apicontract.Success(apicontract.Null{})
+})
+var checkActivationcode = contractHandler(apicontract.CheckActivationCode, func(c *gin.Context, request apicontract.CheckActivationCodeRequest) apicontract.Response[apicontract.Null] {
+	code, msg := model.CheckActivationcode(request.Data)
+	return apicontract.CheckActivationCode.FailureWithData(code, msg, apicontract.Null{})
+})
+var deactivateUser = contractHandler(apicontract.DeactivateUser, func(c *gin.Context, request apicontract.EmptyRequest) apicontract.Response[apicontract.Null] {
+	if err := model.DeactivateUser(); err != nil {
+		return apicontract.Failure[apicontract.Null](-1, err.Error())
 	}
-	err := model.UseActivationcode(code)
-	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-}
-
-func checkActivationcode(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
-	}
-
-	var code string
-	if !util.ParseJsonArgs(arg, ret, util.BindJsonArg("data", &code, true, true)) {
-		return
-	}
-	ret.Code, ret.Msg = model.CheckActivationcode(code)
-}
-
-func deactivateUser(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
-
-	err := model.DeactivateUser()
-	if err != nil {
-		ret.Code = -1
-		ret.Msg = err.Error()
-		return
-	}
-}
-
-func login(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		c.JSON(http.StatusOK, ret)
-		return
-	}
-
-	name := arg["userName"].(string)
-	password := arg["userPassword"].(string)
-	captcha := arg["captcha"].(string)
-	cloudRegion := int(arg["cloudRegion"].(float64))
-	ret = model.Login(name, password, captcha, cloudRegion)
-	c.JSON(http.StatusOK, ret)
-}
+	return apicontract.Success(apicontract.Null{})
+})
+var login = contractHandler(apicontract.AccountLogin, func(c *gin.Context, request apicontract.AccountLoginRequest) apicontract.Response[*apicontract.AccountLoginData] {
+	data, code, msg := model.Login(request.UserName, request.UserPassword, request.Captcha, int(request.CloudRegion))
+	return apicontract.AccountLogin.FailureWithData(code, msg, data)
+})

@@ -213,18 +213,31 @@ class CaretBrowsingMode {
       );
       return;
     }
-    this.#mainContainer.addEventListener(
-      "scrollend",
-      this.#setCaretPositionHelper.bind(
+    const positionCaret = this.#setCaretPositionHelper.bind(
         this,
         selection,
         caretX,
         select,
         newLineElement,
         null
-      ),
-      { once: true }
     );
+    if ("onscrollend" in this.#mainContainer) {
+      this.#mainContainer.addEventListener("scrollend", positionCaret, { once: true });
+    } else {
+      // Older WebViews still finish smooth scrolling; update after it becomes idle.
+      let timer;
+      const finish = () => {
+        clearTimeout(timer);
+        this.#mainContainer.removeEventListener("scroll", onScroll);
+        positionCaret();
+      };
+      const onScroll = () => {
+        clearTimeout(timer);
+        timer = setTimeout(finish, 100);
+      };
+      this.#mainContainer.addEventListener("scroll", onScroll);
+      onScroll();
+    }
     newLineElement.scrollIntoView();
   }
 
@@ -237,7 +250,7 @@ class CaretBrowsingMode {
   #getNodeOnNextPage(textLayer, isUp) {
     while (true) {
       const page = textLayer.closest(".page");
-      const pageNumber = parseInt(page.getAttribute("data-page-number"));
+      const pageNumber = parseInt(page.getAttribute("data-page-number"), 10);
       const nextPage = isUp ? pageNumber - 1 : pageNumber + 1;
       textLayer = this.#viewerContainer.querySelector(
         `.page[data-page-number="${nextPage}"] .textLayer`

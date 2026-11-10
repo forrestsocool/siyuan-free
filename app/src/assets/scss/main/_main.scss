@@ -1,3 +1,5 @@
+@use "../component/counter";
+
 /*
 .status: 2
 
@@ -18,11 +20,24 @@ window.siyuan.zIndex: 10
 .b3-tooltips: 1000000
 */
 
+.app-loading {
+  z-index: 10;
+}
+
 html {
   position: fixed;
   top: 0;
   right: 0;
   left: 0;
+}
+
+body {
+  --b3-window-background-image: var(--b3-body-background-gradient, radial-gradient(
+                  ellipse 45% 20% at 0% 0%,
+                  hsla(var(--b3-body-background-hl), calc(var(--b3-body-background-hl-opacity) * 0.5)) 0%,
+                  transparent 100%
+  ));
+  background-image: var(--b3-window-background-image);
 }
 
 .fullscreen {
@@ -34,11 +49,15 @@ html {
   z-index: 8;
   border-radius: 0;
 
+  &.sy__graph,
+  &.sy__agentChat,
+  &.sy__globalGraph {
+    background-color: var(--b3-theme-background);
+  }
+
   & > .protyle-breadcrumb,
   & > .block__icons { // 关系图、card
     padding-left: var(--b3-toolbar-left-mac);
-    height: 32px;
-    min-height: 32px;
   }
 
   .protyle-breadcrumb > .protyle-breadcrumb__space,
@@ -51,27 +70,65 @@ html {
 }
 
 html[data-frontend="browser-desktop"] {
-  .fullscreen > .protyle-breadcrumb,
-  .fullscreen > .block__icons {
-    padding-left: calc(env(titlebar-area-x, 0px) + 8px);
-    padding-right: calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px) + 8px);
-    height: calc(env(titlebar-area-height, 31px) + 1px);
+  .fullscreen {
+    > .protyle-breadcrumb,
+    > .block__icons {
+      padding-left: calc(env(titlebar-area-x, 0px) + 8px);
+      padding-right: calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px) + 8px);
+      height: calc(env(titlebar-area-height, var(--b3-ui-browser-titlebar-height, 31px)) + 1px);
+    }
   }
 }
 
+// 移动设备的桌面布局不预留 macOS 窗口按钮空间，iPad 窗口控件按原生上报的宽度避让。
+body.body--android,
+body.body--ios,
+body.body--harmony {
+  .fullscreen {
+    --b3-toolbar-left-mac: calc(var(--ios-window-controls-left, 0px) + 8px);
+  }
+}
+
+// 仅顶部工具栏避让原生窗口控件，正文与侧栏不增加横向留白。
+:root[data-ios-window-controls] #toolbar {
+  padding-left: calc(var(--ios-window-controls-left, 0px) + 5px);
+  padding-right: calc(var(--ios-window-controls-right, 0px) + 5px);
+  padding-top: var(--ios-window-safe-top, 0px);
+  height: max(calc(32px + var(--ios-window-safe-top, 0px)), var(--ios-window-controls-height, 0px));
+  align-items: flex-start;
+
+  #toolbarVIP {
+    align-self: center;
+  }
+}
+
+:root[data-ios-window-controls] #status {
+  height: calc(var(--b3-ui-status-height, 32px) + var(--ios-window-safe-bottom, 0px));
+  padding-bottom: var(--ios-window-safe-bottom, 0px);
+}
+
+// 融合页签与当前界面密度使用相同高度，仅增加横向占位，避免按钮与页签使用不同的纵向基准。
+:root[data-ios-window-controls] .body--toolbar-hide #toolbar {
+  height: var(--b3-ui-panel-height, 42px);
+  padding-top: 0;
+}
+
 .toolbar {
-  background-color: var(--b3-toolbar-background);
   box-sizing: border-box;
-  height: 32px;
-  line-height: 32px;
+  height: var(--b3-ui-toolbar-height, 32px);
+  line-height: var(--b3-ui-toolbar-height, 32px);
   padding: 0 5px 0 var(--b3-toolbar-left-mac);
   overflow: hidden; // 最小化后右上角显示不全
-  border-bottom: .5px solid var(--b3-border-color);
+
+  & > [data-entry-hidden="true"],
+  & > [data-topbar-empty="true"] {
+    display: none !important;
+  }
 
   &--browser {
     padding-left: calc(env(titlebar-area-x, 0px) + 5px);
     padding-right: calc(100% - env(titlebar-area-width, 100%) - env(titlebar-area-x, 0px) + 5px);
-    height: calc(env(titlebar-area-height, 31px) + 1px);
+    height: calc(env(titlebar-area-height, var(--b3-ui-browser-titlebar-height, 31px)) + 1px);
   }
 
   #windowControls {
@@ -93,14 +150,43 @@ html[data-frontend="browser-desktop"] {
     font-size: 12px;
     min-width: 148px;
     box-sizing: border-box;
+
+    &[data-topbar-reordering="true"] {
+      -webkit-app-region: no-drag;
+    }
+  }
+
+  &__title-content {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    gap: 4px;
+    vertical-align: top;
+    pointer-events: none;
+  }
+
+  &__title-icon {
+    display: flex;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+
+    img, svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
   }
 
   &__item {
     flex-shrink: 0;
     cursor: pointer;
     color: var(--b3-toolbar-color);
-    padding: 5px;
-    margin: 2px;
+    padding: 4px;
+    margin: var(--b3-ui-toolbar-item-margin, 2px);
     border-radius: var(--b3-border-radius);
     box-sizing: border-box;
     transition: var(--b3-transition);
@@ -108,24 +194,23 @@ html[data-frontend="browser-desktop"] {
     align-self: center;
     background-color: transparent;
     border: 0;
-    line-height: 13.5px;
+    line-height: 16px;
     height: 23.5px;
 
     &:not(.toolbar__item--disabled):not(.toolbar__item--close):hover,
     &--active {
       background-color: var(--b3-toolbar-hover);
-      color: var(--b3-theme-on-background);
     }
 
     svg {
-      height: 13.5px;
-      width: 13.5px;
+      height: 15.5px;
+      width: 15.5px;
     }
 
     svg.toolbar__svg {
-      width: 8px;
-      height: 13.5px;
-      margin-left: 4px;
+      width: 12px;
+      height: 15.5px;
+      margin: 0 -3px 0 2px;
       opacity: .54;
     }
 
@@ -134,22 +219,23 @@ html[data-frontend="browser-desktop"] {
       cursor: not-allowed;
     }
 
+    &--win,
+    &--close {
+      align-items: center;
+    }
+
     &--win {
-      padding: 9px;
+      padding: var(--b3-ui-toolbar-control-padding, 9px) 13px;
       margin: 0;
-      height: 31.5px;
+      height: var(--b3-ui-toolbar-control-height, 31.5px);
       border-radius: 0;
     }
 
     &--close {
-      padding: 9px 16px;
+      padding: var(--b3-ui-toolbar-control-padding, 9px) 15px;
       margin: 0;
-      height: 31.5px;
+      height: var(--b3-ui-toolbar-control-height, 31.5px);
       border-radius: 0;
-
-      svg {
-        width: 10px !important;
-      }
 
       &:hover {
         color: var(--b3-theme-on-error);
@@ -165,9 +251,15 @@ html[data-frontend="browser-desktop"] {
     display: flex;
     z-index: 502;
 
+    &-drag {
+      width: 26px;
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+
     .toolbar__item {
-      padding: 14.25px;
-      height: auto;
+      padding: var(--b3-ui-window-control-padding, 13.25px);
+      height: var(--b3-ui-panel-height, 42px);
       margin: 0;
       border-radius: 0;
 
@@ -188,23 +280,75 @@ html[data-frontend="browser-desktop"] {
   }
 }
 
-.status {
-  background-color: var(--b3-theme-surface);
-  box-sizing: border-box;
-  z-index: 2;
-  height: 32px;
-  line-height: 32px;
-  border-top: .5px solid var(--b3-border-color);
-  padding: 0 5px;
+// 原生按钮的实际尺寸由 Electron 上报，页面仅为同一块区域预留空间。
+html.window-controls-overlay {
+  --b3-window-controls-width: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px));
+  --b3-window-controls-height: env(titlebar-area-height, 0px);
+  --b3-window-controls-top-height: max(var(--b3-ui-panel-height, 42px), var(--b3-window-controls-height));
 
-  .toolbar__item {
-    color: var(--b3-theme-on-surface);
+  &.window-controls-overlay--hidden {
+    --b3-window-controls-width: 0px;
+    --b3-window-controls-height: 0px;
+  }
 
-    &:hover {
-      color: var(--b3-theme-on-background);
-      background-color: var(--b3-theme-background-light) !important;
+  .body--windows {
+    #toolbar,
+    .toolbar--settings {
+      height: max(var(--b3-ui-toolbar-height, 32px), var(--b3-window-controls-height));
+    }
+
+    .window-controls-overlay__placeholder {
+      width: var(--b3-window-controls-width);
+      height: var(--b3-window-controls-height);
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+
+    .toolbar__window,
+    .toolbar__window .toolbar__item,
+    .window-controls-overlay__top-row {
+      min-height: var(--b3-window-controls-top-height);
+    }
+
+    .fullscreen > .protyle-breadcrumb,
+    .fullscreen > .block__icons {
+      padding-right: calc(var(--b3-window-controls-width) + 8px);
+      min-height: var(--b3-window-controls-height);
+    }
+
+    &.body--toolbar-hide {
+      #toolbar,
+      #toolbar #drag,
+      #toolbar #drag::before,
+      #toolbar #drag::after {
+        height: var(--b3-window-controls-top-height);
+      }
+
+      #dockLeft,
+      #dockRight,
+      .layout__dockl:not(.layout--float),
+      .layout__dockr:not(.layout--float) {
+        margin-top: var(--b3-window-controls-top-height);
+      }
+
+      #dockLeft:not(.dock--float),
+      #dockRight:not(.dock--float) {
+        height: calc(100% - var(--b3-window-controls-top-height));
+      }
     }
   }
+}
+
+.status {
+  & > [data-entry-hidden="true"] {
+    display: none !important;
+  }
+
+  box-sizing: border-box;
+  z-index: 2;
+  height: var(--b3-ui-status-height, 32px);
+  line-height: var(--b3-ui-status-height, 32px);
+  padding: 0 7px;
 
   &__msg {
     color: var(--b3-theme-on-surface);
@@ -225,6 +369,10 @@ html[data-frontend="browser-desktop"] {
     display: flex;
     color: var(--b3-theme-on-surface);
     font-size: 12px;
+  }
+
+  &__format-painter {
+    color: var(--b3-theme-primary);
   }
 
   .fn__space:last-child {
@@ -248,8 +396,8 @@ html[data-frontend="browser-desktop"] {
 }
 
 .file-tree {
-  .block__icons .block__icon,
-  &:not(.fullscreen) .block__icons .fn__space {
+  .block__icons:not(.protyle-wysiwyg *) .block__icon:not(.backlinkList__toggle),
+  &:not(.fullscreen) .block__icons:not(.protyle-wysiwyg *) .fn__space {
     display: none;
     transition: opacity .3s cubic-bezier(0, 0, .2, 1) 0ms, display .3s cubic-bezier(0, 0, .2, 1) 0ms allow-discrete;
   }
@@ -258,21 +406,21 @@ html[data-frontend="browser-desktop"] {
     display: none;
   }
 
-  &:hover .block__icons .fn__space {
+  &:hover .block__icons:not(.protyle-wysiwyg *) .fn__space {
     display: block;
   }
 
-  &:hover .block__icons .block__icon:not([disabled]),
-  &:not(.fullscreen):hover .block__icons .fn__space,
-  &.fullscreen .block__icons .block__icon:not([disabled]) {
+  &:hover .block__icons:not(.protyle-wysiwyg *) .block__icon:not([disabled], .backlinkList__toggle),
+  &:not(.fullscreen):hover .block__icons:not(.protyle-wysiwyg *) .fn__space,
+  &.fullscreen .block__icons:not(.protyle-wysiwyg *) .block__icon:not([disabled], .backlinkList__toggle) {
     opacity: 1;
-    display: block;
+    display: flex;
     @starting-style {
       opacity: 0;
     }
   }
 
-  &:hover .block__icons .block__icon[disabled] {
+  &:hover .block__icons:not(.protyle-wysiwyg *) .block__icon[disabled]:not(.backlinkList__toggle) {
     opacity: .38;
     display: block;
     cursor: not-allowed;
@@ -283,10 +431,51 @@ html[data-frontend="browser-desktop"] {
     transition: var(--b3-transition);
   }
 
-  &__sliderDown {
-    height: 0;
-    overflow: hidden;
-    transition: var(--b3-transition);
+  &__item--icon-expand {
+    > .b3-list-item__toggle {
+      position: relative;
+      z-index: 1;
+    }
+
+    > .b3-list-item__icon {
+      position: relative;
+      z-index: 0;
+
+      &::before {
+        content: "";
+        position: absolute;
+        inset: -3px 0;
+        left: calc(-1 * var(--file-action-offset));
+        border-radius: var(--b3-border-radius);
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset: -3px 0;
+      }
+    }
+
+    > .b3-list-item__toggle:hover,
+    > .b3-list-item__icon:hover {
+      background-color: transparent;
+    }
+
+    > .b3-list-item__toggle:hover ~ .b3-list-item__icon::before,
+    > .b3-list-item__icon:hover::before {
+      background-color: var(--b3-list-icon-hover);
+    }
+  }
+
+  &__item--title-expand > .b3-list-item__text {
+    margin-left: -4px;
+    padding-left: 4px;
+  }
+
+  &__item--icon-open > .b3-list-item__icon:hover {
+    background-color: transparent;
   }
 
   &.sy__file--disablehover {
@@ -306,24 +495,26 @@ html[data-frontend="browser-desktop"] {
   }
 }
 
-.counter {
-  margin-left: 4px;
-  line-height: 22px;
-  padding: 0 8px;
-  color: var(--b3-theme-on-surface-light);
-  border-radius: var(--b3-border-radius);
-  font-size: 12px;
-  user-select: none;
-  height: 22px;
-
-  &--right {
-    width: 32px;
-    text-align: right;
+// 触摸操作直接显示文档面板按钮，避免悬停显现动画延迟点击。
+.body--touch-input .sy__file {
+  .block__icons:not(.protyle-wysiwyg *) .block__icon:not(.backlinkList__toggle) {
+    display: flex;
+    opacity: 1;
+    transition: none;
   }
 
-  &--bg {
-    background-color: var(--b3-theme-surface);
+  .block__icons:not(.protyle-wysiwyg *) .block__icon[disabled]:not(.backlinkList__toggle) {
+    opacity: .38;
   }
+
+  .block__icons:not(.protyle-wysiwyg *) .fn__space {
+    display: block;
+    transition: none;
+  }
+}
+
+.body--windows .sy__file .b3-list-item__icon {
+  font-size: 16px;
 }
 
 .reveal {
@@ -344,7 +535,37 @@ html[data-frontend="browser-desktop"] {
 .switch-doc {
   max-height: 70vh;
   max-width: 100%;
-  min-width: 426px;
+  min-width: 0;
+
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  &__search {
+    flex: 0 1 200px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    max-width: 100%;
+
+    .b3-select {
+      flex: 1;
+      min-width: 0;
+    }
+  }
 
   .b3-list {
     padding: 8px 0;
@@ -354,9 +575,27 @@ html[data-frontend="browser-desktop"] {
     border-left: 1px solid var(--b3-theme-surface-lighter);
   }
 
-  &__path {
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 4px 8px;
     border-top: 1px solid var(--b3-theme-surface-lighter);
+    min-height: 36px;
+    box-sizing: border-box;
+  }
+
+  &__footer > &__path {
+    flex: 1;
+    min-width: 0;
+  }
+
+  & > &__path {
+    padding: 4px 8px;
+    border-top: 1px solid var(--b3-theme-surface-lighter);
+  }
+
+  &__path {
     color: var(--b3-theme-on-surface);
     font-size: 12px;
     white-space: nowrap;

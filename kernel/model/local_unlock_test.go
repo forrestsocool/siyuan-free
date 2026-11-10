@@ -17,6 +17,7 @@
 package model
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/siyuan-note/siyuan/kernel/conf"
@@ -89,8 +90,16 @@ func TestEnsureLocalUnlockUserKeepsExistingPaidUser(t *testing.T) {
 
 func TestRefreshUserUsesLocalUnlockUser(t *testing.T) {
 	withTestConf(t)
+	requests := 0
+	mockCloudAuthResponse(t, func(request *http.Request) (*http.Response, error) {
+		requests++
+		return cloudAuthResponse(request, http.StatusServiceUnavailable, ""), nil
+	})
 
-	RefreshUser("stale-cloud-token")
+	refreshed, err := RefreshUser("stale-cloud-token")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	user := Conf.GetUser()
 	if nil == user {
@@ -99,7 +108,28 @@ func TestRefreshUserUsesLocalUnlockUser(t *testing.T) {
 	if user.UserToken != localUnlockUserToken {
 		t.Fatalf("expected local unlock token after refresh, got %q", user.UserToken)
 	}
+	if refreshed != user {
+		t.Fatal("expected refreshed user to match the active local user")
+	}
 	if !IsSubscriber() {
 		t.Fatal("expected refreshed local unlock user to satisfy subscriber gate")
+	}
+	if _, err = RefreshUser("another-expired-token"); err != nil || requests != 0 {
+		t.Fatalf("local refresh contacted the community: requests=%d, err=%v", requests, err)
+	}
+}
+
+func TestGetCloudUserUsesLocalUnlockUser(t *testing.T) {
+	for _, cached := range []bool{false, true} {
+		t.Run(map[bool]string{false: "refresh", true: "cached"}[cached], func(t *testing.T) {
+			withTestConf(t)
+			if cached {
+				EnsureLocalUnlockUser()
+			}
+			user, err := GetCloudUser("expired-cloud-token", cached)
+			if err != nil || user == nil || user.UserToken != localUnlockUserToken {
+				t.Fatalf("expected local user without a community request, got %#v, %v", user, err)
+			}
+		})
 	}
 }

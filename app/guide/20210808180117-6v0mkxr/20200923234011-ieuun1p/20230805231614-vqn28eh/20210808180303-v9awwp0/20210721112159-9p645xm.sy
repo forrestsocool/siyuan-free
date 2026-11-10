@@ -6,7 +6,7 @@
 		"id": "20210721112159-9p645xm",
 		"title": "Storage",
 		"type": "doc",
-		"updated": "20230912091621"
+		"updated": "20261024163013"
 	},
 	"Children": [
 		{
@@ -132,7 +132,7 @@
 			"Type": "NodeParagraph",
 			"Properties": {
 				"id": "20230912091521-5avsor2",
-				"updated": "20230912091601"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
@@ -146,16 +146,16 @@
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​ - "
+					"Data": " - "
 				},
 				{
 					"Type": "NodeTextMark",
 					"TextMarkType": "kbd",
-					"TextMarkTextContent": "Cloud"
+					"TextMarkTextContent": "Account & Sync"
 				},
 				{
 					"Type": "NodeText",
-					"Data": "​."
+					"Data": "."
 				}
 			]
 		},

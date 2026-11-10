@@ -1,6 +1,6 @@
 {
 	"ID": "20240530101000-3qhz7br",
-	"Spec": "2",
+	"Spec": "5",
 	"Type": "NodeDocument",
 	"Properties": {
 		"ID": "20240530101000-rgsbrsc",
@@ -9,7 +9,7 @@
 		"title": "書式要素",
 		"title-img": "background-color:#269;background-image: linear-gradient(white 2px, transparent 2px),linear-gradient(90deg, white 2px, transparent 2px),linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;background-position:-2px -2px, -2px -2px, -1px -1px, -1px -1px;",
 		"type": "doc",
-		"updated": "20251211094239"
+		"updated": "20261028111611"
 	},
 	"Children": [
 		{
@@ -19,7 +19,7 @@
 			"Properties": {
 				"ID": "20240530101000-tfcp9du",
 				"id": "20240530101000-e1tndfu",
-				"updated": "20240530101000"
+				"updated": "20261019194453"
 			},
 			"Children": [
 				{
@@ -35,7 +35,7 @@
 			"Properties": {
 				"ID": "20240530101000-8o1a9my",
 				"id": "20240530101000-wlqefeq",
-				"updated": "20240530101000"
+				"updated": "20261019194453"
 			},
 			"Children": [
 				{
@@ -113,7 +113,7 @@
 					"Properties": {
 						"ID": "20240530101000-gjgldj9",
 						"id": "20240530101000-gm1p50s",
-						"updated": "20240530101000"
+						"updated": "20261019194453"
 					},
 					"Children": [
 						{
@@ -137,12 +137,12 @@
 							"Properties": {
 								"ID": "20240530101000-h8nud0n",
 								"id": "20240530101000-r0imp45",
-								"updated": "20240530101000"
+								"updated": "20261019194453"
 							},
 							"Children": [
 								{
 									"Type": "NodeText",
-									"Data": "コピー＆ペースト、またはドラッグ＆ドロップによるアップロードに対応しています。サイドバーをドラッグすることでサイズを調整できます。"
+									"Data": "コピー＆ペースト、またはドラッグ＆ドロップで画像をアップロードできます。画像にマウスを合わせると枠の外側に小さなハンドルが表示され、右側、下側、右下のハンドルをドラッグして縦横比を保ちながらサイズを変更できます。タッチスクリーンでは画像をタップしてハンドルを表示してから、ハンドルをドラッグします"
 								}
 							]
 						},
@@ -914,6 +914,52 @@
 			]
 		},
 		{
+			"ID": "20261015131447-v0xgm0w",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261015131447-v0xgm0w",
+				"updated": "20261016011750"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "コンテンツ"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "色を管理"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " の各ボタンから、文字色と背景色の組み合わせ、文字色、背景色の管理画面を直接開けます。"
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-riw9gde",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
@@ -1063,7 +1109,7 @@
 			"Properties": {
 				"ID": "20240530101000-9o5xpb4",
 				"id": "20240530101000-69e5xnn",
-				"updated": "20240530101000"
+				"updated": "20261024171629"
 			},
 			"Children": [
 				{
@@ -1100,18 +1146,178 @@
 			]
 		},
 		{
+			"ID": "20261024171629-7jfvtsh",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024171629-7jfvtsh",
+				"updated": "20261024171629"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "エディタ"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "埋め込みブロック"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で、埋め込みブロックのパンくずの表示と、文書より上のパスを含めるかを設定できます。上位パスを隠しても、文書名と文書内の構造は表示されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024171629-mnsfr9m",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024171629-mnsfr9m",
+				"updated": "20261024171629"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ブロックアイコンのメニューの "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "埋め込みブロック"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "埋め込みブロックのパンくずリスト"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " と "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "埋め込みブロック"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "パンくずリストに文書の上位パスを表示"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " では、有効、無効、デフォルトを選べます。デフォルトに戻すとブロックの属性が削除され、全体設定に従います。"
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-qip5gt3",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"ID": "20240530101000-ai1fgmx",
 				"id": "20240530101000-qip5gt3",
-				"updated": "20240530101000"
+				"updated": "20261024163013"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
 					"Data": "見出しブロック"
+				}
+			]
+		},
+		{
+			"ID": "20260730103436-j8s4u2a",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260730103436-j8s4u2a",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "見出し左側の三角形をクリックすると現在の見出しを折りたたみ/展開できます。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Alt"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " キー（macOS では "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌥"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " キー）を押しながら三角形をクリックすると直接の子見出しを折りたたみ/展開でき、同じキーを押しながらブロックアイコンをクリックすると同階層の見出しを折りたたみ/展開できます。ブロックアイコンメニューの「直接の子見出しを折りたたむ/展開」と「同階層の見出しを折りたたむ/展開」も使用できます。"
+				}
+			]
+		},
+		{
+			"ID": "20260730103436-k5e7x3r",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260730103436-k5e7x3r",
+				"updated": "20261024163013"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "これら 2 つの操作のショートカットはデフォルトでは未設定です。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "ショートカット"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "エディタ"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で設定できます。"
 				}
 			]
 		},
@@ -1965,6 +2171,2202 @@
 			]
 		},
 		{
+			"ID": "20240530101000-1ev7xub",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"ID": "20240530101000-ch5e4vh",
+				"id": "20240530101000-1ev7xub",
+				"updated": "20261028111611"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "マインドマップブロック"
+				}
+			]
+		},
+		{
+			"ID": "20261012014859-r3afdm4",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261012014859-r3afdm4",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "定義とリストとの変換については "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260921215916-odykie5",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "マインドマップブロック"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を参照してください。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-8fr1gcz",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-8fr1gcz",
+				"updated": "20261028111611"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "キャンバスの操作"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261018163000-bic9sbi",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261018163000-bic9sbi",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "マインドマップ上のマウスホイールと 1 本指のスワイプは、初期状態では文書をスクロールします。デスクトップではマップをクリック、タッチ画面ではマップを 1 回タップするとキャンバスを操作できます。操作中は枠が強調表示され、ホイールまたはマウスの右ボタンを押したドラッグでキャンバスを移動します。"
+				}
+			]
+		},
+		{
+			"ID": "20261028111611-70ba205",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261028111611-70ba205",
+				"updated": "20261028111611"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "モバイル版では、文書のパンくずリストにある元に戻す・やり直しボタンを使えます。キーボードを閉じた状態やマインドマップの全画面表示中も操作できます。文書全体の履歴を共有するため、マインドマップ以外の変更も対象になります。元に戻す操作とやり直す操作がどちらもない場合や、文書が読み取り専用の場合はボタンが非表示になります。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-mich9w1",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-mich9w1",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "タッチ画面では、ノード上でも空白部分でも、すばやく 1 本指でドラッグするとキャンバスが移動します。ノードを移動するには、ノードを長押しして枠の表示を確認してからドラッグします。閲覧中でもノードをダブルタップすると編集できます。2 本指での拡大・縮小と移動、複数選択、要約、関連線の操作は従来どおりです。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-katlzh6",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-katlzh6",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "通常モードで空白部分をマウスの左ボタンでドラッグすると、ノードを範囲選択できます。左ボタンでキャンバスを移動するには、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "詳細"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "手のひらツール"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を有効にします。有効な間は、ツールバーに直接解除できるボタンが表示されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-xa14szz",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-xa14szz",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "移動範囲の端でも文書はスクロールしません。マップの外をクリックする、キーボードフォーカスを外に移す、またはキャンバス上で Esc を押すと閲覧に戻ります。全画面表示ではキャンバス操作を維持し、全画面表示を終了すると閲覧に戻ります。"
+				}
+			]
+		},
+		{
+			"ID": "20261019142953-j4zhvo2",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261019142953-j4zhvo2",
+				"updated": "20261024212002"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "文書内のキャンバスをリサイズしても、中心と拡大率は維持されます。全画面表示に切り替える際も拡大率を維持し、文書内のキャンバスが全画面の表示領域より低い場合は中央に、同じ高さ以上の場合は現在見えている領域の上端に合わせます。この位置合わせはウィンドウの高さに応じて更新されます。通常、全画面表示中の移動と拡大・縮小は一時的なもので、終了すると文書内の表示範囲とスクロール位置が切り替え前に戻ります。ノードの編集内容は引き続き反映されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024194010-7e94tir",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024194010-7e94tir",
+				"updated": "20261025114801"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "全画面表示中に "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "ドキュメントのレイアウト"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " をクリックすると、レイアウトの調整を開始できます。実線の枠内には、水平方向と垂直方向の中心を示す破線と淡い点状グリッドが表示され、位置と倍率を調整する目安になります。固定枠の大きさは全画面表示に入る前の文書の表示領域と同じです。全画面の表示領域のほうが高い場合は中央に、それ以外は上端中央に揃い、ウィンドウのサイズに応じて位置が更新されます。枠を基準に導図を移動・拡大縮小し、このモードを有効にしたまま全画面表示を終了すると、枠内の表示位置と倍率が文書に適用されます。ボタンをもう一度クリックすると、未適用の表示位置の調整を取り消します。キャンバスをロックした場合も未適用の調整は取り消されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261020165811-336bt9a",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261020165811-336bt9a",
+				"updated": "20261020165811"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ツールバーの倍率表示にポインターを重ねるかタップすると、ズームパネルが開きます。スライダーで倍率を調整できます。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "リセット"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を押すと 100% に戻り、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "キャンバスに合わせる"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を押すとマップ全体が収まるように倍率を調整して中央に表示します。"
+				}
+			]
+		},
+		{
+			"ID": "20261018163000-qe8wgtd",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261018163000-qe8wgtd",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "キャンバス操作を開始しなくても、Ctrl（macOS では Command）を押しながらホイールを回すとポインターを中心に拡大・縮小でき、同じキーを押しながらマウスの右ボタンでキャンバスをドラッグすると一時的に移動できます。マウスの中央ボタンを押しながらドラッグしても一時的に移動でき、離すと終了します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-ilmxc5k",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-ilmxc5k",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "手のひらツールへの切り替えは不要です。一時的な移動ではキーボードフォーカスとノードの選択を保持します。タッチ画面では 2 本指で拡大・縮小と移動ができます。これらのジェスチャーは現在の閲覧状態またはキャンバス操作状態を保持します。保存された表示ロックは、引き続き編集、拡大・縮小、移動を無効にします。ロック解除後、必要に応じてキャンバス操作を開始してください。"
+				}
+			]
+		},
+		{
+			"ID": "20260928143000-unwwtu3",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260928143000-unwwtu3",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "マインドマップのツールバーで「表示をロック」を押すと、編集、拡大・縮小、移動が無効になります。マップ上でのスワイプやマウスホイール操作は文書をスクロールします。「表示のロックを解除」で操作を再開できます。ロック状態はブロックとともに保存されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-gv7iwvk",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-gv7iwvk",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "マインドマップブロック全体、またはそれを含む文書を直接埋め込んだ場合、ロックを解除するとノードやスタイルを編集できます。変更は元のブロックと他の埋め込み先にも反映されます。読み取り専用や履歴のプレビューでは編集できません。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-g3z3u4n",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-g3z3u4n",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ノードの編集"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261023003125-j5vqqpm",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261023003125-j5vqqpm",
+				"updated": "20261023003125"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "下部のノードメニューには削除、コピー、切り取り、貼り付けを直接表示します。貼り付けは子ノードを追加し、「その他」では同じ階層への貼り付けも選べます。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "色"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "にマウスを合わせるかタップすると、バーの上にノードのスタイルとスタイル管理のパネルが開きます。利用できない操作は無効になります。"
+				}
+			]
+		},
+		{
+			"ID": "20261022181804-s1vt5mf",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022181804-s1vt5mf",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "1 つ以上のノードを選択し、下部のノードメニューの "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "幅"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "にマウスを合わせるかタップすると、バーの上にパネルが開きます。スライダーの中央はパネルを開いたときの現在の幅です。左に動かすと狭く、右に動かすと広くなります。ドラッグ中はプレビューし、指を離すと取り消し可能な 1 回の変更として保存します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-oly8nal",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-oly8nal",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ピクセル値を直接入力することもできます。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "元の幅に戻す"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "は各ノードをパネルを開いたときの幅に戻し、自動幅も復元します。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "デフォルト"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " "
+				},
+				{
+					"Type": "NodeText",
+					"Data": "または数値欄を空にすると内容に合わせて自動調整します。幅を広げると長いインライン数式を 1 行で表示できます。幅は文書とともに保存され、取り消しとやり直しに対応します。"
+				}
+			]
+		},
+		{
+			"ID": "20261003225941-37evcb1",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261003225941-37evcb1",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Alt"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（macOS では "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "⌥"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "）を押しながらノードの折りたたみボタンをクリックすると、同じ親ノード配下の兄弟ブランチをまとめて折りたたむ、または展開できます。展開されている兄弟ブランチがあればすべて折りたたみ、すべて折りたたまれていれば展開します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-tpp974m",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-tpp974m",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "さらに深い階層の折りたたみ状態は保持されます。通常のクリックは現在のノードのみを切り替えます。展開と折りたたみでは、ノードと接続線に短いアニメーションを表示します。システムでアニメーションを抑える設定が有効な場合、アニメーションは表示しません。"
+				}
+			]
+		},
+		{
+			"ID": "20260930234403-3zow3ge",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260930234403-3zow3ge",
+				"updated": "20261017003253"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ノードの編集中に "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "/"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を入力して「画像やファイルを挿入」を選択すると、ローカル画像をアップロードできます。クリップボードの画像を貼り付けることもできます。画像は文書の添付ファイルとして保存されます。複数の最上位ノードに対して表示される仮想中心のタイトルはプレーンテキストのままです。ノード内の画像をダブルクリックすると、ノードの編集に入らずに拡大プレビューを表示できます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-fjkvky7",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-fjkvky7",
+				"updated": "20261024195223"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "外観と接続線のスタイル"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261017110432-562ro9u",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261017110432-562ro9u",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "マインドマップのツールバーで "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "詳細"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "接続線のスタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を開き、分岐曲線、直角線、扇形曲線、角丸直角線から選択できます。選択はマップ全体に適用され、文書とともに保存され、取り消しとやり直しに対応します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-neiywo1",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-neiywo1",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "親子ノード間の接続線のみを変更し、ノードの位置や関連線は変更しません。共通の幹線は個別に選択できず、パレットを有効にすると親ブランチの色に従います。横方向の分岐は個別に選択して色を変更できます。SiYuan 形式の HTML と PDF プレビューには保存したスタイルが反映されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261017113512-geqkoea",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261017113512-geqkoea",
+				"updated": "20261022102848"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "詳細"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "新規マップの既定の接続線スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で、新規マップやリスト・タブから初めて変換するマップの接続線スタイルを選択できます。この設定は現在のワークスペースのローカル設定に保存され、クラウド同期には含まれません。変更しても既存のマップには影響しません。コピー、インポート、リストやタブとの往復変換では元のスタイルが保持されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261022102848-sbqeaum",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022102848-sbqeaum",
+				"updated": "20261024195223"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "詳細"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "テーマ"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で、現在のマップに 47 種類の配色テーマを選択できます。ルートと第 1 階層のノードは色付きの背景に白い文字を使い、第 2 階層以降は透明な背景を使い、キャンバスの色に応じて黒または白の文字を自動で選びます。子孫の接続線は所属する第 1 階層の色を継承し、すべての階層で同じ太さを使います。直角と角丸の接続線では、ルートの幹線をノード順に重ねて描画し、後のブランチの色で重なる部分を上書きします。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-tbwn1pt",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-tbwn1pt",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ブランチの接続線はパレットで色分けし、幹の線を太く、深い階層の線を細くします。テーマの文字色と接続線はキャンバスの明暗に合わせて調整されます。並べ替えても割り当てた色は保持され、新しいノードも配色に従います。手動で設定した色、文字サイズ、文字の太さはテーマより優先されます。デフォルトを選ぶとパレットを解除し、手動の色と背景は保持します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-1utc3wo",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-1utc3wo",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "既存のマップは保存済みの配色を保持します。新しい階層別スタイルを適用するには、テーマを選び直してください。テーマはノードの内容、構造、折りたたみ状態を変更しません。"
+				}
+			]
+		},
+		{
+			"ID": "20261022102848-lteviyd",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022102848-lteviyd",
+				"updated": "20261022102848"
+			},
+			"Children": [
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "詳細"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "キャンバスの背景"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で単色の背景を選択できます。デフォルトではアプリのテーマに従います。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "詳細"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "手動の配色をクリア"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で、ノード、階層の接続線、関連線、要約の手動配色を解除し、パレットまたは既定の色に戻せます。背景とその他の書式は保持されます。外観は文書とともに保存され、取り消しとやり直しに対応し、SiYuan 形式の HTML と PDF プレビューにも反映されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261022102848-vdgjx9w",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022102848-vdgjx9w",
+				"updated": "20261022132341"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "複数のノードを選択すると、下部のパレットで文字色と背景色をまとめて変更できます。枝線のパレットでは、選択したノードに入る階層の接続線の色を変更できます。一括変更は一度の取り消しで元に戻せます。パレットでデフォルトを選ぶと、テーマまたは既定の色に戻ります。タッチ画面では、上部ツールバーの複数選択ボタンでノードを選択できます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-efdvd9z",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-efdvd9z",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "関係線"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261024161816-ab2skxu",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-ab2skxu",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "始点のノードを選択し、下部のノードメニューで接続ボタンを押してから、接続先を選ぶと関係線を作成できます。親子階層以外のつながりを表すときに使います。"
+				}
+			]
+		},
+		{
+			"ID": "20261001015635-vr2ykf2",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-vr2ykf2",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "関連線を選択し、下部の設定にある "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "矢印の方向"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "順方向の矢印"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（始点から終点、既定）、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "逆方向の矢印"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "（終点から始点）、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "両端に矢印"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "矢印なし"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を選択できます。方向を変更しても接続先のノード、ラベル、手動の経路は保持され、元に戻す・やり直しに対応しています。親子ノード間の線には影響しません。"
+				}
+			]
+		},
+		{
+			"ID": "20261001015635-wnnepvh",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-wnnepvh",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "関連線を選択すると、矢印の方向にかかわらず、白抜きの円は接続の始点、塗りつぶした円は終点を示します。円形のハンドルを元のノードの四辺に沿ってドラッグすると、接続位置を連続的に調整できます。接続可能な別のノードにドラッグすると、接続先が変わります。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-ub9a7bs",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-ub9a7bs",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "マウスとタッチ操作に対応し、離すと元に戻せる一回の変更として保存されます。空白、無効な対象、反対側の端点のノード、既存の同方向の接続にドロップすると変更は取り消されます。ノードや操作ボタンを避けられない位置も保存されません。接続位置は調整するまで自動で選択され、調整後はノードの文字サイズやレイアウトの変化に追従します。"
+				}
+			]
+		},
+		{
+			"ID": "20261001051950-1qxr826",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001051950-1qxr826",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "関連線の下部設定で "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "接続位置を自動に戻す"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を選ぶと、手動で調整した中間経路を保持したまま、両端の接続位置を自動に戻せます。線分のハンドルをダブルクリックすると、中間経路だけが自動に戻り、接続位置の設定は保持されます。ラベル、スタイル、矢印の方向は変わりません。"
+				}
+			]
+		},
+		{
+			"ID": "20261001051950-6lon1fd",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001051950-6lon1fd",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "レイアウトの変化で保存済みの手動経路を使えなくなった場合は、指定した接続位置を保持し、一時的に自動経路を使用します。指定した接続位置も使えない場合に限り、自動の接続位置を一時的に使用します。どの設定を使用できないかは通知で確認できます。保存済みの設定は削除されず、レイアウトが対応すれば再び使用されます。読み取り専用表示とエクスポートでも同じ描画規則を使い、調整ハンドルは表示しません。読み取り専用表示でも自動への切り替え通知を表示します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-60ooefx",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-60ooefx",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "キャンバスのサイズ"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20261001015635-ganogsj",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-ganogsj",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "外枠にマウスカーソルを合わせると、枠の外側に小さなサイズ変更ハンドルが表示されます。右側中央のハンドルで幅、下側中央のハンドルで高さ、右下の丸い角のハンドルで両方を変更できます。タッチ操作ではハンドルを直接ドラッグします。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-cp3x28o",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-cp3x28o",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "文書内のブロックのサイズが変わり、キャンバスのズーム倍率は変わりません。指を離すと元に戻せる一回の変更として保存されます。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Esc"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を押すかタッチ操作をキャンセルすると元のサイズに戻ります。ブロックメニューの幅と高さの設定も引き続き使用できます。"
+				}
+			]
+		},
+		{
+			"ID": "20261001015635-v3ggg2j",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261001015635-v3ggg2j",
+				"updated": "20261012014859"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "読み取り専用、表示ロック、全画面表示ではサイズ変更ハンドルは表示されません。スーパーブロックの直下にあるマインドマップでは下端の高さハンドルのみ表示され、幅はスーパーブロックの列の区切りで変更します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-ymjcdgg",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-ymjcdgg",
+				"updated": "20261027231810"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "要約"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20260926151827-vknoaqd",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260926151827-vknoaqd",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "1 つ以上のノードを選択してから、下部のノードメニューで "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "要約"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " をクリックすると、再選択や確認なしですぐに作成できます。ノードを選択するだけでは要約をプレビューしたり作成したりしません。デスクトップでは空白部分をドラッグするか、Ctrl/Command を押しながらノードをクリックします。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-9l5c96e",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-9l5c96e",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "タッチ画面では上部ツールバーの "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "複数選択"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を有効にしてからノードをタップします。同じ親を持つ連続した選択ノードは 1 つの要約になり、離れた範囲や異なる親の範囲は別々の要約になります。未選択のノードは含めません。親子を同時に選択した場合は最も外側のノードを優先します。各グループは 1 つのノードでも作成でき、入れ子にも対応します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-e5bci36",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-e5bci36",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "同じ要約は重複して作成せず、範囲が交差する場合はボタンを無効にして理由を示します。括弧は表示中の子ツリーと内側の要約を囲みます。全グループを一度に作成し、一度の取り消しで元に戻せます。作成後は最初の新しい要約を表示し、テキストの編集に移ります。使用できないノード操作は無効になります。キャンバス上で Esc を押すと複数選択モードを終了します。"
+				}
+			]
+		},
+		{
+			"ID": "20260926151827-l7l2w92",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260926151827-l7l2w92",
+				"updated": "20261027231810"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "要約テキストをダブルクリックすると、テキストを編集できます。Enter で保存し、Esc でキャンセルします。下部のツールバーで色の変更や削除ができ、Delete でも選択中の要約を削除できます。これらの操作は元に戻す・やり直しに対応しています。"
+				}
+			]
+		},
+		{
+			"ID": "20260926151827-fuc3d23",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260926151827-fuc3d23",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "リストに変換すると要約は非表示になりますが、データは保持され、マインドマップに戻すと再表示されます。範囲内に挿入したノードは自動的に含まれます。ノードを削除したり範囲外に移動したりすると範囲が縮まり、1 つ残っていれば要約を保持し、すべて削除すると要約も削除します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-35hmydj",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-35hmydj",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "要約テキストは注釈であり、個別に検索や参照ができる本文ブロックではありません。SiYuan 形式の HTML と PDF プレビューには要約が表示されます。内側の要約を削除してもノードと外側の要約は残ります。入れ子の設定には新しいクライアントが必要です。古いクライアントは設定を保持し、元のリストを表示します。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-mgiu6ig",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20261024161816-mgiu6ig",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "例"
+				}
+			],
+			"HeadingLevel": 3
+		},
+		{
+			"ID": "20240530101000-lrwpxpq",
+			"Type": "NodeMindmap",
+			"Properties": {
+				"ID": "20240530101000-xheni2b",
+				"id": "20240530101000-lrwpxpq",
+				"updated": "20260923221935",
+				"custom-sy-list-mindmap-data": "{\"version\":1,\"nodes\":{},\"relations\":[]}"
+			},
+			"ListData": {
+				"Typ": 0,
+				"Tight": true,
+				"BulletChar": 45,
+				"Marker": "LQ=="
+			},
+			"Children": [
+				{
+					"ID": "20260920131944-fxnbecl",
+					"Type": "NodeMindmapItem",
+					"Properties": {
+						"id": "20260920131944-fxnbecl",
+						"updated": "20260923221935"
+					},
+					"ListData": {
+						"Typ": 0,
+						"BulletChar": 45,
+						"Marker": "LQ=="
+					},
+					"Children": [
+						{
+							"ID": "20260920131944-c2x53p3",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260920131944-c2x53p3",
+								"updated": "20260921102009"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "チュートリアル"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260920131944-tivsbcd",
+					"Type": "NodeMindmapItem",
+					"Properties": {
+						"id": "20260920131944-tivsbcd",
+						"updated": "20260923221935"
+					},
+					"ListData": {
+						"Typ": 0,
+						"BulletChar": 45,
+						"Marker": "LQ=="
+					},
+					"Children": [
+						{
+							"ID": "20260920131944-2cfagn6",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260920131944-2cfagn6",
+								"updated": "20260921102009"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "構文ガイド"
+								}
+							]
+						},
+						{
+							"ID": "20260920131944-8lzxm29",
+							"Type": "NodeMindmap",
+							"Properties": {
+								"id": "20260920131944-8lzxm29",
+								"updated": "20260923221935"
+							},
+							"ListData": {
+								"Typ": 0,
+								"Tight": true,
+								"BulletChar": 45,
+								"Marker": "LQ=="
+							},
+							"Children": [
+								{
+									"ID": "20260920131944-k7z53iz",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-k7z53iz",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-u942ce7",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-u942ce7",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "通常の内容"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-24y9af6",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-24y9af6",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-7vcaxzb",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-7vcaxzb",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "ユーザーへのメンション"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-0d4drz3",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-0d4drz3",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-sb9orb2",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-sb9orb2",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "絵文字"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-xz2el6g",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-xz2el6g",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-zp3k4g1",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-zp3k4g1",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-ld40zmf",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-ld40zmf",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "絵文字の例"
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-btnkm0h",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-btnkm0h",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-372ny2n",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-372ny2n",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "見出し - 見出し 3"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-fx4s3uk",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-fx4s3uk",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-cerwn1v",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-cerwn1v",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-7f6n3gi",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-7f6n3gi",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "見出し 4"
+																}
+															]
+														},
+														{
+															"ID": "20260920131944-f1269cs",
+															"Type": "NodeMindmap",
+															"Properties": {
+																"id": "20260920131944-f1269cs",
+																"updated": "20260923221935"
+															},
+															"ListData": {
+																"Typ": 0,
+																"Tight": true,
+																"BulletChar": 45,
+																"Marker": "LQ=="
+															},
+															"Children": [
+																{
+																	"ID": "20260920131944-72s0v80",
+																	"Type": "NodeMindmapItem",
+																	"Properties": {
+																		"id": "20260920131944-72s0v80",
+																		"updated": "20260923221935"
+																	},
+																	"ListData": {
+																		"Typ": 0,
+																		"BulletChar": 45,
+																		"Marker": "LQ=="
+																	},
+																	"Children": [
+																		{
+																			"ID": "20260920131944-kg87f5c",
+																			"Type": "NodeParagraph",
+																			"Properties": {
+																				"id": "20260920131944-kg87f5c",
+																				"updated": "20260921102009"
+																			},
+																			"Children": [
+																				{
+																					"Type": "NodeText",
+																					"Data": "見出し 5"
+																				}
+																			]
+																		},
+																		{
+																			"ID": "20260920131944-92l9ke8",
+																			"Type": "NodeMindmap",
+																			"Properties": {
+																				"id": "20260920131944-92l9ke8",
+																				"updated": "20260923221935"
+																			},
+																			"ListData": {
+																				"Typ": 0,
+																				"Tight": true,
+																				"BulletChar": 45,
+																				"Marker": "LQ=="
+																			},
+																			"Children": [
+																				{
+																					"ID": "20260920131944-8x0hgje",
+																					"Type": "NodeMindmapItem",
+																					"Properties": {
+																						"id": "20260920131944-8x0hgje",
+																						"updated": "20260923221935"
+																					},
+																					"ListData": {
+																						"Typ": 0,
+																						"BulletChar": 45,
+																						"Marker": "LQ=="
+																					},
+																					"Children": [
+																						{
+																							"ID": "20260920131944-h75vath",
+																							"Type": "NodeParagraph",
+																							"Properties": {
+																								"id": "20260920131944-h75vath",
+																								"updated": "20260921102009"
+																							},
+																							"Children": [
+																								{
+																									"Type": "NodeText",
+																									"Data": "見出し 6"
+																								}
+																							]
+																						}
+																					]
+																				}
+																			]
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-zyq95qw",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-zyq95qw",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-d5ywuo5",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-d5ywuo5",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "画像"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-w2vou8e",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-w2vou8e",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-81fv6kk",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-81fv6kk",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "コードブロック"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-i0kv322",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-i0kv322",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-87428op",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-87428op",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-amp1011",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-amp1011",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "通常"
+																}
+															]
+														}
+													]
+												},
+												{
+													"ID": "20260920131944-pnwvlsz",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-pnwvlsz",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-60dw3sc",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-60dw3sc",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "構文ハイライトのサポート"
+																}
+															]
+														},
+														{
+															"ID": "20260920131944-27sp95n",
+															"Type": "NodeMindmap",
+															"Properties": {
+																"id": "20260920131944-27sp95n",
+																"updated": "20260923221935"
+															},
+															"ListData": {
+																"Typ": 0,
+																"Tight": true,
+																"BulletChar": 45,
+																"Marker": "LQ=="
+															},
+															"Children": [
+																{
+																	"ID": "20260920131944-trno8o3",
+																	"Type": "NodeMindmapItem",
+																	"Properties": {
+																		"id": "20260920131944-trno8o3",
+																		"updated": "20260923221935"
+																	},
+																	"ListData": {
+																		"Typ": 0,
+																		"BulletChar": 45,
+																		"Marker": "LQ=="
+																	},
+																	"Children": [
+																		{
+																			"ID": "20260920131944-3x3xns7",
+																			"Type": "NodeParagraph",
+																			"Properties": {
+																				"id": "20260920131944-3x3xns7",
+																				"updated": "20260921102009"
+																			},
+																			"Children": [
+																				{
+																					"Type": "NodeText",
+																					"Data": "Go コードのハイライト例"
+																				}
+																			]
+																		}
+																	]
+																},
+																{
+																	"ID": "20260920131944-gkne8ce",
+																	"Type": "NodeMindmapItem",
+																	"Properties": {
+																		"id": "20260920131944-gkne8ce",
+																		"updated": "20260923221935"
+																	},
+																	"ListData": {
+																		"Typ": 0,
+																		"BulletChar": 45,
+																		"Marker": "LQ=="
+																	},
+																	"Children": [
+																		{
+																			"ID": "20260920131944-x9j86ie",
+																			"Type": "NodeParagraph",
+																			"Properties": {
+																				"id": "20260920131944-x9j86ie",
+																				"updated": "20260921102009"
+																			},
+																			"Children": [
+																				{
+																					"Type": "NodeText",
+																					"Data": "Java コードのハイライト例"
+																				}
+																			]
+																		}
+																	]
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-qr3jo02",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-qr3jo02",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-dmlzypf",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-dmlzypf",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "番号付きリスト、箇条書きリスト、タスクリスト"
+												}
+											]
+										},
+										{
+											"ID": "20260920131944-ssi9lhg",
+											"Type": "NodeMindmap",
+											"Properties": {
+												"id": "20260920131944-ssi9lhg",
+												"updated": "20260923221935"
+											},
+											"ListData": {
+												"Typ": 0,
+												"Tight": true,
+												"BulletChar": 45,
+												"Marker": "LQ=="
+											},
+											"Children": [
+												{
+													"ID": "20260920131944-zdigrkk",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-zdigrkk",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-kpuu2cy",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-kpuu2cy",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "箇条書きリスト"
+																}
+															]
+														}
+													]
+												},
+												{
+													"ID": "20260920131944-z6trqgt",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-z6trqgt",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-kcbcjgp",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-kcbcjgp",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "番号付きリスト"
+																}
+															]
+														}
+													]
+												},
+												{
+													"ID": "20260920131944-9r2zkhb",
+													"Type": "NodeMindmapItem",
+													"Properties": {
+														"id": "20260920131944-9r2zkhb",
+														"updated": "20260923221935"
+													},
+													"ListData": {
+														"Typ": 0,
+														"BulletChar": 45,
+														"Marker": "LQ=="
+													},
+													"Children": [
+														{
+															"ID": "20260920131944-awp1igd",
+															"Type": "NodeParagraph",
+															"Properties": {
+																"id": "20260920131944-awp1igd",
+																"updated": "20260921102009"
+															},
+															"Children": [
+																{
+																	"Type": "NodeText",
+																	"Data": "タスクリスト"
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-wsm0xtj",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-wsm0xtj",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-a0y5ri0",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-a0y5ri0",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "表"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-vagbu7q",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-vagbu7q",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-sxwdd1k",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-sxwdd1k",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "詳細を折りたたむ"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-jttg9rl",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-jttg9rl",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-sbm8zuh",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-sbm8zuh",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "段落"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-bf6bdo8",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-bf6bdo8",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-42k3k8t",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-42k3k8t",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "リンク参照"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-kxf2ljj",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-kxf2ljj",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-bt2y3mo",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-bt2y3mo",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "数式"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-xsqawxu",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-xsqawxu",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-z3axxv2",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-z3axxv2",
+												"updated": "20260923221935"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "マインドマップブロック"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-cgykgo9",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-cgykgo9",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-29fhe24",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-29fhe24",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "フローチャート"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-xcnae2c",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-xcnae2c",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-z6y3dcr",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-z6y3dcr",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "シーケンス図"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-90uz9yk",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-90uz9yk",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-0vxva96",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-0vxva96",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "ガントチャート"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-iojxjbo",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-iojxjbo",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-1slrx3s",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-1slrx3s",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "チャート"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-llpzjlo",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-llpzjlo",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-v666ddx",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-v666ddx",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "五線譜"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-fsc4970",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-fsc4970",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-ba9r8fe",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-ba9r8fe",
+												"updated": "20260920131944"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "Graphviz"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-pm0ry2p",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-pm0ry2p",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-5letf02",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-5letf02",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "マルチメディア"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-eugd55s",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-eugd55s",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-jo5bsue",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-jo5bsue",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "脚注"
+												}
+											]
+										}
+									]
+								},
+								{
+									"ID": "20260920131944-aulmuns",
+									"Type": "NodeMindmapItem",
+									"Properties": {
+										"id": "20260920131944-aulmuns",
+										"updated": "20260923221935"
+									},
+									"ListData": {
+										"Typ": 0,
+										"BulletChar": 45,
+										"Marker": "LQ=="
+									},
+									"Children": [
+										{
+											"ID": "20260920131944-upi30ju",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260920131944-upi30ju",
+												"updated": "20260921102009"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "ショートカット"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-qg4hn8x",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
@@ -1991,7 +4393,7 @@
 			"Children": [
 				{
 					"Type": "NodeBlockquoteMarker",
-					"Data": "\u003e"
+					"Data": ">"
 				},
 				{
 					"ID": "20240530101000-5cczm4i",
@@ -2160,6 +4562,194 @@
 			]
 		},
 		{
+			"ID": "20260905124213-ar71gu2",
+			"Type": "NodeHeading",
+			"Properties": {
+				"id": "20260905124213-ar71gu2",
+				"updated": "20261024164212"
+			},
+			"HeadingLevel": 2,
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "タブブロック"
+				}
+			]
+		},
+		{
+			"ID": "20260905124213-sbrf9s1",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260905124213-sbrf9s1",
+				"updated": "20260905124213"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "/ を入力してタブブロックを選択すると、2 つのタブを作成できます。タイトルをクリックするとタブが切り替わり、ダブルクリックまたはタブメニューからタイトルを編集できます。タイトルはコールアウトと同じインライン書式に対応し、本文にはタブブロックを入れ子にできます。"
+				}
+			]
+		},
+		{
+			"ID": "20260905124213-hlwyrq8",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260905124213-hlwyrq8",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "タブ右側のメニューで、タブの追加、複製、削除、並べ替え、および上部／左側の配置を選べます。選択中のタブと配置はドキュメントとともに保存・同期されます。編集をロックしたドキュメントでは、最後に表示したタブをローカルワークスペースに記憶し、ドキュメントの既定のタブは変更しません。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-bfiqlef",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-bfiqlef",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "公開ページ、カーネルが読み取り専用の場合、および暗号化ノートブックでは、現在のセッション中のみ記憶します。タブ配置を解除すると、すべてのタイトルと本文が順番に残ります。"
+				}
+			]
+		},
+		{
+			"ID": "20261003234156-3qtc9d0",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261003234156-3qtc9d0",
+				"updated": "20261003234156"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "タブ項目のメニューで "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "ズームイン"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を選ぶと、その項目とタイトルだけが表示され、バックリンクの対象もその項目に限定されます。子ブロックを含めるかどうかは既存の設定に従います。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "フォーカス解除"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を選ぶとタブグループ全体に戻ります。フォーカス中の項目内にある入れ子のタブは通常どおり切り替えられます。"
+				}
+			]
+		},
+		{
+			"ID": "20260905124213-539fwxw",
+			"Type": "NodeTabs",
+			"Properties": {
+				"id": "20260905124213-539fwxw",
+				"updated": "20260905124213",
+				"tabs-active-id": "20260905124213-yw9eiqm",
+				"tabs-position": "top"
+			},
+			"Children": [
+				{
+					"ID": "20260905124213-yw9eiqm",
+					"Type": "NodeTabItem",
+					"Properties": {
+						"id": "20260905124213-yw9eiqm",
+						"updated": "20260905124213"
+					},
+					"TabItemTitle": "案 1",
+					"Children": [
+						{
+							"ID": "20260905124213-xissq7f",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260905124213-xissq7f",
+								"updated": "20260905124213"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "最初のタブの本文です。"
+								}
+							]
+						}
+					]
+				},
+				{
+					"ID": "20260905124213-drkz4tl",
+					"Type": "NodeTabItem",
+					"Properties": {
+						"id": "20260905124213-drkz4tl",
+						"updated": "20260905124213"
+					},
+					"TabItemTitle": "案 2",
+					"Children": [
+						{
+							"ID": "20260905124213-bfoxhkx",
+							"Type": "NodeParagraph",
+							"Properties": {
+								"id": "20260905124213-bfoxhkx",
+								"updated": "20260905124213"
+							},
+							"Children": [
+								{
+									"Type": "NodeText",
+									"Data": "2 番目のタブの本文です。"
+								}
+							]
+						},
+						{
+							"ID": "20260905124213-547v4hx",
+							"Type": "NodeTabs",
+							"Properties": {
+								"id": "20260905124213-547v4hx",
+								"updated": "20260905124213",
+								"tabs-active-id": "20260905124213-rperaj3",
+								"tabs-position": "left"
+							},
+							"Children": [
+								{
+									"ID": "20260905124213-rperaj3",
+									"Type": "NodeTabItem",
+									"Properties": {
+										"id": "20260905124213-rperaj3",
+										"updated": "20260905124213"
+									},
+									"TabItemTitle": "入れ子のタブ",
+									"Children": [
+										{
+											"ID": "20260905124213-zaar54w",
+											"Type": "NodeParagraph",
+											"Properties": {
+												"id": "20260905124213-zaar54w",
+												"updated": "20260905124213"
+											},
+											"Children": [
+												{
+													"Type": "NodeText",
+													"Data": "最初のタブの本文です。"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-m0yf1fg",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
@@ -2262,7 +4852,7 @@
 			"Properties": {
 				"ID": "20240530101000-uzacfgz",
 				"id": "20240530101000-5sk45b0",
-				"updated": "20240530101000"
+				"updated": "20260809232000"
 			},
 			"Children": [
 				{
@@ -2317,18 +4907,17 @@
 			"Properties": {
 				"ID": "20240530101000-50kyrr5",
 				"id": "20240530101000-62q5hwk",
-				"updated": "20240530101000"
+				"updated": "20260616221517"
 			},
 			"Children": [
 				{
 					"Type": "NodeBlockquoteMarker",
-					"Data": "\u003e "
+					"Data": "> "
 				},
 				{
 					"ID": "20240530101000-zi30x91",
 					"Type": "NodeParagraph",
 					"Properties": {
-						"ID": "20240530101000-ik1dy40",
 						"id": "20240530101000-zi30x91",
 						"updated": "20240530101000"
 					},
@@ -2441,18 +5030,199 @@
 			]
 		},
 		{
+			"ID": "20260616221517-fc7uscf",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260616221517-fc7uscf",
+				"updated": "20260809232000"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "また、コードブロック言語として "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "siyuan-template"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ と "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "template"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ もサポートされており、両者は同等です。使用すると"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20240530101000-6x9ivi7",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "思源テンプレート"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "構文のハイライトが有効になり、テンプレートとしてエクスポートする際にはコードブロックとしてエクスポートされず、通常の段落テキストに変換されます。"
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-hen4g1y",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"ID": "20240530101000-grqaq7u",
 				"id": "20240530101000-hen4g1y",
-				"updated": "20240530101000"
+				"updated": "20261024164212"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
 					"Data": "テーブル"
+				}
+			]
+		},
+		{
+			"ID": "20260909090723-b3zszao",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260909090723-b3zszao",
+				"updated": "20260909090723"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "セルは手動で変換せずに段落、見出し、リスト、引用、コード、数式を編集できます。既存の文字列に含まれる Markdown 記号はそのまま保持されます。"
+				}
+			]
+		},
+		{
+			"ID": "20260909090723-or0hf4r",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260909090723-or0hf4r",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "セルをクリックすると編集できます。テーブルの作成直後は、再度クリックせずに入力できます。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Enter"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " は通常のエディタと同じ規則で、新しい段落の作成、リスト項目の追加、コードブロック内の改行を行います。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Shift+Enter"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " は段落内にソフト改行を挿入します。"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Tab"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " と "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Shift+Tab"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " でセルを切り替えます。"
+				}
+			]
+		},
+		{
+			"ID": "20261024164212-u91d11k",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024164212-u91d11k",
+				"updated": "20261024164212"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "リストとコードブロックでは、インデントとアウトデントの操作が維持されます。候補を閉じてから "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "Escape"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を押すか、セルの外をクリックすると編集が終了し、内容が自動保存されます。テーブルをテキストとしてコピーすると、セル内の段落間の空行が保持されます。"
+				}
+			]
+		},
+		{
+			"ID": "20260909090723-xl7wtk2",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260909090723-xl7wtk2",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "内部の段落とリスト項目に独立したブロック ID はありません。既存のブロックへの参照、画像、既存のインライン書式に対応しています。入れ子のテーブル、データベース、スーパーブロック、タブ、コールアウト、クエリ埋め込み、区切り線、実行可能な図表、音声、動画、ウィジェット、HTML、カスタムブロックには対応していません。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-x7mkec8",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-x7mkec8",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "貼り付ける内容に未対応のブロックが含まれる場合は、貼り付け全体を拒否して未対応の種類を通知し、既存の内容を維持します。標準 Markdown では読みやすいインライン内容としてエクスポートされ、HTML、PDF、Word ではリッチテキストのレイアウトが保持されます。"
+				}
+			]
+		},
+		{
+			"ID": "20261022190543-t2a8r2z",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261022190543-t2a8r2z",
+				"updated": "20261022190543"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "行の下端をドラッグすると高さを調整できます。モバイルでは、セルの水平境界をタップしてから、表示されたハンドルをドラッグします。設定値は最小の高さであり、内容が増えると行は自動的に広がります。行を選択し、メニューの "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "行の高さを自動調整"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を選ぶと自動の高さに戻ります。行の高さは文書とともに保存されますが、標準 Markdown へのエクスポートでは保持されるとは限りません。"
 				}
 			]
 		},
@@ -2601,7 +5371,7 @@
 		{
 			"ID": "20240530101000-h7ilkw7",
 			"Type": "NodeHTMLBlock",
-			"Data": "\u003cdiv\u003e\n\u003cruby\u003e\n你\u003crt\u003enǐ\u003c/rt\u003e\n　好\u003crt\u003e　hǎo\u003c/rt\u003e\n　世\u003crt\u003e　shì\u003c/rt\u003e\n　界\u003crt\u003e　jiè\u003c/rt\u003e\n\u003c/ruby\u003e\u003cbr\u003e\nHello World\n\u003c/div\u003e",
+			"Data": "<div>\n<ruby>\n你<rt>nǐ</rt>\n　好<rt>　hǎo</rt>\n　世<rt>　shì</rt>\n　界<rt>　jiè</rt>\n</ruby><br>\nHello World\n</div>",
 			"Properties": {
 				"ID": "20240530101000-ne7c7md",
 				"id": "20240530101000-h7ilkw7",
@@ -2676,6 +5446,97 @@
 			]
 		},
 		{
+			"ID": "20261027172226-35g7iv6",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261027172226-35g7iv6",
+				"updated": "20261027172226"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Markdown の貼り付け・インポート時、思源は既定で "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "\\(...\\)"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " をインライン数式、独立した段落の "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "\\[...\\]"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " をブロック数式として認識します。HTML の貼り付けでも認識します。コードはそのまま保持され、Markdown のエクスポートには引き続き "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "$"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " と "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "$$"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を使用します。"
+				}
+			]
+		},
+		{
+			"ID": "20261027172226-1okjrja",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261027172226-1okjrja",
+				"updated": "20261027172226"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "この機能は "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "エディタ"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "動作"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " の「貼り付け・インポート時に LaTeX 数式の区切り文字を認識する」で無効にできます。変更は以後の貼り付け・インポートに適用され、変換済みの数式はそのまま保持されます。"
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-tvzmepp",
 			"Type": "NodeMathBlock",
 			"Properties": {
@@ -2703,7 +5564,7 @@
 			"Properties": {
 				"ID": "20240530101000-5be67rn",
 				"id": "20240530101000-7nhcll9",
-				"updated": "20240530101000"
+				"updated": "20261002002136"
 			},
 			"Children": [
 				{
@@ -2715,12 +5576,26 @@
 		{
 			"ID": "20240530101000-vdi4815",
 			"Type": "NodeIFrame",
-			"Data": "\u003ciframe src=\"https://player.bilibili.com/player.html?bvid=BV1ov41187qM\u0026amp;page=1\u0026amp;high_quality=1\u0026amp;as_wide=1\u0026amp;allowfullscreen=true\u0026amp;aid=247401039\u0026amp;cid=319662466\u0026amp;autoplay=0\" data-src=\"//player.bilibili.com/player.html?aid=247401039\u0026amp;bvid=BV1ov41187qM\u0026amp;cid=319662466\u0026amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\" sandbox=\"allow-top-navigation-by-user-activation allow-same-origin allow-forms allow-scripts allow-popups\"\u003e\u003c/iframe\u003e",
+			"Data": "<iframe src=\"https://player.bilibili.com/player.html?bvid=BV1ov41187qM&amp;page=1&amp;high_quality=1&amp;as_wide=1&amp;allowfullscreen=true&amp;aid=247401039&amp;cid=319662466&amp;autoplay=0\" data-src=\"//player.bilibili.com/player.html?aid=247401039&amp;bvid=BV1ov41187qM&amp;cid=319662466&amp;page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" style=\"width: 981px; height: 440px;\" sandbox=\"allow-top-navigation-by-user-activation allow-same-origin allow-forms allow-scripts allow-popups\"></iframe>",
 			"Properties": {
 				"ID": "20240530101000-2niry28",
 				"id": "20240530101000-vdi4815",
 				"updated": "20240530101000"
 			}
+		},
+		{
+			"ID": "20261002002136-ika0ql3",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261002002136-ika0ql3",
+				"updated": "20261002002136"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ブロックにマウスカーソルを合わせると、枠の外側に小さなサイズ変更ハンドルが表示されます。右側中央のハンドルをドラッグすると幅、下側中央のハンドルは高さ、右下の丸い角のハンドルは両方を変更できます。タッチ操作ではハンドルを直接ドラッグします。幅または高さだけを変更する場合、もう一方のサイズは維持されます。"
+				}
+			]
 		},
 		{
 			"ID": "20240530101000-8t5ocsw",
@@ -2741,7 +5616,7 @@
 		{
 			"ID": "20240530101000-qxq2v9r",
 			"Type": "NodeVideo",
-			"Data": "\u003cvideo controls=\"controls\" src=\"assets/formatting_elements-20210607225733-o1keasx.mp4\" data-src=\"assets/formatting_elements-20210607213508-y2r3y55-20210608113914-q11ou4j.mp4\" style=\"width: 640px; height: 327px;\"\u003e\u003c/video\u003e",
+			"Data": "<video controls=\"controls\" src=\"assets/formatting_elements-20210607225733-o1keasx.mp4\" data-src=\"assets/formatting_elements-20210607213508-y2r3y55-20210608113914-q11ou4j.mp4\" style=\"width: 640px; height: 327px;\"></video>",
 			"Properties": {
 				"ID": "20240530101000-mlc68a3",
 				"id": "20240530101000-qxq2v9r",
@@ -2767,83 +5642,12 @@
 		{
 			"ID": "20240530101000-xhk41lp",
 			"Type": "NodeAudio",
-			"Data": "\u003caudio controls=\"controls\" src=\"assets/record1623077643753-20210607225403-7cg1jkq.wav\" data-src=\"assets/record1623077643753-20210607225403-7cg1jkq-20210608121458-mc4mcvz.wav\"\u003e\u003c/audio\u003e",
+			"Data": "<audio controls=\"controls\" src=\"assets/record1623077643753-20210607225403-7cg1jkq.wav\" data-src=\"assets/record1623077643753-20210607225403-7cg1jkq-20210608121458-mc4mcvz.wav\"></audio>",
 			"Properties": {
 				"ID": "20240530101000-93e5cfq",
 				"id": "20240530101000-xhk41lp",
 				"updated": "20240530101000"
 			}
-		},
-		{
-			"ID": "20240530101000-1ev7xub",
-			"Type": "NodeHeading",
-			"HeadingLevel": 2,
-			"Properties": {
-				"ID": "20240530101000-ch5e4vh",
-				"id": "20240530101000-1ev7xub",
-				"updated": "20240530101000"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "マインドマップ"
-				}
-			]
-		},
-		{
-			"ID": "20240530101000-lrwpxpq",
-			"Type": "NodeCodeBlock",
-			"IsFencedCodeBlock": true,
-			"CodeBlockFenceChar": 96,
-			"CodeBlockFenceLen": 3,
-			"CodeBlockOpenFence": "YGBg",
-			"CodeBlockInfo": "bWluZG1hcA==",
-			"CodeBlockCloseFence": "YGBg",
-			"Properties": {
-				"ID": "20240530101000-xheni2b",
-				"id": "20240530101000-lrwpxpq",
-				"updated": "20240530101000"
-			},
-			"Children": [
-				{
-					"Type": "NodeCodeBlockFenceOpenMarker",
-					"Data": "```",
-					"CodeBlockFenceLen": 3
-				},
-				{
-					"Type": "NodeCodeBlockFenceInfoMarker",
-					"CodeBlockInfo": "bWluZG1hcA=="
-				},
-				{
-					"ID": "20240530101000-gr0btu9",
-					"Type": "NodeCodeBlockCode",
-					"Data": "- Tutorial\n- Grammar guidance\n  - General content\n  - Mention users\n  - Emoji\n    - Some emoji examples\n  - Heading-Heading 3\n    - Heading 4\n      - Heading 5\n        - Heading 6\n  - Picture\n  - Code block\n    - Normal\n    - Syntax highlighting support\n      - Demonstrate Go code highlighting\n      - Demo Java highlighting\n  - Ordered, disordered, task list\n    - Unordered list\n    - Ordered list\n    - task list\n  - Form\n  - Hide details\n  - Paragraph\n  - Link reference\n  - Mathematical formula\n  - Mind Map\n  - Flow chart\n  - Timing diagram\n  - Gantt chart\n  - Chart\n  - Staff\n  - Graphviz\n  - Multimedia\n  - Footnote\n  - Shortcuts\n",
-					"Properties": {
-						"ID": "20240530101000-syxic32",
-						"id": "20240530101000-gr0btu9"
-					}
-				},
-				{
-					"Type": "NodeCodeBlockFenceCloseMarker",
-					"Data": "```",
-					"CodeBlockFenceLen": 3
-				}
-			]
-		},
-		{
-			"ID": "20240530101000-qvuwb7d",
-			"Type": "NodeParagraph",
-			"Properties": {
-				"ID": "20240530101000-ibiw8ul",
-				"id": "20240530101000-qvuwb7d",
-				"updated": "20240530101000"
-			},
-			"Children": [
-				{
-					"Type": "NodeText",
-					"Data": "マインドマップをレンダリングするには、Markdown のリスト構文を使用します。"
-				}
-			]
 		},
 		{
 			"ID": "20240530101000-9x9ue7u",
@@ -2852,12 +5656,44 @@
 			"Properties": {
 				"ID": "20240530101000-lbctees",
 				"id": "20240530101000-9x9ue7u",
-				"updated": "20240530101000"
+				"updated": "20261018213321"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
 					"Data": "フローチャート"
+				}
+			]
+		},
+		{
+			"ID": "20261018213321-ho943st",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261018213321-ho943st",
+				"updated": "20261018213321"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Mermaid ブロックの右端にあるハンドルをドラッグすると、幅を調整できます。幅を狭めた後、ブロックメニューの "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "レイアウト"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "中央揃え"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " を選択すると、ブロックを中央に配置できます。"
 				}
 			]
 		},
@@ -2888,7 +5724,7 @@
 				{
 					"ID": "20240530101000-43eabs8",
 					"Type": "NodeCodeBlockCode",
-					"Data": "graph TB\n    c1--\u003ea2\n    subgraph one\n    a1--\u003ea2\n    end\n    subgraph two\n    b1--\u003eb2\n    end\n    subgraph three\n    c1--\u003ec2\n    end\n",
+					"Data": "graph TB\n    c1-->a2\n    subgraph one\n    a1-->a2\n    end\n    subgraph two\n    b1-->b2\n    end\n    subgraph three\n    c1-->c2\n    end\n",
 					"Properties": {
 						"ID": "20240530101000-smyh5f3",
 						"id": "20240530101000-43eabs8"
@@ -2969,7 +5805,7 @@
 				{
 					"ID": "20240530101000-kacz87e",
 					"Type": "NodeCodeBlockCode",
-					"Data": "sequenceDiagram\n    Alice-\u003e\u003eJohn: Hello John, how are you?\n    loop Every minute\n        John--\u003e\u003eAlice: Great!\n    end\n",
+					"Data": "sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    loop Every minute\n        John-->>Alice: Great!\n    end\n",
 					"Properties": {
 						"ID": "20240530101000-8l8e38t",
 						"id": "20240530101000-kacz87e"
@@ -3118,7 +5954,7 @@
 				{
 					"ID": "20240530101000-aat6t4x",
 					"Type": "NodeCodeBlockCode",
-					"Data": "classDiagram\nClass01 \u0026lt;|-- AveryLongClass : Cool\nClass03 *-- Class04\nClass05 o-- Class06\nClass07 .. Class08\nClass09 --\u0026gt; C2 : Where am i?\nClass09 --* C3\nClass09 --|\u0026gt; Class07\nClass07 : equals()\nClass07 : Object[] elementData\nClass01 : size()\nClass01 : int chimp\nClass01 : int gorilla\nClass08 \u0026lt;--\u0026gt; C2: Cool label",
+					"Data": "classDiagram\nClass01 &lt;|-- AveryLongClass : Cool\nClass03 *-- Class04\nClass05 o-- Class06\nClass07 .. Class08\nClass09 --&gt; C2 : Where am i?\nClass09 --* C3\nClass09 --|&gt; Class07\nClass07 : equals()\nClass07 : Object[] elementData\nClass01 : size()\nClass01 : int chimp\nClass01 : int gorilla\nClass08 &lt;--&gt; C2: Cool label",
 					"Properties": {
 						"ID": "20240530101000-9cw4hs8",
 						"id": "20240530101000-aat6t4x"
@@ -3373,13 +6209,164 @@
 			]
 		},
 		{
+			"ID": "20260820124102-zenumlj",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260820124102-zenumlj",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "ZenUML シーケンス図"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-zenjpn1",
+			"Type": "NodeCodeBlock",
+			"IsFencedCodeBlock": true,
+			"Properties": {
+				"id": "20260820124102-zenjpn1",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeCodeBlockFenceOpenMarker",
+					"Data": "```"
+				},
+				{
+					"Type": "NodeCodeBlockFenceInfoMarker",
+					"CodeBlockInfo": "bWVybWFpZA=="
+				},
+				{
+					"Type": "NodeCodeBlockCode",
+					"Data": "zenuml\ntitle Order Service\nCustomer-&gt;OrderService: Submit order\nOrderService-&gt;Database: Save order\nDatabase-&gt;OrderService: Order saved\nOrderService-&gt;Customer: Order confirmed\n"
+				},
+				{
+					"Type": "NodeCodeBlockFenceCloseMarker",
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-zenjpn2",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260820124102-zenjpn2",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "構文の詳細については、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://mermaid.js.org/syntax/zenuml",
+					"TextMarkTextContent": "Mermaid の公式ドキュメント"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "をご覧ください。"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-tidyjp1",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260820124102-tidyjp1",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "Tidy Tree レイアウト"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-tidyjp2",
+			"Type": "NodeCodeBlock",
+			"IsFencedCodeBlock": true,
+			"Properties": {
+				"custom-mermaid-layout": "tidy-tree",
+				"id": "20260820124102-tidyjp2",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeCodeBlockFenceOpenMarker",
+					"Data": "```"
+				},
+				{
+					"Type": "NodeCodeBlockFenceInfoMarker",
+					"CodeBlockInfo": "bWVybWFpZA=="
+				},
+				{
+					"Type": "NodeCodeBlockCode",
+					"Data": "mindmap\n  root((Project))\n    Requirements\n      Research\n      Scope\n    Design\n      Prototype\n      Review\n    Development\n      Frontend\n      Backend\n    Release\n      Testing\n      Launch\n"
+				},
+				{
+					"Type": "NodeCodeBlockFenceCloseMarker",
+					"Data": "```"
+				}
+			]
+		},
+		{
+			"ID": "20260820124102-tidyjp3",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260820124102-tidyjp3",
+				"updated": "20260820124102"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "この例では、コードブロックのカスタム属性 "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "mermaid-layout"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ を "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "code",
+					"TextMarkTextContent": "tidy-tree"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "​ に設定しています。レイアウトの説明については、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "a",
+					"TextMarkAHref": "https://mermaid.js.org/config/layouts",
+					"TextMarkTextContent": "Mermaid の公式ドキュメント"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "をご覧ください。"
+				}
+			]
+		},
+		{
 			"ID": "20240530101000-mguk4vq",
 			"Type": "NodeHeading",
 			"HeadingLevel": 2,
 			"Properties": {
 				"ID": "20240530101000-agmhi90",
 				"id": "20240530101000-mguk4vq",
-				"updated": "20240530101000"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
@@ -3408,7 +6395,7 @@
 				},
 				{
 					"Type": "NodeCodeBlockCode",
-					"Data": "{\n  \u0026quot;title\u0026quot;: { \u0026quot;text\u0026quot;: \u0026quot;Latest 30 days\u0026quot; },\n  \u0026quot;backgroundColor\u0026quot;: \u0026quot;transparent\u0026quot;,\n  \u0026quot;tooltip\u0026quot;: { \u0026quot;trigger\u0026quot;: \u0026quot;axis\u0026quot;, \u0026quot;axisPointer\u0026quot;: { \u0026quot;lineStyle\u0026quot;: { \u0026quot;width\u0026quot;: 0 } } },\n  \u0026quot;legend\u0026quot;: { \u0026quot;data\u0026quot;: [\u0026quot;Articles\u0026quot;, \u0026quot;Users\u0026quot;, \u0026quot;Replies\u0026quot;] },\n  \u0026quot;xAxis\u0026quot;: [{\n      \u0026quot;type\u0026quot;: \u0026quot;category\u0026quot;,\n      \u0026quot;boundaryGap\u0026quot;: false,\n      \u0026quot;data\u0026quot;: [\u0026quot;2019-05-08\u0026quot;,\u0026quot;2019-05-09\u0026quot;,\u0026quot;2019-05-10\u0026quot;,\u0026quot;2019-05-11\u0026quot;,\u0026quot;2019-05-12\u0026quot;,\u0026quot;2019-05-13\u0026quot;,\u0026quot;2019-05-14\u0026quot;,\u0026quot;2019-05-15\u0026quot;,\u0026quot;2019-05-16\u0026quot;,\u0026quot;2019-05-17\u0026quot;,\u0026quot;2019-05-18\u0026quot;,\u0026quot;2019-05-19\u0026quot;,\u0026quot;2019-05-20\u0026quot;,\u0026quot;2019-05-21\u0026quot;,\u0026quot;2019-05-22\u0026quot;,\u0026quot;2019-05-23\u0026quot;,\u0026quot;2019-05-24\u0026quot;,\u0026quot;2019-05-25\u0026quot;,\u0026quot;2019-05-26\u0026quot;,\u0026quot;2019-05-27\u0026quot;,\u0026quot;2019-05-28\u0026quot;,\u0026quot;2019-05-29\u0026quot;,\u0026quot;2019-05-30\u0026quot;,\u0026quot;2019-05-31\u0026quot;,\u0026quot;2019-06-01\u0026quot;,\u0026quot;2019-06-02\u0026quot;,\u0026quot;2019-06-03\u0026quot;,\u0026quot;2019-06-04\u0026quot;,\u0026quot;2019-06-05\u0026quot;,\u0026quot;2019-06-06\u0026quot;,\u0026quot;2019-06-07\u0026quot;],\n      \u0026quot;axisTick\u0026quot;: { \u0026quot;show\u0026quot;: false },\n      \u0026quot;axisLine\u0026quot;: { \u0026quot;show\u0026quot;: false }\n  }],\n  \u0026quot;yAxis\u0026quot;: [{ \u0026quot;type\u0026quot;: \u0026quot;value\u0026quot;, \u0026quot;axisTick\u0026quot;: { \u0026quot;show\u0026quot;: false }, \u0026quot;axisLine\u0026quot;: { \u0026quot;show\u0026quot;: false }, \u0026quot;splitLine\u0026quot;: { \u0026quot;lineStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;rgba(0, 0, 0, .38)\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;dashed\u0026quot; } } }],\n  \u0026quot;series\u0026quot;: [\n    {\n      \u0026quot;name\u0026quot;: \u0026quot;Articles\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;line\u0026quot;, \u0026quot;smooth\u0026quot;: true, \u0026quot;itemStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;#d23f31\u0026quot; }, \u0026quot;areaStyle\u0026quot;: { \u0026quot;normal\u0026quot;: {} }, \u0026quot;z\u0026quot;: 3,\n      \u0026quot;data\u0026quot;: [\u0026quot;18\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;7\u0026quot;,\u0026quot;18\u0026quot;,\u0026quot;10\u0026quot;,\u0026quot;12\u0026quot;,\u0026quot;13\u0026quot;,\u0026quot;16\u0026quot;,\u0026quot;6\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;12\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;8\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;10\u0026quot;,\u0026quot;29\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;10\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;9\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;0\u0026quot;]\n    },\n    {\n      \u0026quot;name\u0026quot;: \u0026quot;Users\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;line\u0026quot;, \u0026quot;smooth\u0026quot;: true, \u0026quot;itemStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;#f1e05a\u0026quot; }, \u0026quot;areaStyle\u0026quot;: { \u0026quot;normal\u0026quot;: {} }, \u0026quot;z\u0026quot;: 2,\n      \u0026quot;data\u0026quot;: [\u0026quot;31\u0026quot;,\u0026quot;33\u0026quot;,\u0026quot;30\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;16\u0026quot;,\u0026quot;29\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;37\u0026quot;,\u0026quot;41\u0026quot;,\u0026quot;29\u0026quot;,\u0026quot;16\u0026quot;,\u0026quot;13\u0026quot;,\u0026quot;39\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;38\u0026quot;,\u0026quot;136\u0026quot;,\u0026quot;89\u0026quot;,\u0026quot;35\u0026quot;,\u0026quot;22\u0026quot;,\u0026quot;50\u0026quot;,\u0026quot;57\u0026quot;,\u0026quot;47\u0026quot;,\u0026quot;36\u0026quot;,\u0026quot;59\u0026quot;,\u0026quot;14\u0026quot;,\u0026quot;23\u0026quot;,\u0026quot;46\u0026quot;,\u0026quot;44\u0026quot;,\u0026quot;51\u0026quot;,\u0026quot;43\u0026quot;,\u0026quot;0\u0026quot;]\n    },\n    {\n      \u0026quot;name\u0026quot;: \u0026quot;Replies\u0026quot;, \u0026quot;type\u0026quot;: \u0026quot;line\u0026quot;, \u0026quot;smooth\u0026quot;: true, \u0026quot;itemStyle\u0026quot;: { \u0026quot;color\u0026quot;: \u0026quot;#4285f4\u0026quot; }, \u0026quot;areaStyle\u0026quot;: { \u0026quot;normal\u0026quot;: {} }, \u0026quot;z\u0026quot;: 1,\n      \u0026quot;data\u0026quot;: [\u0026quot;35\u0026quot;,\u0026quot;42\u0026quot;,\u0026quot;73\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;43\u0026quot;,\u0026quot;58\u0026quot;,\u0026quot;55\u0026quot;,\u0026quot;35\u0026quot;,\u0026quot;46\u0026quot;,\u0026quot;87\u0026quot;,\u0026quot;36\u0026quot;,\u0026quot;15\u0026quot;,\u0026quot;44\u0026quot;,\u0026quot;76\u0026quot;,\u0026quot;130\u0026quot;,\u0026quot;73\u0026quot;,\u0026quot;50\u0026quot;,\u0026quot;20\u0026quot;,\u0026quot;21\u0026quot;,\u0026quot;54\u0026quot;,\u0026quot;48\u0026quot;,\u0026quot;73\u0026quot;,\u0026quot;60\u0026quot;,\u0026quot;89\u0026quot;,\u0026quot;26\u0026quot;,\u0026quot;27\u0026quot;,\u0026quot;70\u0026quot;,\u0026quot;63\u0026quot;,\u0026quot;55\u0026quot;,\u0026quot;37\u0026quot;,\u0026quot;0\u0026quot;]\n    }\n  ]\n}"
+					"Data": "{\n  &quot;title&quot;: { &quot;text&quot;: &quot;Latest 30 days&quot; },\n  &quot;backgroundColor&quot;: &quot;transparent&quot;,\n  &quot;tooltip&quot;: { &quot;trigger&quot;: &quot;axis&quot;, &quot;axisPointer&quot;: { &quot;lineStyle&quot;: { &quot;width&quot;: 0 } } },\n  &quot;legend&quot;: { &quot;data&quot;: [&quot;Articles&quot;, &quot;Users&quot;, &quot;Replies&quot;] },\n  &quot;xAxis&quot;: [{\n      &quot;type&quot;: &quot;category&quot;,\n      &quot;boundaryGap&quot;: false,\n      &quot;data&quot;: [&quot;2019-05-08&quot;,&quot;2019-05-09&quot;,&quot;2019-05-10&quot;,&quot;2019-05-11&quot;,&quot;2019-05-12&quot;,&quot;2019-05-13&quot;,&quot;2019-05-14&quot;,&quot;2019-05-15&quot;,&quot;2019-05-16&quot;,&quot;2019-05-17&quot;,&quot;2019-05-18&quot;,&quot;2019-05-19&quot;,&quot;2019-05-20&quot;,&quot;2019-05-21&quot;,&quot;2019-05-22&quot;,&quot;2019-05-23&quot;,&quot;2019-05-24&quot;,&quot;2019-05-25&quot;,&quot;2019-05-26&quot;,&quot;2019-05-27&quot;,&quot;2019-05-28&quot;,&quot;2019-05-29&quot;,&quot;2019-05-30&quot;,&quot;2019-05-31&quot;,&quot;2019-06-01&quot;,&quot;2019-06-02&quot;,&quot;2019-06-03&quot;,&quot;2019-06-04&quot;,&quot;2019-06-05&quot;,&quot;2019-06-06&quot;,&quot;2019-06-07&quot;],\n      &quot;axisTick&quot;: { &quot;show&quot;: false },\n      &quot;axisLine&quot;: { &quot;show&quot;: false }\n  }],\n  &quot;yAxis&quot;: [{ &quot;type&quot;: &quot;value&quot;, &quot;axisTick&quot;: { &quot;show&quot;: false }, &quot;axisLine&quot;: { &quot;show&quot;: false }, &quot;splitLine&quot;: { &quot;lineStyle&quot;: { &quot;color&quot;: &quot;rgba(0, 0, 0, .38)&quot;, &quot;type&quot;: &quot;dashed&quot; } } }],\n  &quot;series&quot;: [\n    {\n      &quot;name&quot;: &quot;Articles&quot;, &quot;type&quot;: &quot;line&quot;, &quot;smooth&quot;: true, &quot;itemStyle&quot;: { &quot;color&quot;: &quot;#d23f31&quot; }, &quot;areaStyle&quot;: { &quot;normal&quot;: {} }, &quot;z&quot;: 3,\n      &quot;data&quot;: [&quot;18&quot;,&quot;14&quot;,&quot;22&quot;,&quot;9&quot;,&quot;7&quot;,&quot;18&quot;,&quot;10&quot;,&quot;12&quot;,&quot;13&quot;,&quot;16&quot;,&quot;6&quot;,&quot;9&quot;,&quot;15&quot;,&quot;15&quot;,&quot;12&quot;,&quot;15&quot;,&quot;8&quot;,&quot;14&quot;,&quot;9&quot;,&quot;10&quot;,&quot;29&quot;,&quot;22&quot;,&quot;14&quot;,&quot;22&quot;,&quot;9&quot;,&quot;10&quot;,&quot;15&quot;,&quot;9&quot;,&quot;9&quot;,&quot;15&quot;,&quot;0&quot;]\n    },\n    {\n      &quot;name&quot;: &quot;Users&quot;, &quot;type&quot;: &quot;line&quot;, &quot;smooth&quot;: true, &quot;itemStyle&quot;: { &quot;color&quot;: &quot;#f1e05a&quot; }, &quot;areaStyle&quot;: { &quot;normal&quot;: {} }, &quot;z&quot;: 2,\n      &quot;data&quot;: [&quot;31&quot;,&quot;33&quot;,&quot;30&quot;,&quot;23&quot;,&quot;16&quot;,&quot;29&quot;,&quot;23&quot;,&quot;37&quot;,&quot;41&quot;,&quot;29&quot;,&quot;16&quot;,&quot;13&quot;,&quot;39&quot;,&quot;23&quot;,&quot;38&quot;,&quot;136&quot;,&quot;89&quot;,&quot;35&quot;,&quot;22&quot;,&quot;50&quot;,&quot;57&quot;,&quot;47&quot;,&quot;36&quot;,&quot;59&quot;,&quot;14&quot;,&quot;23&quot;,&quot;46&quot;,&quot;44&quot;,&quot;51&quot;,&quot;43&quot;,&quot;0&quot;]\n    },\n    {\n      &quot;name&quot;: &quot;Replies&quot;, &quot;type&quot;: &quot;line&quot;, &quot;smooth&quot;: true, &quot;itemStyle&quot;: { &quot;color&quot;: &quot;#4285f4&quot; }, &quot;areaStyle&quot;: { &quot;normal&quot;: {} }, &quot;z&quot;: 1,\n      &quot;data&quot;: [&quot;35&quot;,&quot;42&quot;,&quot;73&quot;,&quot;15&quot;,&quot;43&quot;,&quot;58&quot;,&quot;55&quot;,&quot;35&quot;,&quot;46&quot;,&quot;87&quot;,&quot;36&quot;,&quot;15&quot;,&quot;44&quot;,&quot;76&quot;,&quot;130&quot;,&quot;73&quot;,&quot;50&quot;,&quot;20&quot;,&quot;21&quot;,&quot;54&quot;,&quot;48&quot;,&quot;73&quot;,&quot;60&quot;,&quot;89&quot;,&quot;26&quot;,&quot;27&quot;,&quot;70&quot;,&quot;63&quot;,&quot;55&quot;,&quot;37&quot;,&quot;0&quot;]\n    }\n  ]\n}"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3422,12 +6409,23 @@
 			"Properties": {
 				"ID": "20240530101000-mfktcb8",
 				"id": "20240530101000-8sj8uxy",
-				"updated": "20240530101000"
+				"updated": "20261016111305"
 			},
 			"Children": [
 				{
 					"Type": "NodeText",
-					"Data": "以下の 3 つの形式で定義できます:"
+					"Data": "ローカルカーネルでは以下の 3 つの形式を使用できます。リモートカーネルへの接続時は厳密な JSON のみをサポートし、JavaScript オブジェクト式や関数は実行されません。詳しくは"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "block-ref",
+					"TextMarkBlockRefID": "20260903150000-hpfmx4t",
+					"TextMarkBlockRefSubtype": "s",
+					"TextMarkTextContent": "リモートカーネルへの接続"
+				},
+				{
+					"Type": "NodeText",
+					"Data": "を参照してください。"
 				}
 			]
 		},
@@ -3605,7 +6603,7 @@
 								},
 								{
 									"Type": "NodeCodeBlockCode",
-									"Data": "(() =\u003e {\n    const option = {};\n    option.propName = `propValue`;\n    return option;\n})()\n"
+									"Data": "(() => {\n    const option = {};\n    option.propName = `propValue`;\n    return option;\n})()\n"
 								},
 								{
 									"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3678,7 +6676,7 @@
 				},
 				{
 					"Type": "NodeCodeBlockCode",
-					"Data": "%%params {tablature: [{instrument: \u0026quot;violin\u0026quot;}]}\nX: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:\u0026quot;Em\u0026quot;EEE E2G|\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;EEE E2G|\\\n\u0026quot;C7\u0026quot;_B2A \u0026quot;B7\u0026quot;=B3|\u0026quot;Em\u0026quot;EEE E2G|\n\u0026quot;C7\u0026quot;_B2A G2F|\u0026quot;Em\u0026quot;GFE \u0026quot;D (Bm7)\u0026quot;F2D|\\\n1\u0026quot;Em\u0026quot;E3-E3:|2\u0026quot;Em\u0026quot;E3-E2B|:\u0026quot;Em\u0026quot;e2e gfe|\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfeg2e|\u0026quot;D\u0026quot;fedB2A|\u0026quot;Em\u0026quot;e2e gfe|\\\n\u0026quot;G\u0026quot;g2ab3|\u0026quot;Em\u0026quot;gfe\u0026quot;D\u0026quot;f2d|\u0026quot;Em\u0026quot;e3-e3:|"
+					"Data": "%%params {tablature: [{instrument: &quot;violin&quot;}]}\nX: 24\nT: Clouds Thicken\nC: Paul Rosen\nS: Copyright 2005, Paul Rosen\nM: 6/8\nL: 1/8\nQ: 3/8=116\nR: Creepy Jig\nK: Em\n|:&quot;Em&quot;EEE E2G|&quot;C7&quot;_B2A G2F|&quot;Em&quot;EEE E2G|\\\n&quot;C7&quot;_B2A &quot;B7&quot;=B3|&quot;Em&quot;EEE E2G|\n&quot;C7&quot;_B2A G2F|&quot;Em&quot;GFE &quot;D (Bm7)&quot;F2D|\\\n1&quot;Em&quot;E3-E3:|2&quot;Em&quot;E3-E2B|:&quot;Em&quot;e2e gfe|\n&quot;G&quot;g2ab3|&quot;Em&quot;gfeg2e|&quot;D&quot;fedB2A|&quot;Em&quot;e2e gfe|\\\n&quot;G&quot;g2ab3|&quot;Em&quot;gfe&quot;D&quot;f2d|&quot;Em&quot;e3-e3:|"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3790,7 +6788,7 @@
 				{
 					"ID": "20240530101000-34gfymq",
 					"Type": "NodeCodeBlockCode",
-					"Data": "digraph finite_state_machine {\n     rankdir=LR;\n     size=\"8,5\"\n     node [shape = doublecircle]; S;\n     node [shape = point ]; qi\n\n     node [shape = circle];\n     qi -\u003e S;\n     S -\u003e q1 [label = \"a\" ];\n     S -\u003e S [label = \"a\" ];\n     q1 -\u003e S [label = \"a\" ];\n     q1 -\u003e q2 [label = \"ddb\" ];\n     q2 -\u003e q1 [label = \"b\" ];\n     q2 -\u003e q2 [label = \"b\" ];\n}",
+					"Data": "digraph finite_state_machine {\n     rankdir=LR;\n     size=\"8,5\"\n     node [shape = doublecircle]; S;\n     node [shape = point ]; qi\n\n     node [shape = circle];\n     qi -> S;\n     S -> q1 [label = \"a\" ];\n     S -> S [label = \"a\" ];\n     q1 -> S [label = \"a\" ];\n     q1 -> q2 [label = \"ddb\" ];\n     q2 -> q1 [label = \"b\" ];\n     q2 -> q2 [label = \"b\" ];\n}",
 					"Properties": {
 						"ID": "20240530101000-xdaprre",
 						"id": "20240530101000-34gfymq"
@@ -3869,7 +6867,7 @@
 				{
 					"ID": "20240530101000-q26h6an",
 					"Type": "NodeCodeBlockCode",
-					"Data": "st=\u003estart: Start\nop=\u003eoperation: Your Operation\ncond=\u003econdition: Yes or No?\ne=\u003eend\n\nst-\u003eop-\u003econd\ncond(yes)-\u003ee\ncond(no)-\u003eop\n",
+					"Data": "st=>start: Start\nop=>operation: Your Operation\ncond=>condition: Yes or No?\ne=>end\n\nst->op->cond\ncond(yes)->e\ncond(no)->op\n",
 					"Properties": {
 						"ID": "20240530101000-q7n247r",
 						"id": "20240530101000-q26h6an"
@@ -3942,7 +6940,7 @@
 				},
 				{
 					"Type": "NodeCodeBlockCode",
-					"Data": "@startuml component\nactor client\nnode app\ndatabase db\ndb -\u0026gt; app\napp -\u0026gt; client\n@enduml"
+					"Data": "@startuml component\nactor client\nnode app\ndatabase db\ndb -&gt; app\napp -&gt; client\n@enduml"
 				},
 				{
 					"Type": "NodeCodeBlockFenceCloseMarker",
@@ -3982,6 +6980,76 @@
 				"ID": "20240530101000-54uew8g",
 				"id": "20240530101000-qa9slig"
 			}
+		},
+		{
+			"ID": "20260928090424-7oo5lua",
+			"Type": "NodeHeading",
+			"HeadingLevel": 2,
+			"Properties": {
+				"id": "20260928090424-7oo5lua",
+				"updated": "20261024163013"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "テキスト方向の自動判定"
+				}
+			]
+		},
+		{
+			"ID": "20260928090424-8to4vwd",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20260928090424-8to4vwd",
+				"updated": "20261024163013"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "デスクトップ版とモバイル版では、"
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "設定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "スタイル"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " - "
+				},
+				{
+					"Type": "NodeTextMark",
+					"TextMarkType": "kbd",
+					"TextMarkTextContent": "テキスト方向の自動判定"
+				},
+				{
+					"Type": "NodeText",
+					"Data": " で有効にできます。スイッチは「右から左へ（RTL）」の下にあり、初期状態では無効です。段落と見出しの最初の強い方向性を持つ文字に基づいて、右から左または左から右を自動判定します。先頭の数字、句読点、絵文字は方向を決定しません。"
+				}
+			]
+		},
+		{
+			"ID": "20261024161816-bi9k9ze",
+			"Type": "NodeParagraph",
+			"Properties": {
+				"id": "20261024161816-bi9k9ze",
+				"updated": "20261024161816"
+			},
+			"Children": [
+				{
+					"Type": "NodeText",
+					"Data": "手動で指定したブロック単位とインラインの方向が優先されます。入れ子の項目を含む各リスト項目は、自身の最初の本文ブロックの方向に個別に従います。チェックボックス、箇条書き記号、番号、インデントも対応する側に移動し、手動で指定したリストの方向が優先されます。表の列順序は従来の設定を維持します。プレビューおよび HTML・PDF エクスポートにも自動判定が適用されます。"
+				}
+			]
 		}
 	]
 }

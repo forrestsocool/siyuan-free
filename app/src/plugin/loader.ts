@@ -1,23 +1,41 @@
 import {fetchSyncPost} from "../util/fetch";
-import {App} from "../index";
-import {Plugin} from "./index";
+import type {App} from "../index";
+import {markPluginDisposed, Plugin, type TPluginDataChangeReason} from "./index";
 /// #if !MOBILE
 import {resizeTopBar, saveLayout} from "../layout/util";
+import {getDockByType} from "../layout/tabUtil";
+/// #else
+import {
+    dispatchMobilePluginDocksChange,
+    removeMobilePluginDock,
+} from "../mobile/dock/pluginDockState";
 /// #endif
-import {API} from "./API";
+import {getAPI} from "./API";
 import {getFrontend, isMobile, isWindow} from "../util/functions";
 import {Constants} from "../constants";
-import {uninstall} from "./uninstall";
+import {beginPluginTeardown, destroyPlugin} from "./uninstall";
 import {setStorageVal} from "../protyle/util/compatibility";
 import {getAllEditor} from "../layout/getAll";
+import {getPluginDockEntryKey, refreshDockCatalog} from "../config/entryVisibility/catalog";
+import {
+    applyDockEntryVisibility,
+    applyTopBarEntryVisibility,
+    isEntryVisible,
+} from "../config/entryVisibility/runtime";
+import {PluginLifecycleCoordinator} from "./lifecycle";
+import {
+    activateCustomBlockPlugin,
+    deactivateCustomBlockPlugin,
+} from "./customBlockRender";
+import {getHostCapabilities} from "../util/hostCapabilities";
+import {isSettingsWindow} from "../config/setting/windowContext";
+import {ensureLute} from "../protyle/util/lute";
 
 const requireFunc = (key: string) => {
-    const modules = {
-        siyuan: API
-    };
-    // @ts-ignore
-    return modules[key]
-        ?? window.require?.(key);
+    if (key === "siyuan") {
+        return getAPI();
+    }
+    return window.require?.(key);
 };
 if (window.require instanceof Function) {
     requireFunc.__proto__ = window.require;
@@ -27,54 +45,128 @@ const runCode = (code: string, sourceURL: string) => {
     return window.eval("(function anonymous(require, module, exports){".concat(code, "\n})\n//# sourceURL=").concat(sourceURL, "\n"));
 };
 
-export const loadPlugins = async (app: App, names?: string[], init = true) => {
-    const response = await fetchSyncPost("/api/petal/loadPetals", {frontend: getFrontend()});
-    const pluginsStyle = getPluginsStyle();
-    for (let i = 0; i < response.data.length; i++) {
-        const item = response.data[i] as IPluginData;
-        if (!names || (names && names.includes(item.name))) {
-            if (init) {
-                // 初始化时为加快启动速度，已特殊处理，不进行 await
-                loadPluginJS(app, item);
-            } else {
-                await loadPluginJS(app, item);
-            }
-            insertPluginCSS(item, pluginsStyle);
-        }
-    }
-};
+const lifecycleManagers = new WeakMap<App, PluginLifecycleCoordinator<IPluginData, Plugin>>();
 
-const loadPluginJS = async (app: App, item: IPluginData) => {
+const createPlugin = (app: App, item: IPluginData) => {
     const exportsObj: { [key: string]: any } = {};
     const moduleObj = {exports: exportsObj};
     try {
         runCode(item.js, "plugin:" + encodeURIComponent(item.name))(requireFunc, moduleObj, exportsObj);
-    } catch (e) {
-        console.error(`plugin ${item.name} run error:`, e);
+    } catch (error) {
+        document.getElementById("pluginsStyle" + item.name)?.remove();
+        console.error(`plugin ${item.name} run error:`, error);
         return;
     }
     const pluginClass = (moduleObj.exports || exportsObj).default || moduleObj.exports;
     if (typeof pluginClass !== "function") {
+        document.getElementById("pluginsStyle" + item.name)?.remove();
         console.error(`plugin ${item.name} has no export`);
         return;
     }
     if (!(pluginClass.prototype instanceof Plugin)) {
+        document.getElementById("pluginsStyle" + item.name)?.remove();
         console.error(`plugin ${item.name} does not extends Plugin`);
         return;
     }
-    const plugin = new pluginClass({
-        app,
-        displayName: item.displayName,
-        name: item.name,
-        i18n: item.i18n
-    }) as Plugin;
-    app.plugins.push(plugin);
     try {
-        await plugin.onload();
-    } catch (e) {
-        console.error(`plugin ${item.name} onload error:`, e);
+        const plugin = new pluginClass({
+            app,
+            displayName: item.displayName,
+            name: item.name,
+            i18n: item.i18n
+        }) as Plugin;
+        insertPluginCSS(item, getPluginsStyle());
+        return plugin;
+    } catch (error) {
+        document.getElementById("pluginsStyle" + item.name)?.remove();
+        throw error;
     }
-    return plugin;
+};
+
+const getLifecycleManager = (app: App) => {
+    let manager = lifecycleManagers.get(app);
+    if (manager) {
+        return manager;
+    }
+    manager = new PluginLifecycleCoordinator<IPluginData, Plugin>({
+        create: (item) => createPlugin(app, item),
+        attach: (plugin) => {
+            if (app.plugins.some((item) => item.name === plugin.name)) {
+                throw new Error(`plugin ${plugin.name} has already been loaded`);
+            }
+            app.plugins.push(plugin);
+        },
+        onload: (plugin) => plugin.onload(),
+        init: (plugin) => plugin.kernel.init(),
+        onLayoutReady: (plugin) => plugin.onLayoutReady(),
+        mount: (plugin) => {
+            mountPlugin(plugin);
+            activateCustomBlockPlugin(plugin.name);
+        },
+        shouldReloadOnDataChange: (plugin) => plugin.onDataChanged === Plugin.prototype.onDataChanged,
+        onDataChanged: (plugin, reason) => plugin.onDataChanged(reason),
+        onunload: (plugin) => {
+            plugin.setting?.close();
+            deactivateCustomBlockPlugin(plugin.name);
+            beginPluginTeardown(plugin);
+            return plugin.onunload();
+        },
+        uninstall: (plugin) => plugin.uninstall(),
+        markDisposed: (plugin) => markPluginDisposed(plugin),
+        dispose: (plugin, isUninstall) => {
+            deactivateCustomBlockPlugin(plugin.name);
+            destroyPlugin(app, plugin, isUninstall);
+        },
+        onError: (name, hook, error) => console.error(`plugin ${name} ${hook} error:`, error),
+    });
+    lifecycleManagers.set(app, manager);
+    return manager;
+};
+
+const fetchPluginData = async () => {
+    const settingsWindow = isSettingsWindow();
+    const response = await fetchSyncPost("/api/petal/loadPetals", {
+        frontend: getFrontend(), ...(settingsWindow ? {settingsWindow: true} : {}),
+    });
+    if (settingsWindow && response.code !== 0) {
+        throw new Error(response.msg || "Could not read settings plugins");
+    }
+    const items = response.code === 0 && Array.isArray(response.data) ?
+        response.data.filter(item => !settingsWindow || item.settingsWindow === true) : [];
+    if (settingsWindow && items.length) await ensureLute({reloadOnFailure: false});
+    return items;
+};
+
+const createPluginDataLoader = () => {
+    let promise: Promise<IPluginData[]>;
+    return (name: string) => {
+        promise ??= fetchPluginData();
+        return promise.then(items => items.find(item => item.name === name));
+    };
+};
+
+export const loadPlugins = async (app: App, names?: string[], init = true) => {
+    if (!getHostCapabilities().plugins) {
+        return;
+    }
+    const manager = getLifecycleManager(app);
+    let tasks: Promise<void>[];
+    let shouldStart = true;
+    if (names) {
+        const loadPluginData = createPluginDataLoader();
+        tasks = Array.from(new Set(names)).map(name => manager.requestLoad(name, () => loadPluginData(name)));
+    } else {
+        const batch = manager.beginLoadBatch(!manager.isStarted());
+        const items = await fetchPluginData();
+        tasks = items.map(item => manager.requestBatchLoad(item.name, item, batch));
+        shouldStart = manager.isLatestLoadBatch(batch);
+    }
+    if (shouldStart) {
+        manager.start();
+    }
+    if (!init) {
+        await Promise.all(tasks);
+    }
 };
 
 const getPluginsStyle = () => {
@@ -88,6 +180,7 @@ const getPluginsStyle = () => {
 };
 
 const insertPluginCSS = (item: IPluginData, pluginsStyle: HTMLElement) => {
+    document.getElementById("pluginsStyle" + item.name)?.remove();
     if (!item.css) {
         return;
     }
@@ -99,20 +192,46 @@ const insertPluginCSS = (item: IPluginData, pluginsStyle: HTMLElement) => {
 
 // 启用插件
 export const loadPlugin = async (app: App, item: IPluginData) => {
-    const plugin = await loadPluginJS(app, item);
-    insertPluginCSS(item, getPluginsStyle());
-    afterLoadPlugin(plugin);
+    if (!getHostCapabilities().plugins) {
+        return;
+    }
+    const manager = getLifecycleManager(app);
+    if (isSettingsWindow()) {
+        await loadPlugins(app, [item.name], false);
+        return manager.getInstance(item.name);
+    }
+    manager.start();
+    await manager.requestLoad(item.name, async () => item);
     saveLayout();
     getAllEditor().forEach(editor => {
         editor.protyle.toolbar.update(editor.protyle);
     });
-    return plugin;
+    return manager.getInstance(item.name);
+};
+
+type TPluginDockLayout = Partial<Pick<IPluginDockTab, "position" | "index" | "show" | "size">>;
+
+const mergeDockSize = (...sizes: Partial<Config.IUILayoutDockPanelSize>[]) => {
+    const result: Config.IUILayoutDockPanelSize = {};
+    sizes.forEach(size => {
+        (["width", "height"] as const).forEach(key => {
+            const value = size?.[key];
+            if (value === null || (typeof value === "number" && Number.isFinite(value))) {
+                result[key] = value;
+            }
+        });
+    });
+    return result;
 };
 
 const updateDock = (dockItem: Config.IUILayoutDockTab[], index: number, plugin: Plugin, type: string) => {
     const dockKeys = Object.keys(plugin.docks);
+    if (dockKeys.length === 0) {
+        return;
+    }
     dockItem.forEach((tabItem: Config.IUILayoutDockTab, tabIndex: number) => {
-        if (dockKeys.includes(tabItem.type)) {
+        if (dockKeys.includes(tabItem.type) &&
+            !document.querySelector(`.dock .dock__item[data-type="${tabItem.type}"]`)) {
             if (type === "Left") {
                 plugin.docks[tabItem.type].config.position = index === 0 ? "LeftTop" : "LeftBottom";
             } else if (type === "Right") {
@@ -121,24 +240,24 @@ const updateDock = (dockItem: Config.IUILayoutDockTab[], index: number, plugin: 
                 plugin.docks[tabItem.type].config.position = index === 0 ? "BottomLeft" : "BottomRight";
             }
             plugin.docks[tabItem.type].config.index = tabIndex;
-            plugin.docks[tabItem.type].config.show = tabItem.show;
-            plugin.docks[tabItem.type].config.size = tabItem.size;
             if (!window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name]) {
                 window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name] = {};
             }
-            window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][tabItem.type] = plugin.docks[tabItem.type].config;
+            const config = plugin.docks[tabItem.type].config;
+            const saved: TPluginDockLayout = window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][tabItem.type];
+            // 结构位置跟随工作区布局；缓存已有的尺寸和打开状态优先，仅用布局快照补齐缺失字段。
+            window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][tabItem.type] = {
+                ...config,
+                show: saved?.show ?? tabItem.show ?? config.show,
+                size: mergeDockSize(config.size, tabItem.size, saved?.size),
+            };
             setStorageVal(Constants.LOCAL_PLUGIN_DOCKS, window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS]);
         }
     });
 };
 
-export const afterLoadPlugin = (plugin: Plugin) => {
-    try {
-        plugin.onLayoutReady();
-    } catch (e) {
-        console.error(`plugin ${plugin.name} onLayoutReady error:`, e);
-    }
-
+const mountPlugin = (plugin: Plugin) => {
+    if (isSettingsWindow()) return;
     if (!isWindow() || isMobile()) {
         plugin.topBarIcons.forEach(element => {
             if (document.contains(element)) {
@@ -146,35 +265,68 @@ export const afterLoadPlugin = (plugin: Plugin) => {
             }
             if (isMobile()) {
                 if (!window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN].includes(element.id)) {
-                    document.querySelector("#menuAbout").after(element);
+                    document.getElementById("menuPluginTopBar")?.after(element);
                 }
             } else if (!isWindow()) {
-                if (window.siyuan.storage[Constants.LOCAL_PLUGINTOPUNPIN].includes(element.id)) {
-                    element.classList.add("fn__none");
-                }
                 document.querySelector("#" + (element.getAttribute("data-location") === "right" ? "barPlugins" : "drag")).before(element);
             }
         });
     }
     /// #if !MOBILE
-    resizeTopBar();
     plugin.statusBarIcons.forEach(element => {
         if (document.contains(element)) {
             return;
         }
         const statusElement = document.getElementById("status");
+        if (!statusElement) return;
         if (element.getAttribute("data-location") === "right") {
             statusElement.insertAdjacentElement("beforeend", element);
         } else {
             statusElement.insertAdjacentElement("afterbegin", element);
         }
     });
+    applyTopBarEntryVisibility();
+    resizeTopBar();
     /// #endif
-    if (isWindow()) {
+    addPluginDock(plugin);
+};
+
+export const afterLayoutReady = (app: App) => {
+    const manager = getLifecycleManager(app);
+    return manager.setLayoutReady();
+};
+
+const getPluginCatalogPlugins = (plugin: Plugin) => window.siyuan.ws?.app?.plugins || [plugin];
+
+export const removePluginDock = (plugin: Plugin, id: string) => {
+    const key = Object.keys(plugin.docks).find((dockType) => plugin.docks[dockType].id === id);
+    if (!key) {
         return;
     }
+    /// #if MOBILE
+    removeMobilePluginDock(key);
+    /// #else
+    getDockByType(key)?.remove(key);
+    saveLayout();
+    /// #endif
+    delete plugin.docks[key];
+    const plugins = getPluginCatalogPlugins(plugin);
+    refreshDockCatalog(plugins);
+    applyDockEntryVisibility();
+    /// #if MOBILE
+    dispatchMobilePluginDocksChange();
+    /// #endif
+};
 
-    /// #if !MOBILE
+export const addPluginDock = (plugin: Plugin) => {
+    const plugins = getPluginCatalogPlugins(plugin);
+    refreshDockCatalog(plugins);
+    /// #if MOBILE
+    dispatchMobilePluginDocksChange();
+    /// #else
+    if (isWindow() || !window.siyuan.layout.leftDock) {
+        return;
+    }
     window.siyuan.config.uiLayout.left.data.forEach((dockItem: Config.IUILayoutDockTab[], index: number) => {
         updateDock(dockItem, index, plugin, "Left");
     });
@@ -185,81 +337,111 @@ export const afterLoadPlugin = (plugin: Plugin) => {
         updateDock(dockItem, index, plugin, "Bottom");
     });
     Object.keys(plugin.docks).forEach(key => {
-        if (window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name] && window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][key]) {
-            plugin.docks[key].config = window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][key];
+        if (document.querySelector(`.dock .dock__item[data-type="${key}"]`)) {
+            return;
+        }
+        if (!window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name]) {
+            window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name] = {};
         }
         const dock = plugin.docks[key];
-        const hotkey = window.siyuan.config.keymap.plugin[plugin.name] ? window.siyuan.config.keymap.plugin[plugin.name][key]?.custom : undefined;
+        const savedConfig: TPluginDockLayout = window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][key];
+        if (savedConfig) {
+            // 仅恢复用户布局，图标、标题和默认快捷键使用插件本次注册的配置。
+            dock.config = {
+                ...dock.config,
+                position: savedConfig.position ?? dock.config.position,
+                index: savedConfig.index ?? dock.config.index,
+                show: savedConfig.show ?? dock.config.show,
+                size: mergeDockSize(dock.config.size, savedConfig.size),
+            };
+        }
+        window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS][plugin.name][key] = dock.config;
+        setStorageVal(Constants.LOCAL_PLUGIN_DOCKS, window.siyuan.storage[Constants.LOCAL_PLUGIN_DOCKS]);
+        const entryId = getPluginDockEntryKey(plugin.name, dock.id);
+        const show = dock.config.show && isEntryVisible(`dock.${entryId}`);
+        const dockTab: Config.IUILayoutDockTab & {entryId: string} = {
+            type: key,
+            size: dock.config.size,
+            show,
+            icon: dock.config.icon,
+            title: dock.config.title,
+            entryId,
+        };
         if (dock.config.position.startsWith("Left")) {
-            window.siyuan.layout.leftDock.genButton([{
-                type: key,
-                size: dock.config.size,
-                show: dock.config.show,
-                icon: dock.config.icon,
-                title: dock.config.title,
-                hotkey
-            }], dock.config.position === "LeftBottom" ? 1 : 0, dock.config.index);
+            window.siyuan.layout.leftDock.genButton([dockTab], dock.config.position === "LeftBottom" ? 1 : 0,
+                dock.config.index);
         } else if (dock.config.position.startsWith("Bottom")) {
-            window.siyuan.layout.bottomDock.genButton([{
-                type: key,
-                size: dock.config.size,
-                show: dock.config.show,
-                icon: dock.config.icon,
-                title: dock.config.title,
-                hotkey
-            }], dock.config.position === "BottomRight" ? 1 : 0, dock.config.index);
+            window.siyuan.layout.bottomDock.genButton([dockTab], dock.config.position === "BottomRight" ? 1 : 0,
+                dock.config.index);
         } else if (dock.config.position.startsWith("Right")) {
-            window.siyuan.layout.rightDock.genButton([{
-                type: key,
-                size: dock.config.size,
-                show: dock.config.show,
-                icon: dock.config.icon,
-                title: dock.config.title,
-                hotkey
-            }], dock.config.position === "RightBottom" ? 1 : 0, dock.config.index);
+            window.siyuan.layout.rightDock.genButton([dockTab], dock.config.position === "RightBottom" ? 1 : 0,
+                dock.config.index);
         }
     });
+    applyDockEntryVisibility();
     /// #endif
 };
 
-export const reloadPlugin = async (app: App, data: {
+export interface IPluginReloadData {
     uninstallPlugins?: string[],  // 插件卸载
     unloadPlugins?: string[],     // 插件禁用
     reloadPlugins?: string[],     // 插件启用，或插件代码变更
     dataChangePlugins?: string[], // 插件存储数据变更
-} = {}) => {
-    const {uninstallPlugins = [], unloadPlugins = [], reloadPlugins = [], dataChangePlugins = []} = data;
-    // 禁用
-    unloadPlugins.forEach((item) => {
-        uninstall(app, item, true);
-    });
-    // 卸载
-    uninstallPlugins.forEach((item) => {
-        uninstall(app, item, false);
-    });
-    reloadPlugins.forEach((item) => {
-        uninstall(app, item, true);
-    });
-    loadPlugins(app, reloadPlugins, false).then(() => {
-        app.plugins.forEach(item => {
-            if (reloadPlugins.includes(item.name)) {
-                afterLoadPlugin(item);
-                getAllEditor().forEach(editor => {
-                    editor.protyle.toolbar.update(editor.protyle);
-                });
-            }
+    dataChangeReason?: TPluginDataChangeReason, // 插件存储数据变更来源
+    globalPetalEnabled?: boolean,
+    globalPetalDisabled?: boolean,
+    globalPetalRevision?: number,
+    globalPetalChanged?: boolean,
+}
+
+export const reloadPlugin = async (app: App, data: IPluginReloadData = {}) => {
+    if (!getHostCapabilities().plugins) {
+        return;
+    }
+    const manager = getLifecycleManager(app);
+    const uninstallNames = new Set(data.uninstallPlugins || []);
+    const unloadNames = new Set((data.unloadPlugins || []).filter(name => !uninstallNames.has(name)));
+    const reloadNames = new Set((data.reloadPlugins || []).filter(name =>
+        !uninstallNames.has(name) && !unloadNames.has(name)));
+    const dataChangeNames = new Set((data.dataChangePlugins || []).filter(name =>
+        !uninstallNames.has(name) && !unloadNames.has(name) && !reloadNames.has(name)));
+    const loadPluginData = createPluginDataLoader();
+    const tasks: Promise<void>[] = [];
+    uninstallNames.forEach(name => tasks.push(manager.requestUninstall(name)));
+    unloadNames.forEach(name => tasks.push(manager.requestUnload(name)));
+    reloadNames.forEach(name => tasks.push(manager.requestReload(name, () => loadPluginData(name))));
+    dataChangeNames.forEach(name => tasks.push(manager.requestDataChange(name, () => loadPluginData(name),
+        data.dataChangeReason)));
+    await Promise.all(tasks);
+    if (reloadNames.size > 0 || dataChangeNames.size > 0) {
+        getAllEditor().forEach(editor => {
+            editor.protyle.toolbar.update(editor.protyle);
         });
-    });
-    app.plugins.forEach(item => {
-        if (dataChangePlugins.includes(item.name)) {
-            try {
-                item.onDataChanged();
-            } catch (e) {
-                console.error(`plugin ${item.name} onDataChanged error:`, e);
-            }
-        }
-    });
+    }
     /// #if !MOBILE
     saveLayout();
     /// #endif
+};
+
+export const unloadPlugin = async (app: App, name: string) => {
+    const manager = getLifecycleManager(app);
+    manager.start();
+    await manager.requestUnload(name);
+};
+
+// 窗口销毁时同步撤销实例，异步钩子的迟到完成不能重新挂载界面。
+export const disposePlugins = (app: App) => lifecycleManagers.get(app)?.dispose();
+
+// 重连后以当前启用清单恢复实例，期间收到的更新请求优先于这次快照。
+export const refreshPlugins = async (app: App) => {
+    if (!getHostCapabilities().plugins) return;
+    const manager = getLifecycleManager(app);
+    const batch = manager.beginLoadBatch();
+    const items = await fetchPluginData();
+    if (!manager.isLatestLoadBatch(batch)) return;
+    const names = new Set(items.map(item => item.name));
+    const tasks = app.plugins.filter(plugin => !names.has(plugin.name)).map(plugin => manager.requestBatchUnload(plugin.name, batch));
+    tasks.push(...items.map(item => manager.requestBatchLoad(item.name, item, batch, true)));
+    manager.start();
+    await Promise.all(tasks);
 };

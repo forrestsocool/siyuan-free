@@ -1,18 +1,39 @@
-import {App} from "../../index";
-import {execByCommand} from "../../boot/globalEvent/command/panel";
+import type {App} from "../../index";
+import {execByCommand} from "../../command/executor";
 import {matchHotKey} from "../../protyle/util/hotKey";
 import {getCurrentEditor} from "../editor";
 import {filterHotkey} from "../../boot/globalEvent/commonHotkey";
+import {captureShortcutContext, dispatchPluginShortcut} from "../../command/shortcutRuntime";
+import {handleDocumentBoundaryHotkey} from "../../protyle/util/documentBoundaryHotkey";
+import {handleDatabaseRowShortcut} from "../../command/databaseRowShortcut";
+import {DATABASE_ROW_COMMANDS} from "../../command/databaseRowNavigation";
 
 export const mobileKeydown = (app: App, event: KeyboardEvent) => {
     // 移动端输入框默认填充无 event.key
-    if (!event.key || filterHotkey(event, app)) {
+    if (!event.key || event.defaultPrevented || filterHotkey(event, app)) {
         return;
     }
-    const protyle = getCurrentEditor().protyle;
-    const matchGeneral = Object.keys(window.siyuan.config.keymap.general).find((key) => {
-        if (matchHotKey(window.siyuan.config.keymap.general[key].custom, event)) {
-            execByCommand({command: key, app, protyle, previousRange: protyle.toolbar.range});
+    if (handleDatabaseRowShortcut(app, event)) {
+        return;
+    }
+    const editor = getCurrentEditor();
+    if (editor?.protyle.element.contains(event.target as Node) && handleDocumentBoundaryHotkey(editor.protyle, event)) {
+        return;
+    }
+    const matchGeneral = Object.keys(window.siyuan.config.keymap.general).sort().find((key) => {
+        // 上下文菜单由当前编辑器或数据库处理，未处理时继续分发快捷键。
+        if (key === "openContextMenu") {
+            return false;
+        }
+        // 跳过桌面页签菜单和已由预览上下文处理的条目导航。
+        if (key === "switchTab" || DATABASE_ROW_COMMANDS.some(command => command === key)) {
+            return false;
+        }
+        if (matchHotKey(window.siyuan.config.keymap.general[key], event)) {
+            const protyle = getCurrentEditor()?.protyle;
+            if (protyle) {
+                execByCommand({command: key, app, protyle, previousRange: protyle.toolbar.range});
+            }
             return true;
         }
     });
@@ -22,23 +43,5 @@ export const mobileKeydown = (app: App, event: KeyboardEvent) => {
         return;
     }
 
-    let matchCommand = false;
-    app.plugins.find(item => {
-        item.commands.find(command => {
-            if (command.callback &&
-                !command.fileTreeCallback && !command.editorCallback && !command.dockCallback && !command.globalCallback
-                && matchHotKey(command.customHotkey, event)) {
-                matchCommand = true;
-                command.callback();
-                return true;
-            }
-        });
-        if (matchCommand) {
-            return true;
-        }
-    });
-    if (matchCommand) {
-        event.preventDefault();
-        return true;
-    }
+    return dispatchPluginShortcut(app, event, "shortcut", () => captureShortcutContext(app, event));
 };

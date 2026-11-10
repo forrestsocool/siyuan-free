@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package util
 
@@ -21,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/88250/gulu"
@@ -85,7 +74,16 @@ func RemoveInvalidRetainCtrl(text string) (ret string) {
 	return
 }
 
-var NativeEmojiChars = map[string]bool{}
+var (
+	nativeEmojiChars     = map[string]bool{}
+	nativeEmojiCharsLock sync.RWMutex
+)
+
+func IsNativeEmoji(value string) bool {
+	nativeEmojiCharsLock.RLock()
+	defer nativeEmojiCharsLock.RUnlock()
+	return nativeEmojiChars[value]
+}
 
 func InitEmojiChars() {
 	builtConfPath := filepath.Join(AppearancePath, "emojis", "conf.json")
@@ -101,12 +99,15 @@ func InitEmojiChars() {
 		return
 	}
 
+	chars := map[string]bool{}
 	for _, emoji := range conf {
 		items := emoji["items"].([]any)
 		for _, item := range items {
 			e := item.(map[string]any)
-			NativeEmojiChars[e["unicode"].(string)] = true
+			chars[e["unicode"].(string)] = true
 		}
 	}
-	return
+	nativeEmojiCharsLock.Lock()
+	nativeEmojiChars = chars
+	nativeEmojiCharsLock.Unlock()
 }

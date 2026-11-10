@@ -43,7 +43,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install pnpm
         working-directory: app
@@ -88,7 +88,7 @@ jobs:
           GOARCH: amd64
           CC: gcc
         run: |
-          go build -tags fts5 `
+          go build -tags "fts5 sqlcipher" `
             -o "..\app\kernel\SiYuan-Kernel.exe" `
             -v `
             -ldflags "-s -w -H=windowsgui -X github.com/siyuan-note/siyuan/kernel/util.Mode=prod"

@@ -1,21 +1,27 @@
+import {toggleMenu} from "../../menus/menuToggle";
 /// #if !MOBILE
 import {Tab} from "../Tab";
 import {setPanelFocus} from "../util";
-import {getDockByType} from "../tabUtil";
+import {getActiveTab, getDockByType} from "../tabUtil";
+import {Editor} from "../../editor";
 /// #endif
 import {fetchPost, fetchSyncPost} from "../../util/fetch";
-import {updateHotkeyAfterTip} from "../../protyle/util/compatibility";
+import {isInIOS, updateHotkeyAfterTip} from "../../protyle/util/compatibility";
 import {Model} from "../Model";
 import {needSubscribe} from "../../util/needSubscribe";
 import {MenuItem} from "../../menus/Menu";
 import {confirmDialog} from "../../dialog/confirmDialog";
-import {replaceFileName} from "../../editor/rename";
-import {getDisplayName, movePathTo, pathPosix} from "../../util/pathName";
-import {App} from "../../index";
+import {normalizeDocumentTitle} from "../../editor/rename";
+import {movePathTo} from "../../util/pathName";
+import {documentCreateRequest} from "../../util/documentCreate";
+import {createConfiguredDocument} from "../../util/configuredDocument";
+import type {App} from "../../index";
 import {getCloudURL} from "../../config/util/about";
 import {hasClosestByClassName} from "../../protyle/util/hasClosest";
-import {escapeHtml} from "../../util/escape";
+import {escapeHtml, escapeMarkdownPlainText} from "../../util/escape";
 import {emitOpenMenu} from "../../plugin/EventBus";
+import {sanitizeKernelHTML} from "../../util/hostCapabilities";
+import {showMessage} from "../../dialog/message";
 
 export class Inbox extends Model {
     private element: Element;
@@ -23,31 +29,33 @@ export class Inbox extends Model {
     private currentPage = 1;
     private pageCount = 1;
     private data: { [key: string]: IInbox } = {};
+    private moveTargets = new Map<string, {notebook: string; path: string; id: string; committed?: boolean}>();
+    private moving = false;
 
     constructor(app: App, tab: Tab | Element) {
-        super({app, id: tab.id});
+        super({app});
         if (tab instanceof Element) {
             this.element = tab;
         } else {
             this.element = tab.panelElement;
         }
         /// #if MOBILE
-        this.element.innerHTML = `<div class="toolbar toolbar--border toolbar--dark">
+        this.element.innerHTML = `<div class="toolbar toolbar--dark">
     <div class="fn__space"></div>
     <div class="toolbar__text">
         ${window.siyuan.languages.inbox}
         <span class="fn__space"></span>
         <span class="inboxSelectCount ft__smaller ft__on-surface"></span>
     </div>
-    <span class="fn__flex-1"></span>
     <span class="fn__space"></span>
+    <svg data-type="refresh" class="toolbar__icon"><use xlink:href="#iconRefresh"></use></svg>
     <svg data-type="selectall" class="toolbar__icon"><use xlink:href="#iconUncheck"></use></svg>
     <svg data-type="previous" disabled="disabled" class="toolbar__icon"><use xlink:href='#iconLeft'></use></svg>
     <svg data-type="next" disabled="disabled" class="toolbar__icon"><use xlink:href='#iconRight'></use></svg>
-    <svg data-type="more" class="toolbar__icon"><use xlink:href='#iconMore'></use></svg>
+    <svg data-type="more" class="toolbar__icon fn__none"><use xlink:href='#iconMore'></use></svg>
 </div>
 <div class="fn__loading fn__none">
-    <img width="64px" src="/stage/loading-pure.svg"></div>
+    <span class="b3-loading" aria-hidden="true"></span></div>
 </div>
 <div class="fn__flex-1 fn__none inboxDetails fn__flex-column" style="min-height: auto;background-color: var(--b3-theme-background)"></div>
 <div class="fn__flex-1"></div>`;
@@ -55,7 +63,7 @@ export class Inbox extends Model {
         this.element.classList.add("fn__flex-column", "file-tree", "sy__inbox", "dockPanel");
         this.element.innerHTML = `<div class="block__icons">
     <div class="block__logo fn__flex-1">
-        <svg class="block__logoicon"><use xlink:href="#iconInbox"></use></svg>${window.siyuan.languages.inbox}&nbsp;
+        ${window.siyuan.languages.inbox}&nbsp;
         <span class="inboxSelectCount"></span>
     </div>
     <span data-type="selectall" class="block__icon"><svg><use xlink:href="#iconUncheck"></use></svg></span>
@@ -69,7 +77,7 @@ export class Inbox extends Model {
     <span data-type="min" class="block__icon ariaLabel" data-position="north" aria-label="${window.siyuan.languages.min}${updateHotkeyAfterTip(window.siyuan.config.keymap.general.closeTab.custom)}"><svg><use xlink:href="#iconMin"></use></svg></span>
 </div>
 <div class="fn__loading fn__none">
-    <img width="64px" src="/stage/loading-pure.svg"></div>
+    <span class="b3-loading" aria-hidden="true"></span></div>
 </div>
 <div class="fn__flex-1 fn__none inboxDetails fn__flex-column" style="min-height: auto;background-color: var(--b3-theme-background)"></div>
 <div class="fn__flex-1"></div>`;
@@ -115,6 +123,7 @@ export class Inbox extends Model {
                         useElement.setAttribute("xlink:href", "#iconUncheck");
                     }
                     countElement.innerHTML = `${this.selectIds.length.toString()}/${this.pageCount.toString()}`;
+                    this.updateMoreVisibility();
                     window.siyuan.menus.menu.remove();
                     event.stopPropagation();
                     break;
@@ -129,6 +138,7 @@ export class Inbox extends Model {
                         useElement.setAttribute("xlink:href", "#iconUncheck");
                     }
                     countElement.innerHTML = `${this.selectIds.length.toString()}/${this.pageCount.toString()}`;
+                    this.updateMoreVisibility();
                     selectAllElement.querySelector("use").setAttribute("xlink:href", this.element.lastElementChild.querySelectorAll('[*|href="#iconCheck"]').length === this.element.lastElementChild.querySelectorAll(".b3-list-item").length ? "#iconCheck" : "#iconUncheck");
                     window.siyuan.menus.menu.remove();
                     event.stopPropagation();
@@ -145,6 +155,10 @@ export class Inbox extends Model {
                         this.currentPage++;
                         this.update();
                     }
+                    event.preventDefault();
+                    break;
+                } else if (type === "refresh") {
+                    this.refresh();
                     event.preventDefault();
                     break;
                 } else if (type === "back") {
@@ -164,6 +178,7 @@ export class Inbox extends Model {
                     detailsElement.innerHTML = this.genDetail(data);
                     detailsElement.setAttribute("data-id", data.oId);
                     detailsElement.classList.remove("fn__none");
+                    this.updateMoreVisibility();
                     detailsElement.scrollTop = 0;
                     this.element.lastElementChild.classList.add("fn__none");
                     event.preventDefault();
@@ -181,6 +196,15 @@ export class Inbox extends Model {
         this.element.firstElementChild.querySelector('[data-type="next"]').classList.remove("fn__none");
         this.element.querySelector(".inboxDetails").classList.add("fn__none");
         this.element.lastElementChild.classList.remove("fn__none");
+        this.updateMoreVisibility();
+    }
+
+    private updateMoreVisibility() {
+        /// #if MOBILE
+        const detailsElement = this.element.querySelector(".inboxDetails");
+        this.element.firstElementChild.querySelector('[data-type="more"]').classList.toggle("fn__none",
+            detailsElement.classList.contains("fn__none") && this.selectIds.length === 0);
+        /// #endif
     }
 
     private genDetail(data: IInbox) {
@@ -191,21 +215,21 @@ export class Inbox extends Model {
         <svg class="toolbar__icon" style="float: left"><use xlink:href="#iconLink"></use></svg>
     </a>`;
         }
-        return `<div class="toolbar">
+        return sanitizeKernelHTML(`<div class="toolbar">
     <svg data-type="back" class="toolbar__icon"><use xlink:href="#iconLeft"></use></svg>
     <span data-type="back" class="toolbar__text fn__flex-1">${data.shorthandTitle}</span>
     ${linkHTML}
 </div>
 <div class="b3-typography b3-typography--default" style="padding: 0 8px 8px">
 ${data.shorthandContent}
-</div>`;
+</div>`);
         /// #else
         if (data.shorthandURL) {
             linkHTML = `<span class="fn__space"></span><a href="${data.shorthandURL}" target="_blank" class="block__icon block__icon--show ariaLabel" data-position="north" aria-label="${window.siyuan.languages.link}">
         <svg><use xlink:href="#iconLink"></use></svg>
     </a>`;
         }
-        return `<div class="block__icons">
+        return sanitizeKernelHTML(`<div class="block__icons">
     <div class="block__logo fn__pointer fn__flex-1" data-type="back">
         <svg class="block__logoicon"><use xlink:href="#iconLeft"></use></svg><span class="ft__breakword">${data.shorthandTitle}</span>
     </div>
@@ -213,104 +237,147 @@ ${data.shorthandContent}
 </div>
 <div class="b3-typography b3-typography--default" style="padding: 0 8px 8px;user-select: text" data-type="textMenu">
 ${data.shorthandContent}
-</div>`;
+</div>`);
         /// #endif
     }
 
     private genItemHTML(item: IInbox) {
-        return `<li style="padding-left: 0" data-id="${item.oId}" class="b3-list-item">
+        return sanitizeKernelHTML(`<li style="padding-left: 0" data-id="${item.oId}" class="b3-list-item">
     <span data-type="select" class="b3-list-item__action">
-        <svg><use xlink:href="#icon${this.selectIds.includes(item.oId) ? "Check" : "Uncheck"}"></use></svg> 
+        <svg><use xlink:href="#icon${this.selectIds.includes(item.oId) ? "Check" : "Uncheck"}"></use></svg>
     </span>
     <span class="fn__space--small"></span>
     <span class="b3-list-item__text" title="${item.shorthandTitle}${item.shorthandTitle === item.shorthandDesc ? "" : "\n" + item.shorthandDesc}">${item.shorthandTitle}</span>
     <span class="b3-list-item__meta">${item.hCreated}</span>
-</li>`;
+</li>`);
     }
 
     private more(event: MouseEvent, itemElement?: HTMLElement) {
-        const detailsElement = this.element.querySelector(".inboxDetails");
-        window.siyuan.menus.menu.remove();
-        window.siyuan.menus.menu.append(new MenuItem({
-            label: window.siyuan.languages.refresh,
-            icon: "iconRefresh",
-            click: () => {
+        toggleMenu({
+            target: (event.target as Element).closest(".block__icon") || itemElement,
+            toggle: event.type !== "contextmenu",
+            build: (_menu, session) => {
+                const detailsElement = this.element.querySelector(".inboxDetails");
+
+                /// #if !MOBILE
+                window.siyuan.menus.menu.append(new MenuItem({
+                    label: window.siyuan.languages.refresh,
+                    icon: "iconRefresh",
+                    click: () => {
+                        this.refresh(itemElement);
+                    }
+                }).element);
+                /// #endif
+                let ids: string[] = [];
                 if (itemElement) {
-                    fetchPost("/api/inbox/getShorthand", {
-                        id: itemElement.dataset.id
-                    }, (response) => {
-                        this.data[response.data.oId] = response.data;
-                        itemElement.outerHTML = this.genItemHTML(response.data);
-                    });
+                    ids = [itemElement.dataset.id];
                 } else if (detailsElement.classList.contains("fn__none")) {
-                    this.currentPage = 1;
-                    this.update();
+                    ids = this.selectIds;
                 } else {
-                    fetchPost("/api/inbox/getShorthand", {
-                        id: detailsElement.getAttribute("data-id")
-                    }, (response) => {
-                        this.data[response.data.oId] = response.data;
-                        detailsElement.innerHTML = this.genDetail(response.data);
-                        detailsElement.scrollTop = 0;
-                    });
+                    ids = [detailsElement.getAttribute("data-id")];
                 }
-            }
-        }).element);
-        let ids: string[] = [];
-        if (itemElement) {
-            ids = [itemElement.dataset.id];
-        } else if (detailsElement.classList.contains("fn__none")) {
-            ids = this.selectIds;
-        } else {
-            ids = [detailsElement.getAttribute("data-id")];
-        }
-        if (ids.length > 0) {
-            window.siyuan.menus.menu.append(new MenuItem({
-                label: window.siyuan.languages.move,
-                icon: "iconMove",
-                click: () => {
-                    this.move(ids);
-                }
-            }).element);
-            window.siyuan.menus.menu.append(new MenuItem({
-                label: window.siyuan.languages.remove,
-                icon: "iconTrashcan",
-                click: () => {
-                    let removeTitle = "";
-                    ids.forEach((id, index) => {
-                        removeTitle += '<code class="fn__code">' + escapeHtml(this.data[id].shorthandTitle) + "</code>" + (index === ids.length - 1 ? "" : ", ");
-                    });
-                    confirmDialog(window.siyuan.languages.deleteOpConfirm, `${window.siyuan.languages.confirmDelete} ${removeTitle}?`, () => {
-                        if (itemElement) {
-                            this.remove([itemElement.dataset.id]);
-                        } else if (detailsElement.classList.contains("fn__none")) {
-                            this.remove();
-                        } else {
-                            this.remove([detailsElement.getAttribute("data-id")]);
+                if (ids.length > 0) {
+                    window.siyuan.menus.menu.append(new MenuItem({
+                        label: window.siyuan.languages.move,
+                        icon: "iconMove",
+                        click: () => {
+                            this.move(ids);
                         }
-                    }, undefined, true);
+                    }).element);
+                    let protyle: IProtyle;
+                    /// #if MOBILE
+                    protyle = window.siyuan.mobile.editor?.protyle;
+                    /// #else
+                    const tab = getActiveTab(false);
+                    if (tab?.model instanceof Editor) {
+                        protyle = tab.model.editor?.protyle;
+                    }
+                    /// #endif
+                    if (protyle?.block.rootID && !protyle.disabled && !window.siyuan.config.readonly && !window.siyuan.isPublish) {
+                        window.siyuan.menus.menu.append(new MenuItem({
+                            label: window.siyuan.languages.insertToCurrentDoc,
+                            icon: "iconAdd",
+                            click: () => {
+                                void this.insertToCurrentDoc(ids, protyle.block.rootID);
+                            }
+                        }).element);
+                    }
+                    window.siyuan.menus.menu.append(new MenuItem({
+                        label: window.siyuan.languages.remove,
+                        icon: "iconTrashcan",
+                        click: () => {
+                            let removeTitle = "";
+                            ids.forEach((id, index) => {
+                                removeTitle += '<code class="fn__code">' + escapeHtml(this.data[id].shorthandTitle) + "</code>" + (index === ids.length - 1 ? "" : ", ");
+                            });
+                            confirmDialog(window.siyuan.languages.deleteOpConfirm, `${window.siyuan.languages.confirmDelete} ${removeTitle}?`, () => {
+                                if (itemElement) {
+                                    this.remove([itemElement.dataset.id]);
+                                } else if (detailsElement.classList.contains("fn__none")) {
+                                    this.remove();
+                                } else {
+                                    this.remove([detailsElement.getAttribute("data-id")]);
+                                }
+                            }, undefined, true);
+                        }
+                    }).element);
                 }
-            }).element);
-        }
-        if (this.app.plugins) {
-            emitOpenMenu({
-                plugins: this.app.plugins,
-                type: "open-menu-inbox",
-                detail: {
-                    ids,
-                    element: itemElement || detailsElement,
-                },
-                separatorPosition: "top",
+                emitOpenMenu({
+                    type: "open-menu-inbox",
+                    detail: {
+                        ids,
+                        element: itemElement || detailsElement,
+                    },
+                    separatorPosition: "top",
+                });
+                const button = (event.target as Element).closest("[data-type='more']");
+                const rect = (itemElement || button)?.getBoundingClientRect();
+                session.show(() => window.siyuan.menus.menu.popup({
+                    x: !itemElement && rect ? rect.left : event.clientX,
+                    y: rect ? rect.bottom : event.clientY + 16,
+                    h: rect ? rect.height : 0,
+                }));
+
+            },
+        });
+    }
+
+    private refresh(itemElement?: HTMLElement) {
+        const detailsElement = this.element.querySelector(".inboxDetails");
+        if (itemElement) {
+            fetchPost("/api/inbox/getShorthand", {id: itemElement.dataset.id}, (response) => {
+                if (response.code !== 0 || !response.data) {
+                    return;
+                }
+                this.data[response.data.oId] = response.data;
+                itemElement.outerHTML = this.genItemHTML(response.data);
+            });
+        } else if (detailsElement.classList.contains("fn__none")) {
+            this.currentPage = 1;
+            this.update();
+        } else {
+            fetchPost("/api/inbox/getShorthand", {id: detailsElement.getAttribute("data-id")}, (response) => {
+                if (response.code !== 0 || !response.data) {
+                    return;
+                }
+                this.data[response.data.oId] = response.data;
+                detailsElement.innerHTML = this.genDetail(response.data);
+                detailsElement.scrollTop = 0;
             });
         }
-        window.siyuan.menus.menu.popup({x: event.clientX, y: event.clientY + 16});
     }
 
     private remove(removeIds?: string[]) {
         if (!removeIds) {
             removeIds = this.selectIds;
         }
-        fetchPost("/api/inbox/removeShorthands", {ids: removeIds}, () => {
+        fetchPost("/api/inbox/removeShorthands", {ids: removeIds}, (response) => {
+            if (response.code !== 0) {
+                return;
+            }
+            for (const id of removeIds || this.selectIds) {
+                this.moveTargets.delete(id);
+            }
             if (removeIds) {
                 this.back();
                 for (let i = this.selectIds.length - 1; i >= 0; i--) {
@@ -318,6 +385,7 @@ ${data.shorthandContent}
                         this.selectIds.splice(i, 1);
                     }
                 }
+                this.updateMoreVisibility();
             } else {
                 this.selectIds = [];
             }
@@ -329,28 +397,117 @@ ${data.shorthandContent}
     private move(ids: string[]) {
         movePathTo({
             cb: async (toPath, toNotebook) => {
-                for (let i = 0; i < ids.length; i++) {
-                    const idItem = ids[i];
-                    const response = await fetchSyncPost("/api/inbox/getShorthand", {
-                        id: idItem
-                    });
-                    this.data[response.data.oId] = response.data;
-                    let md = response.data.shorthandMd;
-                    if ("" === md && "" === response.data.shorthandContent && "" != response.data.shorthandURL) {
-                        md = "[" + response.data.shorthandTitle + "](" + response.data.shorthandURL + ")";
-                    }
-                    await fetchSyncPost("/api/filetree/createDoc", {
-                        notebook: toNotebook[0],
-                        path: pathPosix().join(getDisplayName(toPath[0], false, true), Lute.NewNodeID() + ".sy"),
-                        title: replaceFileName(response.data.shorthandTitle),
-                        md,
-                        listDocTree: true,
-                    });
+                if (this.moving) {
+                    return;
                 }
-                this.remove(ids);
+                this.moving = true;
+                const created: string[] = [];
+                let finished = false;
+                try {
+                    for (let i = 0; i < ids.length; i++) {
+                        const idItem = ids[i];
+                        let target = this.moveTargets.get(idItem);
+                        if (target && (target.notebook !== toNotebook[0] || target.path !== toPath[0])) {
+                            showMessage(`${escapeHtml(window.siyuan.languages.documentCreationRecovery)} ` +
+                                `<a href="siyuan://blocks/${target.id}">${target.id}</a>`, 0, "error");
+                            break;
+                        }
+                        if (target?.committed) {
+                            created.push(idItem);
+                            continue;
+                        }
+                        const response = await fetchSyncPost("/api/inbox/getShorthand", {
+                            id: idItem
+                        });
+                        if (response.code !== 0 || !response.data) {
+                            break;
+                        }
+                        this.data[response.data.oId] = response.data;
+                        let md = response.data.shorthandMd;
+                        if ("" === md && "" === response.data.shorthandContent && "" != response.data.shorthandURL) {
+                            md = "[" + response.data.shorthandTitle + "](" + response.data.shorthandURL + ")";
+                        }
+                        if (!target) {
+                            if ([...this.moveTargets.values()].filter(value => !value.committed).length >= 32) {
+                                showMessage(window.siyuan.languages.documentCreationLimit, 0, "error");
+                                break;
+                            }
+                            target = {notebook: toNotebook[0], path: toPath[0], id: Lute.NewNodeID()};
+                            this.moveTargets.set(idItem, target);
+                        }
+                        const request = documentCreateRequest(target.notebook, target.path, target.id,
+                            normalizeDocumentTitle(response.data.shorthandTitle), md);
+                        let completed = false;
+                        await createConfiguredDocument({
+                            notebook: target.notebook, contextID: request.parentID, purpose: "document",
+                            placement: "child", id: target.id, title: request.title.text,
+                        }, {
+                            plan: {notebook: target.notebook, title: request.title.text, steps: [request]},
+                            listDocTree: true,
+                            onCreated: () => {
+                                target.committed = true;
+                                completed = true;
+                                if (finished) {
+                                    this.remove([idItem]);
+                                } else {
+                                    created.push(idItem);
+                                }
+                            },
+                        });
+                        if (!completed) {
+                            break;
+                        }
+                    }
+                } catch (error) {
+                    showMessage(escapeHtml(error instanceof Error ? error.message : String(error)), 0, "error");
+                } finally {
+                    this.moving = false;
+                    finished = true;
+                    if (created.length) {
+                        this.remove(created);
+                    }
+                }
             },
             flashcard: false
         });
+    }
+
+    private async insertToCurrentDoc(ids: string[], rootID: string) {
+        const insertedIds: string[] = [];
+        try {
+            for (const id of [...ids]) {
+                const shorthand = await fetchSyncPost("/api/inbox/getShorthand", {id});
+                if (shorthand.code !== 0 || !shorthand.data) {
+                    break;
+                }
+                let md = shorthand.data.shorthandMd;
+                if (!md && !shorthand.data.shorthandContent && shorthand.data.shorthandURL) {
+                    md = `[${shorthand.data.shorthandTitle}](${shorthand.data.shorthandURL})`;
+                }
+                const title = escapeMarkdownPlainText(shorthand.data.shorthandTitle.replace(/[\r\n]+/g, " ").trim());
+                if (title) {
+                    md = `# ${title}\n\n${md}`;
+                }
+                if (!md.trim()) {
+                    showMessage(window.siyuan.languages.empty);
+                    break;
+                }
+                const response = await fetchSyncPost("/api/block/appendBlock", {
+                    dataType: "markdown",
+                    data: md,
+                    parentID: rootID,
+                });
+                if (response.code !== 0) {
+                    break;
+                }
+                insertedIds.push(id);
+            }
+        } catch (error) {
+            showMessage((error as Error).message, 6000, "error");
+        }
+        if (insertedIds.length > 0) {
+            this.remove(insertedIds);
+        }
     }
 
     private update() {
@@ -361,7 +518,7 @@ ${data.shorthandContent}
         ${window.siyuan.languages.inboxTip}
     </li>
     <li class="b3-list--empty">
-        ${window.siyuan.config.system.container === "ios" ? window.siyuan.languages._kernel[122] : window.siyuan.languages._kernel[29].replaceAll("${accountServer}", getCloudURL(""))}
+        ${isInIOS() ? window.siyuan.languages._kernel[295] : window.siyuan.languages._kernel[29].replaceAll("${accountServer}", getCloudURL(""))}
     </li>
 </ul>`;
             loadingElement.classList.add("fn__none");
@@ -373,6 +530,9 @@ ${data.shorthandContent}
         loadingElement.classList.remove("fn__none");
         fetchPost("/api/inbox/getShorthands", {page: this.currentPage}, (response) => {
             loadingElement.classList.add("fn__none");
+            if (response.code !== 0 || !response.data) {
+                return;
+            }
             let html = "";
             if (response.data.data.shorthands.length === 0) {
                 html = `<ul class="b3-list b3-list--background"><li class="b3-list--empty">${window.siyuan.languages.inboxTip}</li></ul>`;
@@ -388,6 +548,7 @@ ${data.shorthandContent}
 
             this.pageCount = response.data.data.pagination.paginationRecordCount;
             this.element.querySelector(".inboxSelectCount").innerHTML = `${this.selectIds.length}/${this.pageCount}`;
+            this.updateMoreVisibility();
 
             const previousElement = this.element.querySelector('[data-type="previous"]');
             const nextElement = this.element.querySelector('[data-type="next"]');

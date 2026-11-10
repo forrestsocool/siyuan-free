@@ -13,12 +13,15 @@
  * limitations under the License.
  */
 
-import {RenderingStates, ScrollMode, SpreadMode, TextLayerMode} from "./ui_utils.js";
+import {ScrollMode, SpreadMode, TextLayerMode} from "./ui_utils.js";
+import {RenderingStates} from "./renderable_view.js";
 import { AppOptions } from "./app_options.js";
 import { LinkTarget } from "./pdf_link_service.js";
 import { PDFViewerApplication } from "./app.js";
 import {Constants} from "../../constants";
-import {initAnno} from "../anno";
+import {destroyAnno, initAnno} from "../anno";
+import {registerPdfInstance} from "../annoRuntime";
+import {bindPdfMaximize} from "../pdfMaximize";
 import {AnnotationEditorType} from "./pdfjs";
 
 /* eslint-disable-next-line no-unused-vars */
@@ -50,6 +53,8 @@ function getViewerConfiguration(element) {
       container: element.querySelector("#toolbarContainer"),
       numPages: element.querySelector("#numPages"),
       pageNumber: element.querySelector("#pageNumber"),
+      historyBack: element.querySelector("#pdfHistoryBack"),
+      historyForward: element.querySelector("#pdfHistoryForward"),
       scaleSelect: element.querySelector("#scaleSelect"),
       customScaleOption: element.querySelector("#customScaleOption"),
       previous: element.querySelector("#previous"),
@@ -125,6 +130,7 @@ function getViewerConfiguration(element) {
       attachmentsView: element.querySelector("#attachmentsView"),
       layersView: element.querySelector("#layersView"),
       // View-specific options
+      outlineOptionsContainer: element.querySelector("#outlineOptionsContainer"),
       currentOutlineItemButton: element.querySelector("#currentOutlineItem"),
     },
     findBar: {
@@ -233,16 +239,28 @@ function getViewerConfiguration(element) {
 }
 
 // NOTE
-function webViewerLoad(file, element, pdfPage, annoId) {
-  AppOptions.set("workerSrc", `${Constants.PROTYLE_CDN}/js/pdf/pdf.worker.min.mjs?v=4.7.85`);
+function webViewerLoad(file, element, pdfPage, annoId, previewOnly = false) {
+  // SiYuan 通过 AppOptions.set 显式配置 viewer,禁用从 localStorage 读取的 Preferences,
+  AppOptions.set("disablePreferences", true);
+  AppOptions.set("workerSrc", `${Constants.PROTYLE_CDN}/js/pdf/pdf.worker.compat.mjs?v=6.4.299-siyuan.2`);
   AppOptions.set("defaultUrl", file);
-  AppOptions.set("cMapUrl", 'cmaps/');
-  AppOptions.set("standardFontDataUrl", 'standard_fonts/');
+  AppOptions.set("cMapUrl", `${Constants.PROTYLE_CDN}/js/pdf/cmaps/`);
+  AppOptions.set("iccUrl", `${Constants.PROTYLE_CDN}/js/pdf/iccs/`);
+  AppOptions.set("standardFontDataUrl", `${Constants.PROTYLE_CDN}/js/pdf/standard_fonts/`);
+  AppOptions.set("wasmUrl", `${Constants.PROTYLE_CDN}/js/pdf/wasm/`);
   AppOptions.set("annotationEditorMode", AnnotationEditorType.DISABLE);
+  AppOptions.set("enableScripting", false);
+  AppOptions.set("enableAutoLinking", false);
+  AppOptions.set("enableSelectionRendering", false);
+  AppOptions.set("enableComment", false);
+  AppOptions.set("enableSignatureEditor", false);
+  AppOptions.set("enableSignatureVerification", false);
+  AppOptions.set("enableSplitMerge", false);
   const pdf = new PDFViewerApplication(pdfPage)
   pdf.annoId = annoId
   const config = getViewerConfiguration(element);
   config.file = file;
+  config.previewOnly = previewOnly;
   if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("GENERIC")) {
     // Give custom implementations of the default viewer a simpler way to
     // set various `AppOptions`, by dispatching an event once all viewer
@@ -266,8 +284,32 @@ function webViewerLoad(file, element, pdfPage, annoId) {
       document.dispatchEvent(event);
     }
   }
-  pdf.run(config);
-  initAnno(element, pdf);
+  const runPromise = pdf.run(config);
+  const disposeMaximize = bindPdfMaximize(element, pdf, previewOnly);
+  if (previewOnly) {
+    // 未引用资源仅用于预览，不读取或写入批注文件。
+    registerPdfInstance(element, pdf);
+    config.toolbar.rectAnno.classList.add("fn__none");
+  } else {
+    initAnno(element, pdf);
+  }
+  const destroy = pdf.destroy.bind(pdf);
+  let isDestroyed = false;
+  pdf.destroy = async () => {
+    if (isDestroyed) {
+      return;
+    }
+    isDestroyed = true;
+    pdf._destroyed = true;
+    disposeMaximize();
+    destroyAnno(element);
+    try {
+      await runPromise;
+    } catch {
+      // 初始化失败时仍继续清理已创建的资源。
+    }
+    await destroy();
+  };
   return pdf
 }
 

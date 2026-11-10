@@ -1,24 +1,29 @@
-import * as compatibility from "../protyle/util/compatibility";
 /// #if !BROWSER
 import {ipcRenderer} from "electron";
 import {Constants} from "../constants";
 /// #endif
-export const openByMobile = compatibility.openByMobile;
-export const readText = compatibility.readText;
-export const writeText = compatibility.writeText;
-export const copyPlainText = compatibility.copyPlainText;
-export const getEventName = compatibility.getEventName;
-export const isOnlyMeta = compatibility.isOnlyMeta;
-export const isNotCtrl = compatibility.isNotCtrl;
-export const isHuawei = compatibility.isHuawei;
-export const isIPhone = compatibility.isIPhone;
-export const isIPad = compatibility.isIPad;
-export const isMac = compatibility.isMac;
-export const isInAndroid = compatibility.isInAndroid;
-export const isInIOS = compatibility.isInIOS;
-export const updateHotkeyTip = compatibility.updateHotkeyTip;
-export const getLocalStorage = compatibility.getLocalStorage;
-export const setStorageVal = compatibility.setStorageVal;
+export {openByMobile} from "../editor/openLink";
+export {
+    copyPlainText,
+    getEventName,
+    getLocalStorage,
+    isHuawei,
+    isInAndroid,
+    isInIOS,
+    isIPhone,
+    isIPad,
+    isMac,
+    isNotCtrl,
+    isOnlyMeta,
+    readText,
+    setStorageVal,
+    updateHotkeyTip,
+    writeText,
+} from "../protyle/util/compatibility";
+
+export const getStorageVal = (key: string): any => {
+    return window.siyuan.storage?.[key] ?? null; // 不存在时与接口响应一致使用 null
+};
 
 /**
  * @param {string} [options.timeoutType="defalut"] 仅在 Windows 和 Linux 有效，"default" 表示使用默认的超时机制，"never" 表示通知将一直显示，直到用户手动关闭它。

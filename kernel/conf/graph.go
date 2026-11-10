@@ -1,20 +1,13 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package conf
+
+const (
+	defaultGraphMaxBlocks = 1024 * 16
+	legacyGraphMaxBlocks  = 1024 * 10
+)
 
 type Graph struct {
 	MaxBlocks int `json:"maxBlocks"` // 内容块最大显示数
@@ -25,9 +18,16 @@ type Graph struct {
 
 func NewGraph() *Graph {
 	return &Graph{
-		MaxBlocks: 1024 * 10,
+		MaxBlocks: defaultGraphMaxBlocks,
 		Local:     NewLocalGraph(),
 		Global:    NewGlobalGraph(),
+	}
+}
+
+// NormalizeMaxBlocks 将缺失值和历史默认值迁移到当前默认值。
+func (graph *Graph) NormalizeMaxBlocks() {
+	if 1 > graph.MaxBlocks || legacyGraphMaxBlocks == graph.MaxBlocks {
+		graph.MaxBlocks = defaultGraphMaxBlocks
 	}
 }
 

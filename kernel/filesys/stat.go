@@ -1,18 +1,6 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package filesys
 
@@ -90,25 +78,58 @@ func StatTree(id string) (ret *util.BlockStatResult) {
 	return statTree(tree)
 }
 
+// StatTreeInBox 只统计指定笔记本边界内的文档。
+func StatTreeInBox(id, boxID string) (ret *util.BlockStatResult) {
+	bt := treenode.GetBlockTreeInExactBox(id, boxID)
+	if bt == nil {
+		return nil
+	}
+	tree, err := LoadTree(bt.BoxID, bt.Path, util.NewLute())
+	if err != nil {
+		return nil
+	}
+	return statTree(tree)
+}
+
+// StatTreeFromTree 统计整棵文档树。
+func StatTreeFromTree(tree *parse.Tree) (ret *util.BlockStatResult) {
+	if nil == tree || nil == tree.Root {
+		return
+	}
+	return StatNodes(tree, []*ast.Node{tree.Root})
+}
+
 func statTree(tree *parse.Tree) (ret *util.BlockStatResult) {
+	return StatTreeFromTree(tree)
+}
+
+// StatNodes 统计指定节点及其子节点。
+func StatNodes(tree *parse.Tree, nodes []*ast.Node) (ret *util.BlockStatResult) {
+	if nil == tree {
+		return
+	}
+
 	blockCount := 0
 	var databaseBlockNodes []*ast.Node
-	ast.Walk(tree.Root, func(n *ast.Node, entering bool) ast.WalkStatus {
-		if !entering || tree.Root == n {
+	for _, node := range nodes {
+		if nil == node {
+			continue
+		}
+		ast.Walk(node, func(n *ast.Node, entering bool) ast.WalkStatus {
+			if !entering {
+				return ast.WalkContinue
+			}
+
+			if n.IsBlock() && ast.NodeDocument != n.Type {
+				blockCount++
+			}
+
+			if ast.NodeAttributeView == n.Type {
+				databaseBlockNodes = append(databaseBlockNodes, n)
+			}
 			return ast.WalkContinue
-		}
-
-		if n.IsBlock() {
-			blockCount++
-		}
-
-		if ast.NodeAttributeView != n.Type {
-			return ast.WalkContinue
-		}
-
-		databaseBlockNodes = append(databaseBlockNodes, n)
-		return ast.WalkContinue
-	})
+		})
+	}
 
 	luteEngine := util.NewLute()
 	var dbRuneCnt, dbWordCnt, dbLinkCnt, dbImgCnt, dbRefCnt int
@@ -117,7 +138,12 @@ func statTree(tree *parse.Tree) (ret *util.BlockStatResult) {
 			continue
 		}
 
-		attrView, _ := av.ParseAttributeView(n.AttributeViewID)
+		var attrView *av.AttributeView
+		if av.AVIsEncryptedBox != nil && av.AVIsEncryptedBox(tree.Box) {
+			attrView, _ = av.ParseAttributeViewInBox(n.AttributeViewID, tree.Box)
+		} else {
+			attrView, _ = av.ParseAttributeView(n.AttributeViewID)
+		}
 		if nil == attrView {
 			continue
 		}
@@ -168,6 +194,8 @@ func statTree(tree *parse.Tree) (ret *util.BlockStatResult) {
 						continue
 					}
 					content.WriteString(v.Email.Content)
+				case av.KeyTypeLocation:
+					content.WriteString(v.String(false))
 				case av.KeyTypePhone:
 					if v.IsBlank() {
 						continue
@@ -182,7 +210,18 @@ func statTree(tree *parse.Tree) (ret *util.BlockStatResult) {
 		dbWordCnt += dbStat.WordCount
 	}
 
-	runeCnt, wordCnt, linkCnt, imgCnt, refCnt := tree.Root.Stat()
+	var runeCnt, wordCnt, linkCnt, imgCnt, refCnt int
+	for _, node := range nodes {
+		if nil == node {
+			continue
+		}
+		nodeRuneCnt, nodeWordCnt, nodeLinkCnt, nodeImgCnt, nodeRefCnt := node.Stat()
+		runeCnt += nodeRuneCnt
+		wordCnt += nodeWordCnt
+		linkCnt += nodeLinkCnt
+		imgCnt += nodeImgCnt
+		refCnt += nodeRefCnt
+	}
 	runeCnt += dbRuneCnt
 	wordCnt += dbWordCnt
 	linkCnt += dbLinkCnt
@@ -218,7 +257,7 @@ func BlocksWordCount(ids []string) (ret *util.BlockStatResult) {
 		ret.LinkCount += linkCnt
 		ret.ImageCount += imgCnt
 		ret.RefCount += refCnt
+		ret.BlockCount++
 	}
-	ret.BlockCount = len(ids)
 	return
 }

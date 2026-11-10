@@ -1,10 +1,10 @@
 .b3-button {
   cursor: pointer;
-  color: var(--b3-theme-on-primary);
-  border-radius: var(--b3-border-radius);
+  color: var(--b3-theme-on-primary, ButtonText);
+  border-radius: var(--b3-border-radius, 4px);
   line-height: 20px;
   padding: 4px 8px;
-  background-color: var(--b3-theme-primary);
+  background-color: var(--b3-theme-primary, ButtonFace);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
@@ -15,8 +15,8 @@
   text-align: center;
 
   svg {
-    height: 14px;
-    width: 14px;
+    height: 16px;
+    width: 16px;
     margin-right: 4px;
     flex-shrink: 0;
   }
@@ -49,8 +49,29 @@
     }
   }
 
+  &--progress-text {
+    position: relative;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: var(--b3-progress, 0%);
+      border-radius: inherit;
+      background-color: var(--b3-theme-on-primary);
+      opacity: .2;
+      pointer-events: none;
+    }
+  }
+
   &--mid {
     padding: 2px 8px;
+  }
+
+  &--wrap {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: max(20px, 1.4em);
   }
 
   &--big {
@@ -94,9 +115,10 @@
   }
 
   &--outline {
-    color: var(--b3-theme-primary);
+    color: var(--b3-theme-primary, ButtonText);
     box-shadow: inset 0 0 0 .6px var(--b3-theme-primary);
     background-color: transparent;
+    text-decoration: none;
 
     &:hover,
     &:focus {
@@ -159,9 +181,22 @@
     background-color: var(--b3-card-success-background);
   }
 
+  &--pink {
+    color: var(--b3-theme-on-secondary);
+    background-color: #ea4aaa;
+  }
+
   &--small {
     padding: 0 4px;
     font-size: 12px;
+  }
+
+  &--icon {
+    padding: 4px 6px;
+
+    svg {
+      margin-right: 0;
+    }
   }
 
   &:disabled {

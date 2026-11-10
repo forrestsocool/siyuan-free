@@ -28,16 +28,20 @@ else
     adduser --uid "${PUID}" --ingroup "${group_name}" --disabled-password --gecos "" "${user_name}"
 fi
 
-# Parse command line arguments for --workspace option or SIYUAN_WORKSPACE_PATH env variable
-# Store other arguments in ARGS for later use
-if [[ -n "${SIYUAN_WORKSPACE_PATH}" ]]; then
+# Accept flag-only commands from existing Compose deployments.
+case "${1:-}" in
+    /opt/siyuan/kernel) shift ;;
+esac
+case "${1:-}" in
+    ""|-*) set -- serve "$@" ;;
+esac
+
+if [ -n "${SIYUAN_WORKSPACE_PATH}" ]; then
     WORKSPACE_DIR="${SIYUAN_WORKSPACE_PATH}"
 fi
-ARGS=""
-while [[ "$#" -gt 0 ]]; do
-    case $1 in
-        --workspace=*) WORKSPACE_DIR="${1#*=}"; shift ;;
-        *) ARGS="$ARGS $1"; shift ;;
+for arg in "$@"; do
+    case "$arg" in
+        --workspace=*) WORKSPACE_DIR="${arg#*=}" ;;
     esac
 done
 
@@ -48,5 +52,5 @@ chown -R "${PUID}:${PGID}" /home/siyuan/
 chown -R "${PUID}:${PGID}" "${WORKSPACE_DIR}"
 
 # Switch to the newly created user and start the main process with all arguments
-echo "Starting Siyuan with UID:${PUID} and GID:${PGID} in workspace ${WORKSPACE_DIR}"
-exec su-exec "${PUID}:${PGID}" /opt/siyuan/kernel --workspace="${WORKSPACE_DIR}" ${ARGS}
+echo "Starting SiYuan with UID:${PUID} and GID:${PGID} in workspace ${WORKSPACE_DIR}"
+exec su-exec "${PUID}:${PGID}" /opt/siyuan/kernel --workspace="${WORKSPACE_DIR}" "$@"

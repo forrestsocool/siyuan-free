@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+import {internalOpt} from "./internal_evt.js";
+
 /** @typedef {import("./event_utils.js").EventBus} EventBus */
 
 import { AnnotationEditorType, ColorPicker, noContextMenu } from "./pdfjs";
@@ -30,6 +32,8 @@ import {
  * @property {HTMLSpanElement} numPages - Label that contains number of pages.
  * @property {HTMLInputElement} pageNumber - Control for display and user input
  *   of the current page number.
+ * @property {HTMLButtonElement} historyBack - PDF 历史后退按钮。
+ * @property {HTMLButtonElement} historyForward - PDF 历史前进按钮。
  * @property {HTMLSelectElement} scaleSelect - Scale selection control.
  *   Its width is adjusted, when necessary, on UI localization.
  * @property {HTMLOptionElement} customScaleOption - The item used to display
@@ -59,6 +63,8 @@ class Toolbar {
     this.#opts = options;
     this.eventBus = eventBus;
     const buttons = [
+      { element: options.historyBack, eventName: "pdfhistoryback" },
+      { element: options.historyForward, eventName: "pdfhistoryforward" },
       { element: options.previous, eventName: "previouspage" },
       { element: options.next, eventName: "nextpage" },
       { element: options.zoomIn, eventName: "zoomin" },
@@ -163,6 +169,11 @@ class Toolbar {
     this.#updateUIState(false);
   }
 
+  setHistoryState(canGoBack, canGoForward) {
+    this.#opts.historyBack.disabled = !canGoBack;
+    this.#opts.historyForward.disabled = !canGoForward;
+  }
+
   reset() {
     this.pageNumber = 0;
     this.pageLabel = null;
@@ -170,6 +181,7 @@ class Toolbar {
     this.pagesCount = 0;
     this.pageScaleValue = DEFAULT_SCALE_VALUE;
     this.pageScale = DEFAULT_SCALE;
+    this.setHistoryState(false, false);
     this.#updateUIState(true);
     this.updateLoadingIndicatorState();
 
@@ -241,21 +253,21 @@ class Toolbar {
     // Suppress context menus for some controls.
     scaleSelect.oncontextmenu = noContextMenu;
 
-    eventBus._on(
+    eventBus.on(
       "annotationeditormodechanged",
-      this.#editorModeChanged.bind(this)
+      this.#editorModeChanged.bind(this), internalOpt
     );
-    eventBus._on("showannotationeditorui", ({ mode }) => {
+    eventBus.on("showannotationeditorui", ({ mode }) => {
       switch (mode) {
         case AnnotationEditorType.HIGHLIGHT:
           editorHighlightButton.click();
           break;
       }
-    });
-    eventBus._on("toolbardensity", this.#updateToolbarDensity.bind(this));
+    }, internalOpt);
+    eventBus.on("toolbardensity", this.#updateToolbarDensity.bind(this), internalOpt);
 
     if (editorHighlightColorPicker) {
-      eventBus._on(
+      eventBus.on(
         "annotationeditoruimanager",
         ({ uiManager }) => {
           this.#setAnnotationEditorUIManager(
@@ -264,7 +276,7 @@ class Toolbar {
           );
         },
         // Once the color picker has been added, we don't want to add it again.
-        { once: true }
+        {once: true, ...internalOpt}
       );
     }
   }

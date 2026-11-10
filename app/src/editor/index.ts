@@ -1,33 +1,40 @@
 import {Tab} from "../layout/Tab";
 import {Protyle} from "../protyle";
 import {Model} from "../layout/Model";
-import {setPadding} from "../protyle/ui/initUI";
 /// #if !BROWSER
 import {setModelsHash} from "../window/setHeader";
 /// #endif
 import {countBlockWord} from "../layout/status";
-import {App} from "../index";
-import {fullscreen} from "../protyle/breadcrumb/action";
+import type {App} from "../index";
 import {fetchPost} from "../util/fetch";
+import {BottomBacklinkPanel} from "../layout/dock/BottomBacklinkPanel";
+import type {IDatabaseRowOpenData} from "../protyle/render/av/openDatabaseRow";
 
 export class Editor extends Model {
     public element: HTMLElement;
     public editor: Protyle;
     public headElement: HTMLElement;
+    public databaseRow?: IDatabaseRowOpenData;
+    private bottomBacklinkPanel?: BottomBacklinkPanel;
+
+    public get backlink() {
+        return this.bottomBacklinkPanel?.backlink;
+    }
 
     constructor(options: {
         app: App,
         tab: Tab,
         blockId: string,
         rootId: string,
+        notebookId?: string,
         mode?: TEditorMode,
         action?: TProtyleAction[],
         afterInitProtyle?: (editor: Protyle) => void,
-        scrollPosition?: ScrollLogicalPosition
+        scrollPosition?: ScrollLogicalPosition,
+        scrollAttr?: IScrollAttr,
     }) {
         super({
             app: options.app,
-            id: options.tab.id,
         });
         if (window.siyuan.config.fileTree.openFilesUseCurrentTab) {
             options.tab.headElement.classList.add("item--unupdate");
@@ -43,14 +50,18 @@ export class Editor extends Model {
         blockId: string,
         action?: TProtyleAction[]
         rootId: string,
+        notebookId?: string,
         mode?: TEditorMode,
         scrollPosition?: ScrollLogicalPosition,
+        scrollAttr?: IScrollAttr,
         afterInitProtyle?: (editor: Protyle) => void,
     }) {
         this.editor = new Protyle(this.app, this.element, {
+            databaseAttr: true,
             action: options.action || [],
             blockId: options.blockId,
             rootId: options.rootId,
+            notebookId: options.notebookId,
             mode: options.mode,
             render: {
                 title: true,
@@ -59,21 +70,46 @@ export class Editor extends Model {
             },
             typewriterMode: true,
             scrollPosition: options.scrollPosition,
+            scrollAttr: options.scrollAttr,
             after: (editor) => {
                 if (window.siyuan.editorIsFullscreen) {
-                    fullscreen(editor.protyle.element);
-                    setPadding(editor.protyle);
+                    editor.setFullscreen(true);
                 }
-                countBlockWord([], editor.protyle.block.rootID);
+                countBlockWord([], editor.protyle);
                 /// #if !BROWSER
                 setModelsHash();
                 /// #endif
                 if (options.afterInitProtyle) {
                     options.afterInitProtyle(editor);
                 }
+                this.updateBacklinkPanel();
             },
         });
         // 需在 after 回调之前，否则不会聚焦 https://github.com/siyuan-note/siyuan/issues/5303
         this.editor.protyle.model = this;
+    }
+
+    public updateBacklinkPanel(reset = false) {
+        this.bottomBacklinkPanel ??= new BottomBacklinkPanel(this.editor.protyle);
+        this.bottomBacklinkPanel.update(reset);
+    }
+
+    public refreshBottomBacklinkPanel() {
+        this.bottomBacklinkPanel?.refresh();
+    }
+
+    public destroy() {
+        this.bottomBacklinkPanel?.destroy();
+        this.editor.destroy();
+    }
+
+    public getCurrentProtyle(range?: Range) {
+        if (range) {
+            const backlinkEditor = this.backlink?.editors.find(item => item.protyle.element.contains(range.startContainer));
+            if (backlinkEditor) {
+                return backlinkEditor.protyle;
+            }
+        }
+        return this.editor.protyle;
     }
 }

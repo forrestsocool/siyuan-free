@@ -1,59 +1,44 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package api
 
 import (
-	"net/http"
+	"github.com/siyuan-note/siyuan/kernel/apicontract"
 
-	"github.com/88250/gulu"
 	"github.com/gin-gonic/gin"
 	"github.com/siyuan-note/siyuan/kernel/model"
 	"github.com/siyuan-note/siyuan/kernel/treenode"
 	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
-func getDocOutline(c *gin.Context) {
-	ret := gulu.Ret.NewResult()
-	defer c.JSON(http.StatusOK, ret)
+var getDocOutline = contractHandler(apicontract.GetDocOutline, func(c *gin.Context, request apicontract.OutlineRequest) apicontract.Response[[]*apicontract.SearchPath] {
 
-	arg, ok := util.JsonArg(c, ret)
-	if !ok {
-		return
+	if request.ID == nil {
+		return apicontract.Success[[]*apicontract.SearchPath](nil)
+	}
+	rootID, preview := *request.ID, request.Preview
+	if err := util.ValidateID(rootID); err != nil {
+		return apicontract.FailureFrom[[]*apicontract.SearchPath](err)
 	}
 
-	if nil == arg["id"] {
-		return
+	notebook := request.Notebook
+	if isEncryptedNotebookDeniedForPublish(c, notebook) {
+		return apicontract.Success([]*apicontract.SearchPath{})
 	}
-
-	preview := false
-	if previewArg := arg["preview"]; nil != previewArg {
-		preview = previewArg.(bool)
+	if err := holdEncryptedBoxRequest(c, notebook); err != nil {
+		return apicontract.Failure[[]*apicontract.SearchPath](1, err.Error())
 	}
-
-	rootID := arg["id"].(string)
-	if util.InvalidIDPattern(rootID, ret) {
-		return
+	var headings []*model.Path
+	var err error
+	if notebook != "" && model.IsEncryptedBox(notebook) {
+		headings, err = model.OutlineInBox(rootID, preview, notebook)
+	} else {
+		headings, err = model.Outline(rootID, preview)
 	}
-
-	headings, err := model.Outline(rootID, preview)
 	if err != nil {
-		ret.Code = 1
-		ret.Msg = err.Error()
-		return
+		return apicontract.Failure[[]*apicontract.SearchPath](1, err.Error())
 	}
 	if model.IsReadOnlyRoleContext(c) {
 		publishAccess := model.GetPublishAccess()
@@ -69,5 +54,51 @@ func getDocOutline(c *gin.Context) {
 			}
 		}
 	}
-	ret.Data = headings
-}
+	return apicontract.Success(searchPathContracts(headings))
+})
+
+var getDocHeadingNumbers = contractHandler(apicontract.GetDocHeadingNumbers, func(c *gin.Context, request apicontract.HeadingNumbersRequest) apicontract.Response[map[string]string] {
+
+	if request.ID == nil {
+		return apicontract.Success[map[string]string](nil)
+	}
+	rootID := *request.ID
+	if err := util.ValidateID(rootID); err != nil {
+		return apicontract.FailureFrom[map[string]string](err)
+	}
+	notebook := request.Notebook
+	if isEncryptedNotebookDeniedForPublish(c, notebook) {
+		return apicontract.Success(map[string]string{})
+	}
+	if err := holdEncryptedBoxRequest(c, notebook); err != nil {
+		return apicontract.Failure[map[string]string](1, err.Error())
+	}
+	numbers := map[string]string{}
+	var err error
+	if notebook != "" && model.IsEncryptedBox(notebook) {
+		numbers, err = model.GetHeadingNumbers(rootID, notebook)
+	} else {
+		numbers, err = model.GetHeadingNumbers(rootID, "")
+	}
+	if nil != err {
+		return apicontract.Failure[map[string]string](1, err.Error())
+	}
+	if model.IsReadOnlyRoleContext(c) {
+		publishAccess := model.GetPublishAccess()
+		bt := treenode.GetBlockTree(rootID)
+		if nil == bt {
+			numbers = map[string]string{}
+		} else {
+			passwordID, password := model.GetPathPasswordByPublishAccess(bt.BoxID, bt.Path, publishAccess)
+			if "" != password && !model.CheckPublishAuthCookie(c, passwordID, password) {
+				numbers = map[string]string{}
+			}
+			publishIgnore := model.GetDisablePublishAccess(publishAccess)
+			if !model.CheckPathAccessableByPublishIgnore(bt.BoxID, bt.Path, publishIgnore) {
+				numbers = map[string]string{}
+			}
+		}
+	}
+
+	return apicontract.Success(numbers)
+})

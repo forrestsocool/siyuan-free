@@ -7,8 +7,17 @@ import {mindmapRender} from "../render/mindmapRender";
 import {flowchartRender} from "../render/flowchartRender";
 import {plantumlRender} from "../render/plantumlRender";
 import {htmlRender} from "../render/htmlRender";
-import {Constants} from "../../constants";
 import {escapeHtml} from "../../util/escape";
+import {customBlockRender} from "../../plugin/customBlockRender";
+import {buildSemanticInlineHTML} from "./inlineElementMarker";
+import {renderTableCellRichElements} from "../render/tableCellRich";
+import {renderEmbedHeadings} from "../render/embedHeading";
+import {normalizeInlineElementBoundaries} from "./inlineElementBoundary";
+import {renderLongTextRuns} from "./longTextWrap";
+import {renderImageActions} from "../render/imageActions";
+import {renderImageDisplay} from "../render/imageDisplay";
+import {renderIFrameResize} from "../render/iframeResize";
+import {renderBlockDirection} from "../render/blockDirection";
 
 export const processPasteCode = (html: string, text: string, originalTextHTML: string, protyle: IProtyle) => {
     const tempElement = document.createElement("div");
@@ -25,13 +34,15 @@ export const processPasteCode = (html: string, text: string, originalTextHTML: s
         tempElement.querySelector(".line-number") && tempElement.querySelector(".line-content")) {
         // 网页源码
         isCode = true;
-    } else if (originalTextHTML.indexOf('<meta name="Generator" content="Cocoa HTML Writer">') > -1 &&
+    }
+    /* Mac 上不好识别，先统一移除代码标识 https://github.com/siyuan-note/siyuan/issues/17818
+    else if (originalTextHTML.indexOf('<meta name="Generator" content="Cocoa HTML Writer">') > -1 &&
         html.indexOf('\n<p class="p1">') === 0 &&
         //  ChatGPT app 目前没有此标识
         originalTextHTML.indexOf('<style type="text/css">\np.p1') > -1) {
         // Xcode
         isCode = true;
-    }
+    }*/
 
     if (isCode) {
         const code = text || html;
@@ -39,7 +50,7 @@ export const processPasteCode = (html: string, text: string, originalTextHTML: s
             return protyle.lute.Md2BlockDOM(code);
         } else {
             // Paste code <&lt;div class="b3-dialog__action"&gt;> WithAll<XXX>() <div class="b3-dialog__action">
-            return `<span data-type="code" spellcheck="false">${Constants.ZWSP}${escapeHtml(code)}</span>`;
+            return buildSemanticInlineHTML("code", escapeHtml(code), ' spellcheck="false"');
         }
     }
     return false;
@@ -51,12 +62,26 @@ const RENDER_MAP: Record<string, (previewPanel: Element) => void> = {
     mermaid: mermaidRender,
     flowchart: flowchartRender,
     echarts: chartRender,
-    mindmap: mindmapRender,
     graphviz: graphvizRender,
     math: mathRender,
 };
 
 export const processRender = (previewPanel: Element) => {
+    renderBlockDirection(previewPanel);
+    renderImageActions(previewPanel);
+    renderImageDisplay(previewPanel);
+    normalizeInlineElementBoundaries(previewPanel);
+    renderLongTextRuns(previewPanel);
+    renderEmbedHeadings(previewPanel);
+    renderTableCellRichElements(previewPanel);
+    // 受限 Lite 编辑器只渲染公式，代码围栏始终作为源码编辑，不能执行图表或 HTML。
+    if (previewPanel.closest('[data-protyle-lite-render="safe"]')) {
+        mathRender(previewPanel);
+        return;
+    }
+    renderIFrameResize(previewPanel);
+    customBlockRender(previewPanel);
+    mindmapRender(previewPanel);
     const language = previewPanel.getAttribute("data-subtype");
     if (RENDER_MAP[language]) {
         RENDER_MAP[language](previewPanel);

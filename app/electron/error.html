@@ -53,7 +53,7 @@
             right: 32px;
             top: 0;
             width: 13px;
-            fill: #5f6368;
+            fill: rgba(0, 0, 0, .6);
             padding: 9.5px;
             cursor: pointer;
             z-index: 1;
@@ -112,7 +112,7 @@
 
         .info-section {
             font-size: 14px;
-            color: #5f6368;
+            color: rgba(0, 0, 0, .6);
         }
 
         .info-section div:not(:last-child) {
@@ -228,6 +228,31 @@
 
     // 内容
     document.getElementById('content').innerHTML = params.get('content') || '';
+    document.querySelectorAll('[data-log-path]').forEach((element) => {
+        element.addEventListener('click', (event) => {
+            event.preventDefault();
+            const logPath = params.get('logPath');
+            if (!logPath) {
+                return;
+            }
+            const fs = require('fs');
+            const path = require('path');
+            const {ipcRenderer} = require('electron');
+            if (fs.existsSync(logPath)) {
+                ipcRenderer.send("siyuan-cmd", {cmd: "showItemInFolder", filePath: logPath});
+                return;
+            }
+            let existingDirectory = path.dirname(logPath);
+            while (!fs.existsSync(existingDirectory)) {
+                const parentDirectory = path.dirname(existingDirectory);
+                if (parentDirectory === existingDirectory) {
+                    return;
+                }
+                existingDirectory = parentDirectory;
+            }
+            ipcRenderer.send("siyuan-cmd", {cmd: "openPath", filePath: existingDirectory});
+        });
+    });
 
     // 时间信息
     const date = new Date();

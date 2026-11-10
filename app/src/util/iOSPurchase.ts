@@ -1,7 +1,7 @@
 import {showMessage} from "../dialog/message";
 import {fetchPost} from "./fetch";
 import {genUUID} from "./genID";
-import {progressLoading} from "../dialog/processSystem";
+import {progressLoading} from "../dialog/progress";
 
 export const processIOSPurchaseResponse = (code: number) => {
     progressLoading({
@@ -14,7 +14,7 @@ export const processIOSPurchaseResponse = (code: number) => {
             detail: document.querySelector("#modelMain #refresh")
         }));
         /// #else
-        document.querySelector('.config__tab-container[data-name="account"] #refresh').dispatchEvent(new Event("click"));
+        document.querySelector("#configAccountMain #refresh")?.dispatchEvent(new Event("click"));
         /// #endif
     } else {
         // -1：Invalid cloud region 云端区域无效
@@ -74,14 +74,19 @@ export const processIOSPurchaseResponse = (code: number) => {
 
 export const iOSPurchase = (productType: string) => {
     if (window.siyuan.user) {
+        const previousUser = window.siyuan.user;
         fetchPost("/api/setting/getCloudUser", {
-            token: window.siyuan.user.userToken,
+            token: previousUser.userToken,
         }, response => {
-            if (window.siyuan.user.userSiYuanOneTimePayStatus !== response.data.userSiYuanOneTimePayStatus ||
-                window.siyuan.user.userSiYuanProExpireTime !== response.data.userSiYuanProExpireTime ||
-                window.siyuan.user.userSiYuanSubscriptionPlan !== response.data.userSiYuanSubscriptionPlan ||
-                window.siyuan.user.userSiYuanSubscriptionType !== response.data.userSiYuanSubscriptionType ||
-                window.siyuan.user.userSiYuanSubscriptionStatus !== response.data.userSiYuanSubscriptionStatus) {
+            if (response.code !== 0) {
+                showMessage(response.msg);
+                return;
+            }
+            if (previousUser.userSiYuanOneTimePayStatus !== response.data.userSiYuanOneTimePayStatus ||
+                previousUser.userSiYuanProExpireTime !== response.data.userSiYuanProExpireTime ||
+                previousUser.userSiYuanSubscriptionPlan !== response.data.userSiYuanSubscriptionPlan ||
+                previousUser.userSiYuanSubscriptionType !== response.data.userSiYuanSubscriptionType ||
+                previousUser.userSiYuanSubscriptionStatus !== response.data.userSiYuanSubscriptionStatus) {
                 showMessage(window.siyuan.languages["_kernel"][19]);
                 return;
             }

@@ -1,6 +1,16 @@
 import {Menu} from "../../../plugin/Menu";
 import {transaction} from "../../wysiwyg/transaction";
 import {Constants} from "../../../constants";
+import {getAllEditor} from "../../../layout/getAll";
+
+const refreshDatabaseAttributePanels = (protyle: IProtyle, avID: string) => {
+    protyle.databaseAttributePanel?.refresh();
+    getAllEditor().forEach((editor) => {
+        if (editor.protyle !== protyle && editor.protyle.databaseAttributePanel?.hasDatabase(avID)) {
+            editor.protyle.databaseAttributePanel.refresh();
+        }
+    });
+};
 
 const addFormatItem = (options: {
     menu: Menu,
@@ -27,7 +37,9 @@ const addFormatItem = (options: {
                 avID: options.avID,
                 format: options.oldFormat,
                 type: "number",
-            }]);
+            }], {
+                callback: () => refreshDatabaseAttributePanels(options.protyle, options.avID),
+            });
             options.avPanelElement.remove();
         }
     });

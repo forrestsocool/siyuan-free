@@ -1,41 +1,29 @@
-import {Dialog} from "../dialog";
-import {isMobile} from "../util/functions";
-import {fetchPost} from "../util/fetch";
-import {fillContent} from "./actions";
+import {openInputDialog} from "../dialog/inputDialog";
+import {clearAIEditorHistory, startAIWriting} from "./editor";
+import {showMessage} from "../dialog/message";
+import {isDisabledFeature} from "../protyle/util/compatibility";
 
-export const AIChat = (protyle: IProtyle, element: Element) => {
-    const dialog = new Dialog({
+export const AIChat = (protyle: IProtyle, element: HTMLElement) => {
+    if (isDisabledFeature("ai")) {
+        return;
+    }
+    openInputDialog({
         title: "✨ " + window.siyuan.languages.aiWriting,
-        content: `<div class="b3-dialog__content"><textarea class="b3-text-field fn__block"></textarea></div>
-<div class="b3-dialog__action">
-    <button class="b3-button b3-button--cancel">${window.siyuan.languages.cancel}</button><div class="fn__space"></div>
-    <button class="b3-button b3-button--text">${window.siyuan.languages.confirm}</button>
-</div>`,
-        width: isMobile() ? "92vw" : "520px",
-    });
-    const inputElement = dialog.element.querySelector("textarea");
-    const btnsElement = dialog.element.querySelectorAll(".b3-button");
-    dialog.bindInput(inputElement, () => {
-        (btnsElement[1] as HTMLButtonElement).click();
-    });
-    inputElement.focus();
-    btnsElement[0].addEventListener("click", () => {
-        dialog.destroy();
-    });
-    btnsElement[1].addEventListener("click", () => {
-        let inputValue = inputElement.value;
-        fetchPost("/api/ai/chatGPT", {
-            msg: inputValue,
-        }, (response) => {
+        value: "",
+        multiline: true,
+        resize: "vertical",
+        onConfirm: (inputValue, dialog) => {
+            if (!inputValue.trim()) {
+                showMessage(window.siyuan.languages["_kernel"][142]);
+                return;
+            }
             dialog.destroy();
-            let respContent = "";
-            if (response.data && "" !== response.data) {
-                respContent = "\n\n" + response.data;
-            }
             if (inputValue === "Clear context") {
-                inputValue = "";
+                clearAIEditorHistory(protyle);
+                showMessage(window.siyuan.languages.clearContextSucc);
+                return;
             }
-            fillContent(protyle, `${inputValue}${respContent}`, [element]);
-        });
+            startAIWriting(protyle, element, inputValue);
+        },
     });
 };

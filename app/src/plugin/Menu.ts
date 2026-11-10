@@ -1,16 +1,57 @@
 import {Menu as SiyuanMenu} from "../menus/Menu";
+import {toggleMenu} from "../menus/menuToggle";
+
+const independentMenus = new WeakMap<HTMLElement, Menu>();
 
 export class Menu {
+    // 在创建共享菜单前按触发元素切换，保留构造器及独立菜单的既有行为。
+    static toggle(options: {
+        target?: Element;
+        toggle?: boolean;
+        id?: string;
+        closeCB?: () => void;
+        build: (menu: Menu) => void;
+        show: (menu: Menu) => void;
+    }) {
+        let menu: Menu;
+        toggleMenu({
+            target: options.target,
+            toggle: options.toggle,
+            build: () => {
+                menu = new Menu(options.id, options.closeCB);
+                options.build(menu);
+            },
+            show: () => options.show(menu),
+        });
+    }
+
     private menu: SiyuanMenu;
+    private parentMenu?: Menu;
+    private childMenus = new Set<Menu>();
     public isOpen: boolean;
     public element: HTMLElement;
 
-    constructor(id?: string, closeCB?: () => void) {
-        this.menu = window.siyuan.menus.menu;
+    constructor(id?: string, closeCB?: () => void, independent = false) {
+        if (independent) {
+            const element = window.siyuan.menus.menu.element.cloneNode(true) as HTMLElement;
+            element.removeAttribute("id");
+            element.removeAttribute("data-name");
+            element.removeAttribute("data-from");
+            element.removeAttribute("style");
+            element.setAttribute("data-menu", "true");
+            element.classList.add("fn__none");
+            element.classList.remove("b3-menu--list", "b3-menu--fullscreen");
+            element.firstElementChild.classList.add("fn__none");
+            element.lastElementChild.innerHTML = "";
+            document.body.append(element);
+            this.menu = new SiyuanMenu(element);
+        } else {
+            this.menu = window.siyuan.menus.menu;
+        }
         this.isOpen = false;
         this.element = this.menu.element;
 
-        if (id) {
+        if (id && !independent) {
             const dataName = this.menu.element.getAttribute("data-name");
             if (dataName && dataName === id) {
                 this.isOpen = true;
@@ -21,7 +62,36 @@ export class Menu {
             if (id) {
                 this.menu.element.setAttribute("data-name", id);
             }
-            this.menu.removeCB = closeCB;
+            if (independent) {
+                independentMenus.set(this.element, this);
+                const closeEvent = (event: MouseEvent) => {
+                    if (!this.contains(event.target as Node)) {
+                        this.close();
+                    }
+                };
+                const keydownEvent = (event: KeyboardEvent) => {
+                    event.stopPropagation();
+                    if (event.key === "Escape") {
+                        event.preventDefault();
+                        this.close();
+                    }
+                };
+                window.addEventListener("click", closeEvent, true);
+                this.element.addEventListener("keydown", keydownEvent);
+                this.menu.removeCB = () => {
+                    window.removeEventListener("click", closeEvent, true);
+                    this.element.removeEventListener("keydown", keydownEvent);
+                    this.childMenus.forEach(menu => menu.close());
+                    this.childMenus.clear();
+                    this.parentMenu?.childMenus.delete(this);
+                    this.parentMenu = undefined;
+                    independentMenus.delete(this.element);
+                    closeCB?.();
+                    this.element.remove();
+                };
+            } else {
+                this.menu.removeCB = closeCB;
+            }
         }
     }
 
@@ -63,6 +133,17 @@ export class Menu {
         if (this.isOpen) {
             return;
         }
+        // 按触发控件记录菜单归属，点击派生菜单时保留父表单，父菜单关闭时清理子菜单。
+        if (independentMenus.has(this.element)) {
+            this.parentMenu?.childMenus.delete(this);
+            this.parentMenu = undefined;
+            const parentElement = options.target?.closest<HTMLElement>(".b3-menu");
+            const parentMenu = parentElement && independentMenus.get(parentElement);
+            if (parentMenu && parentMenu !== this && !this.contains(parentMenu.element)) {
+                this.parentMenu = parentMenu;
+                parentMenu.childMenus.add(this);
+            }
+        }
         this.menu.popup(options);
     }
 
@@ -75,5 +156,9 @@ export class Menu {
 
     close() {
         this.menu.remove();
+    }
+
+    private contains(target: Node): boolean {
+        return this.element.contains(target) || Array.from(this.childMenus).some(menu => menu.contains(target));
     }
 }

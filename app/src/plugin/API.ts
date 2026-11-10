@@ -2,6 +2,7 @@ import {confirmDialog} from "../dialog/confirmDialog";
 import {Plugin} from "./index";
 import {hideMessage, showMessage} from "../dialog/message";
 import {Dialog} from "../dialog";
+import {openInputDialog} from "../dialog/inputDialog";
 import {fetchGet, fetchPost, fetchSyncPost} from "../util/fetch";
 import {getBackend, getFrontend} from "../util/functions";
 /// #if !MOBILE
@@ -9,33 +10,40 @@ import {openFile, openFileById} from "../editor/util";
 import {openNewWindow, openNewWindowById} from "../window/openNewWindow";
 import {Tab} from "../layout/Tab";
 /// #endif
-import {updateHotkeyTip} from "../protyle/util/compatibility";
+import {saveExportFile, updateHotkeyTip} from "../protyle/util/compatibility";
 import * as platformUtils from "./platformUtils";
-import {App} from "../index";
+import type {App} from "../index";
 import {Constants} from "../constants";
 import {Setting} from "./Setting";
 import {Menu} from "./Menu";
 import {Protyle} from "../protyle";
 import {openMobileFileById} from "../mobile/editor";
-import {lockScreen, exitSiYuan} from "../dialog/processSystem";
+import {exitSiYuan, lockScreen} from "../dialog/processSystem";
 import {Model} from "../layout/Model";
-import {getActiveTab, getDockByType} from "../layout/tabUtil";
 /// #if !MOBILE
+import {getActiveTab, getDockByType} from "../layout/tabUtil";
 import {getAllModels, getAllTabs} from "../layout/getAll";
+import {exportLayout} from "../layout/util";
 /// #endif
 import {getAllEditor} from "../layout/getAll";
-import {openSetting} from "../config";
+import {openPluginSetting} from "../config";
 import {openAttr, openFileAttr} from "../menus/commonMenuItem";
 import {globalCommand} from "../boot/globalEvent/command/global";
-import {exportLayout} from "../layout/util";
-import {saveScroll} from "../protyle/scroll/saveScroll";
+import {saveMobileLayout} from "../mobile/util/saveLayout";
 import {hasClosestByClassName} from "../protyle/util/hasClosest";
-import {Files} from "../layout/dock/Files";
+import type {MobileFiles} from "../mobile/dock/MobileFiles";
+import type {Files} from "../layout/dock/Files";
 import {ProtyleMethod} from "./ProtyleMethod";
 import {openEmojiPanel} from "../emoji";
+import {openAssetPicker} from "../asset/picker";
+import {adjustEditorFontSize, setEditorFontSize} from "../util/editorFontSize";
+import {insertEditorContent, IInsertContentOptions} from "./insertContent";
+/// #if !MOBILE
+import {isDockPanelVisible, toggleDockPanel} from "../layout/dock/panel";
+/// #endif
 
-let openTab;
-let openWindow;
+let openTab: (options: any) => any;
+let openWindow: (options: any) => void;
 /// #if MOBILE
 openTab = () => {
     // TODO: Mobile
@@ -203,7 +211,7 @@ const getModelByDockType = (type: TDock | string) => {
 };
 
 const openAttributePanel = (options: {
-    data?: IObject  // 块属性值
+    data?: Record<string, string>  // 块属性值
     nodeElement?: HTMLElement,  // 块元素
     focusName: "bookmark" | "name" | "alias" | "memo" | "av" | "custom",    // av 为数据库页签，custom 为自定义页签，其余为内置输入框
     protyle?: IProtyle, // 有数据库时需要传入 protyle
@@ -217,14 +225,13 @@ const openAttributePanel = (options: {
 
 const saveLayout = (cb: () => void) => {
     /// #if MOBILE
-    if (window.siyuan.mobile.editor) {
-        const result = saveScroll(window.siyuan.mobile.editor.protyle);
-        if (cb && result instanceof Promise) {
-            result.then(() => {
-                cb();
-            });
+    void saveMobileLayout().then((saved) => {
+        if (saved) {
+            cb?.();
+        } else {
+            showMessage(window.siyuan.languages.mobileLayoutSaveError, 6000, "error");
         }
-    }
+    });
     /// #else
     exportLayout({cb, errorExit: false});
     /// #endif
@@ -237,7 +244,8 @@ const getActiveEditor = (wndActive = true) => {
     const allEditor = getAllEditor();
     if (range) {
         editor = allEditor.find(item => {
-            if (item.protyle.element.contains(range.startContainer)) {
+            if (!item.protyle.element.classList.contains("fn__none") &&
+                item.protyle.element.contains(range.startContainer)) {
                 return true;
             }
         });
@@ -279,6 +287,19 @@ const getActiveEditor = (wndActive = true) => {
     return editor;
 };
 
+const insertContent = (options: IInsertContentOptions) => {
+    if (options?.editor) {
+        return insertEditorContent(options, []);
+    }
+    let editors: Protyle[];
+    /// #if MOBILE
+    editors = [window.siyuan.mobile.popEditor, window.siyuan.mobile.editor].filter(Boolean);
+    /// #else
+    editors = getAllModels().editor.map(model => model.editor);
+    /// #endif
+    return insertEditorContent(options, editors);
+};
+
 export const expandDocTree = async (options: {
     id: string,
     isSetCurrent?: boolean
@@ -292,15 +313,15 @@ export const expandDocTree = async (options: {
     });
     let liElement: HTMLElement;
     let notebookId = options.id;
-    const file = getModelByDockType("file") as Files;
+    const file = getModelByDockType("file") as MobileFiles | Files;
     if (typeof options.isSetCurrent === "undefined") {
         options.isSetCurrent = true;
     }
     if (isNotebook) {
         liElement = file.element.querySelector(`.b3-list[data-url="${options.id}"]`)?.firstElementChild as HTMLElement;
     } else {
-        const response = await fetchSyncPost("api/block/getBlockInfo", {id: options.id});
-        if (response.code === -1) {
+        const response = await fetchSyncPost("/api/block/getBlockInfo", {id: options.id});
+        if (response.code !== 0 || response.data.publishAccessRequired) {
             return;
         }
         notebookId = response.data.box;
@@ -325,6 +346,7 @@ const openEmoji = (options: {
     dynamicIconURL?: string
     hideDynamicIcon?: boolean
     hideCustomIcon?: boolean
+    targetID?: string
 }) => {
     let dynamicImgElement: HTMLImageElement;
     if (options.dynamicIconURL) {
@@ -333,16 +355,67 @@ const openEmoji = (options: {
     }
     openEmojiPanel("", "av", options.position, options.selectedCB, dynamicImgElement, {
         dynamic: options.hideDynamicIcon,
-        custom: options.hideCustomIcon
+        custom: options.hideCustomIcon,
+        targetID: options.targetID,
     });
 };
 
-export const API = {
+const toggleLeftDock = (visible?: boolean) => {
+    /// #if MOBILE
+    return false;
+    /// #else
+    return toggleDockPanel("Left", visible);
+    /// #endif
+};
+
+const toggleRightDock = (visible?: boolean) => {
+    /// #if MOBILE
+    return false;
+    /// #else
+    return toggleDockPanel("Right", visible);
+    /// #endif
+};
+
+const toggleBottomDock = (visible?: boolean) => {
+    /// #if MOBILE
+    return false;
+    /// #else
+    return toggleDockPanel("Bottom", visible);
+    /// #endif
+};
+
+const isLeftDockVisible = () => {
+    /// #if MOBILE
+    return false;
+    /// #else
+    return isDockPanelVisible("Left");
+    /// #endif
+};
+
+const isRightDockVisible = () => {
+    /// #if MOBILE
+    return false;
+    /// #else
+    return isDockPanelVisible("Right");
+    /// #endif
+};
+
+const isBottomDockVisible = () => {
+    /// #if MOBILE
+    return false;
+    /// #else
+    return isDockPanelVisible("Bottom");
+    /// #endif
+};
+
+const createAPI = () => ({
     adaptHotkey: updateHotkeyTip,
     confirm: confirmDialog,
     Constants,
     showMessage,
     hideMessage,
+    adjustEditorFontSize,
+    setEditorFontSize,
     fetchPost,
     fetchSyncPost,
     fetchGet,
@@ -358,20 +431,40 @@ export const API = {
     ProtyleMethod,
     Plugin,
     Dialog,
+    openInputDialog,
     Menu,
     Setting,
     getAllEditor,
+    saveExportFile,
     /// #if !MOBILE
     getActiveTab,
     getAllModels,
     getAllTabs,
     /// #endif
     getActiveEditor,
+    insertContent,
     platformUtils,
-    openSetting,
+    openSetting: openPluginSetting,
     openAttributePanel,
     saveLayout,
     globalCommand,
     expandDocTree,
-    openEmoji
+    openEmoji,
+    openAssetPicker,
+    toggleLeftDock,
+    toggleRightDock,
+    toggleBottomDock,
+    isLeftDockVisible,
+    isRightDockVisible,
+    isBottomDockVisible,
+});
+
+let api: ReturnType<typeof createAPI>;
+
+export const getAPI = () => {
+    // 在插件首次请求接口时初始化，避免循环依赖读取尚未初始化的模块成员。
+    if (!api) {
+        api = createAPI();
+    }
+    return api;
 };
