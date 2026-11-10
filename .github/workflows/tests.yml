@@ -57,6 +57,10 @@ jobs:
         working-directory: .
         run: python -m unittest discover -s scripts -p test_docker_entrypoint.py -v
 
+      - name: Test Docker release and runtime cache
+        working-directory: .
+        run: python -m unittest discover -s scripts -p test_docker_release.py -q
+
   frontend:
     runs-on: ubuntu-latest
     steps:

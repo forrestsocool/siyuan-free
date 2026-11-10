@@ -93,12 +93,17 @@ def build(command, log_path):
                 raise subprocess.CalledProcessError(code, command)
 
 
-def ensure(context, repository, platform, parallel, records):
+def ensure(context, repository, platform, parallel, records, upstream_repository=None):
     if not re.fullmatch(r"[a-z0-9][a-z0-9./_-]*", repository) or parallel < 1:
         raise ValueError("Invalid ONNX repository or parallelism")
+    if upstream_repository is not None and not re.fullmatch(r"[a-z0-9][a-z0-9./_-]*", upstream_repository):
+        raise ValueError("Invalid upstream ONNX repository")
     key, version = inputs(context, platform)
-    tag = repository + ":onnx-" + PLATFORMS[platform] + "-" + key
+    suffix = ":onnx-" + PLATFORMS[platform] + "-" + key
+    tag = repository + suffix
     image = resolve(tag)
+    if image is None and upstream_repository is not None:
+        image = resolve(upstream_repository + suffix)
     reused = image is not None
     if not reused:
         cache = repository + ":buildcache-onnx-v3-" + PLATFORMS[platform]
@@ -120,6 +125,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--context", type=Path, default=ROOT)
     parser.add_argument("--repository", required=True)
+    parser.add_argument("--upstream-repository", help="Optional read-only artifact cache; inputs are still validated")
     parser.add_argument("--platform", choices=PLATFORMS, required=True)
     parser.add_argument("--parallel", type=int, default=2)
     parser.add_argument("--records", type=Path, required=True)
@@ -129,7 +135,8 @@ def main():
     started = time.monotonic()
     report = {"status": "failed"}
     try:
-        report.update(ensure(args.context.resolve(), args.repository, args.platform, args.parallel, args.records))
+        report.update(ensure(args.context.resolve(), args.repository, args.platform, args.parallel, args.records,
+                             args.upstream_repository))
         report["status"] = "passed"
         if args.github_output:
             with args.github_output.open("a", encoding="utf-8") as stream:

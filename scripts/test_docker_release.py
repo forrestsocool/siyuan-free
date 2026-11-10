@@ -855,6 +855,30 @@ class ONNXArtifactTests(unittest.TestCase):
             self.assertEqual(onnx.resolve("b3log/siyuan:onnx-test"), IMAGE)
         self.assertEqual(run.call_args.args[0][-1], "{{json .Manifest}}")
 
+    def test_upstream_artifact_is_validated_and_reused_without_building(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.context(directory)
+            with patch.object(onnx, "resolve", side_effect=[None, IMAGE]) as resolve, \
+                    patch.object(onnx, "validate") as validate, patch.object(onnx, "build") as build:
+                report = onnx.ensure(root, "ghcr.io/example/siyuan", "linux/amd64", 2, root, "b3log/siyuan")
+            suffix = ":onnx-amd64-" + report["inputs"]
+            self.assertEqual([call.args[0] for call in resolve.call_args_list],
+                             ["ghcr.io/example/siyuan" + suffix, "b3log/siyuan" + suffix])
+            build.assert_not_called()
+            validate.assert_called_once_with(IMAGE, "linux/amd64", report["inputs"], "1.24.3")
+            self.assertTrue(report["reused"])
+
+    def test_missing_upstream_artifact_builds_in_the_fork_repository(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.context(directory)
+            with patch.object(onnx, "resolve", side_effect=[None, None, IMAGE]), \
+                    patch.object(onnx, "validate") as validate, patch.object(onnx, "build") as build:
+                report = onnx.ensure(root, "ghcr.io/example/siyuan", "linux/amd64", 2, root, "b3log/siyuan")
+            command = build.call_args.args[0]
+            self.assertTrue(command[command.index("--tag") + 1].startswith("ghcr.io/example/siyuan:onnx-"))
+            self.assertFalse(report["reused"])
+            validate.assert_called_once_with(IMAGE, "linux/amd64", report["inputs"], "1.24.3")
+
     def test_missing_artifact_builds_only_onnx_then_resolves_and_validates_its_digest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.context(directory)

@@ -84,6 +84,7 @@ jobs:
         run: |
           python3 scripts/build-docker-onnx.py --context . \
             --repository "$SIYUAN_IMAGE" --platform "$PLATFORM" \
+            --upstream-repository b3log/siyuan \
             --records "$RUNNER_TEMP/onnx" --github-output "$GITHUB_OUTPUT"
 
       - name: Build SiYuan candidate
