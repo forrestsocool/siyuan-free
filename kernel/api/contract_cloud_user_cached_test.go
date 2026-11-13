@@ -13,15 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/siyuan-note/siyuan/kernel/conf"
 	"github.com/siyuan-note/siyuan/kernel/model"
+	"github.com/siyuan-note/siyuan/kernel/util"
 )
 
 func TestAPIContractSettingCloudUserCached(t *testing.T) {
-	previous := model.Conf
+	previous, previousReadOnly := model.Conf, util.ReadOnly
 	model.Conf = model.NewAppConf()
-	t.Cleanup(func() { model.Conf = previous })
+	util.ReadOnly = true
+	t.Cleanup(func() { model.Conf, util.ReadOnly = previous, previousReadOnly })
 	for _, user := range []*conf.User{nil, {UserId: "owner", UserTokenExpireTime: "0"}} {
-		model.Conf.SetUser(user)
 		for _, role := range []model.Role{model.RoleAdministrator, model.RoleReader, model.RoleEditor} {
+			model.Conf.SetUser(user)
 			recorder := httptest.NewRecorder()
 			context, _ := gin.CreateTestContext(recorder)
 			context.Set(model.RoleContextKey, role)
@@ -31,7 +33,8 @@ func TestAPIContractSettingCloudUserCached(t *testing.T) {
 			var result struct {
 				Code int `json:"code"`
 				Data *struct {
-					UserID string `json:"userId"`
+					UserID        string  `json:"userId"`
+					OneTimeStatus float64 `json:"userSiYuanOneTimePayStatus"`
 				} `json:"data"`
 			}
 			if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
@@ -40,12 +43,24 @@ func TestAPIContractSettingCloudUserCached(t *testing.T) {
 			if result.Code != 0 {
 				t.Fatalf("cached query failed: %s", recorder.Body.String())
 			}
-			if role == model.RoleAdministrator && user != nil {
-				if result.Data == nil || result.Data.UserID != user.UserId {
+			if role == model.RoleAdministrator {
+				if result.Data == nil {
 					t.Fatal("cached account missing")
 				}
-			} else if result.Data != nil {
-				t.Fatal("unexpected account disclosure")
+				if user == nil {
+					if result.Data.UserID != "0" || result.Data.OneTimeStatus != 1 {
+						t.Fatal("missing cache did not restore the local paid account")
+					}
+				} else if result.Data.UserID != user.UserId {
+					t.Fatal("existing cached account changed")
+				}
+			} else {
+				if result.Data != nil {
+					t.Fatal("unexpected account disclosure")
+				}
+				if model.Conf.GetUser() != user {
+					t.Fatal("non-administrator request changed the cached account")
+				}
 			}
 		}
 	}

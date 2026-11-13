@@ -1,22 +1,11 @@
-// SiYuan - Refactor your thinking
+// SiYuan - https://github.com/siyuan-note/siyuan
 // Copyright (c) 2020-present, b3log.org
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package model
 
 import (
+	"bytes"
 	"net/http"
 	"testing"
 
@@ -123,13 +112,43 @@ func TestGetCloudUserUsesLocalUnlockUser(t *testing.T) {
 	for _, cached := range []bool{false, true} {
 		t.Run(map[bool]string{false: "refresh", true: "cached"}[cached], func(t *testing.T) {
 			withTestConf(t)
-			if cached {
-				EnsureLocalUnlockUser()
-			}
+			requests := 0
+			mockCloudAuthResponse(t, func(request *http.Request) (*http.Response, error) {
+				requests++
+				return cloudAuthResponse(request, http.StatusServiceUnavailable, ""), nil
+			})
+			repoKey := []byte("existing-repository-key")
+			Conf.Repo.Store(&conf.Repo{Key: append([]byte(nil), repoKey...)})
 			user, err := GetCloudUser("expired-cloud-token", cached)
 			if err != nil || user == nil || user.UserToken != localUnlockUserToken {
 				t.Fatalf("expected local user without a community request, got %#v, %v", user, err)
 			}
+			if requests != 0 || !IsPaidUser() {
+				t.Fatalf("local account recovery failed: community requests=%d, paid=%t", requests, IsPaidUser())
+			}
+			if !bytes.Equal(Conf.Repo.Load().Key, repoKey) {
+				t.Fatal("recovering the local account changed the repository key")
+			}
+			cachedUser, err := GetCloudUser("ignored-token", true)
+			if err != nil || cachedUser != user {
+				t.Fatal("cached account recovery did not retain the active user")
+			}
 		})
+	}
+}
+
+func TestGetCloudUserUsesLocalUnlockUserPreservesCachedAccount(t *testing.T) {
+	withTestConf(t)
+	existing := &conf.User{UserId: "existing-account", UserTokenExpireTime: "0"}
+	Conf.SetUser(existing)
+	requests := 0
+	mockCloudAuthResponse(t, func(request *http.Request) (*http.Response, error) {
+		requests++
+		return cloudAuthResponse(request, http.StatusServiceUnavailable, ""), nil
+	})
+
+	got, err := GetCloudUser("ignored-token", true)
+	if err != nil || got != existing || requests != 0 {
+		t.Fatalf("cached account was replaced or refreshed: same=%t, requests=%d, err=%v", got == existing, requests, err)
 	}
 }

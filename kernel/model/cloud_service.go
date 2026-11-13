@@ -384,7 +384,10 @@ func refreshAnnouncement() {
 // GetCloudUser 在启动时读取内存账户；需要刷新时保留资源来源切换保护。
 func GetCloudUser(token string, cached bool) (*conf.User, error) {
 	if cached {
-		return Conf.GetUser(), nil
+		if user := Conf.GetUser(); user != nil {
+			return user, nil
+		}
+		return EnsureLocalUnlockUser(), nil
 	}
 	return RefreshUser(token)
 }

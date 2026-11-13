@@ -23,7 +23,7 @@ jobs:
           cache-dependency-path: kernel/go.sum
 
       - name: Test local unlock extras
-        run: go test -tags 'fts5 sqlcipher' ./model ./api -run 'Test(EnsureLocalUnlockUser|RefreshUserUsesLocalUnlockUser|GetCloudUserUsesLocalUnlockUser|CloudUser|ResolveCloudUserRefresh|LocalInbox|APIContractLocal|APIContractInbox|APIContractRouterCoverage)' -count=1
+        run: go test -tags 'fts5 sqlcipher' ./model ./api -run 'Test(EnsureLocalUnlockUser|RefreshUserUsesLocalUnlockUser|GetCloudUserUsesLocalUnlockUser|CloudUser|ResolveCloudUserRefresh|LocalInbox|APIContractLocal|APIContractInbox|APIContractSettingCloudUserCached|APIContractRouterCoverage)' -count=1
 
       - name: Check generated API contracts
         run: go run ./apicontract/cmd/apigen --check

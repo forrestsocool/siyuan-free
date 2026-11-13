@@ -12,9 +12,7 @@ import (
 )
 
 func TestCloudUserCachedDuringSync(t *testing.T) {
-	previous := Conf
-	Conf = NewAppConf()
-	t.Cleanup(func() { Conf = previous })
+	withTestConf(t)
 	for _, user := range []*conf.User{nil, {UserId: "owner", UserTokenExpireTime: "0"}} {
 		Conf.SetUser(user)
 		Conf.UserData = "preserved-account"
@@ -34,7 +32,14 @@ func TestCloudUserCachedDuringSync(t *testing.T) {
 			<-done
 			t.Fatal("cached account query waited for synchronization")
 		}
-		if err != nil || got != user || Conf.GetUser() != user || Conf.UserData != "preserved-account" {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if user == nil {
+			if got == nil || got.UserToken != localUnlockUserToken || Conf.GetUser() != got {
+				t.Fatal("cached query did not recover the missing local account during synchronization")
+			}
+		} else if got != user || Conf.GetUser() != user || Conf.UserData != "preserved-account" {
 			t.Fatal("cached query changed the account or attempted to refresh it")
 		}
 	}
